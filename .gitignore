@@ -1,0 +1,10 @@
+.env
+data/library/*
+data/watch/*
+!data/library/.gitkeep
+!data/watch/.gitkeep
+node_modules
+.next
+__pycache__
+.venv
+.pytest_cache

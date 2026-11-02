@@ -1,0 +1,144 @@
+name: biblioflow
+
+x-backend-build: &backend-build
+  context: ./backend
+  args:
+    UID: ${APP_UID:-1000}
+    GID: ${APP_GID:-1000}
+    INSTALL_DEV: ${INSTALL_DEV:-false}
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@biblioflow-db:5432/${POSTGRES_DB:?}
+  TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@biblioflow-db:5432/biblioflow_test
+  REDIS_URL: redis://:${REDIS_PASSWORD:?}@biblioflow-redis:6379/0
+
+x-backend-common: &backend-common
+  env_file: .env
+  environment: *backend-env
+  volumes:
+    - ./data/library:/data/library
+    - ./data/watch:/data/watch
+  networks:
+    - biblioflow-internal
+    - biblioflow-edge
+  depends_on:
+    biblioflow-db:
+      condition: service_healthy
+    biblioflow-redis:
+      condition: service_healthy
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+  restart: unless-stopped
+
+services:
+  biblioflow-db:
+    image: pgvector/pgvector:pg16
+    container_name: biblioflow-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - biblioflow-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  biblioflow-redis:
+    image: redis:7-alpine
+    container_name: biblioflow-redis
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    volumes:
+      - redisdata:/data
+    networks:
+      - biblioflow-internal
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  biblioflow-api:
+    <<: *backend-common
+    build: *backend-build
+    container_name: biblioflow-api
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  biblioflow-worker:
+    <<: *backend-common
+    build: *backend-build
+    container_name: biblioflow-worker
+    command: ["arq", "app.workers.settings.WorkerSettings"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,redis; redis.Redis.from_url(os.environ['REDIS_URL']).ping()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  biblioflow-frontend:
+    build:
+      context: ./frontend
+      args:
+        UID: ${APP_UID:-1000}
+        GID: ${APP_GID:-1000}
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://biblioflow-api:8000}
+    container_name: biblioflow-frontend
+    environment:
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://biblioflow-api:8000}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - biblioflow-edge
+    depends_on:
+      biblioflow-api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+networks:
+  biblioflow-internal:
+    name: biblioflow-internal
+    driver: bridge
+    internal: true
+  biblioflow-edge:
+    name: biblioflow-edge
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:

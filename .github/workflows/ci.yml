@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: biblioflow_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/biblioflow_test
+      REDIS_URL: redis://localhost:6379/0
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.3"
+      - run: uv sync --frozen
+      - name: Run tests (integration tests must not be skipped)
+        run: |
+          uv run pytest -q -rs -p no:cacheprovider | tee pytest.log
+          if grep -qi "skipped" pytest.log; then echo "::error::tests were skipped"; exit 1; fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare .env
+        run: |
+          cp .env.example .env
+          for k in POSTGRES_PASSWORD REDIS_PASSWORD JWT_SECRET; do
+            sed -i "s|^$k=.*|$k=$(openssl rand -hex 32)|" .env
+          done
+      - run: docker compose config -q
+      - name: Build and start stack
+        run: docker compose up -d --build --wait --wait-timeout 180
+      - name: Smoke test via frontend proxy
+        run: curl -fsS http://127.0.0.1:3000/api/v1/healthz
+      - name: Verify DB/Redis are not published
+        run: |
+          test -z "$(docker compose port biblioflow-db 5432 2>/dev/null | grep -v ':0$')"
+          test -z "$(docker compose port biblioflow-redis 6379 2>/dev/null | grep -v ':0$')"
+      - name: Verify non-root
+        run: |
+          for s in biblioflow-api biblioflow-worker biblioflow-frontend; do
+            uid=$(docker compose exec -T $s id -u); echo "$s uid=$uid"; test "$uid" != "0"
+          done
+      - if: failure()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down -v
