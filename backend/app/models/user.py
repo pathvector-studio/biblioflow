@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, String, text
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, String, text
 from sqlalchemy.dialects.postgresql import CITEXT
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,3 +15,4 @@ class User(UUIDPKMixin, TimestampMixin, Base):
     display_name: Mapped[str] = mapped_column(String(100), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    sessions_valid_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

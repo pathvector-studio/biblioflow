@@ -77,6 +77,10 @@ async def _principal_from_cookie(token: str, db: AsyncSession, redis: Redis) -> 
     user = await db.get(User, claims.sub)
     if user is None or not user.is_active:
         raise _unauthorized("Invalid session")
+    # iat has second granularity: compare against the floored cut-off so a cookie re-issued in the
+    # same second as the password change stays valid.
+    if user.sessions_valid_after is not None and claims.iat < int(user.sessions_valid_after.timestamp()):
+        raise _unauthorized("Session revoked")
     return Principal(
         user=user,
         auth_method="session",

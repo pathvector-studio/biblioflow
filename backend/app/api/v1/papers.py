@@ -481,6 +481,28 @@ async def patch_paper(
     return await _detail(db, paper)
 
 
+@router.delete("/{paper_id}", status_code=204)
+async def delete_paper(
+    paper_id: uuid.UUID,
+    principal: Principal = Depends(require_scopes(SCOPE_WRITE_PAPERS)),
+    db: AsyncSession = Depends(get_db),
+) -> Response:
+    paper = await get_paper_for_user(db, paper_id, principal, WorkspaceRole.editor)
+    rel = paper.relative_file_path
+    await db.delete(paper)  # annotations, tag/collection links and chunks go via ON DELETE CASCADE
+    await db.flush()
+    orphaned = False
+    if rel:
+        orphaned = (await db.execute(select(Paper.id).where(Paper.relative_file_path == rel).limit(1))).first() is None
+    await db.commit()
+    if orphaned and rel:
+        try:
+            resolve_in_library(rel, get_settings().library_root).unlink(missing_ok=True)
+        except (PathTraversalError, OSError):
+            pass  # the DB row is already gone; a stray file is harmless
+    return Response(status_code=204)
+
+
 @router.get("/{paper_id}/file")
 async def get_paper_file(
     paper_id: uuid.UUID,

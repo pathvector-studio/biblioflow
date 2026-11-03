@@ -26,3 +26,13 @@ class MeResponse(BaseModel):
     user: UserOut
     auth_method: Literal["session", "pat"]
     scopes: list[str]
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def _pw(cls, v: str) -> str:
+        return validate_password(v)

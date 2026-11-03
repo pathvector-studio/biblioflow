@@ -13,7 +13,7 @@ from app.core.redis import get_redis
 from app.core.security import create_access_token, hash_password, password_needs_rehash, verify_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, MeResponse, RegisterRequest
+from app.schemas.auth import LoginRequest, MeResponse, PasswordChangeRequest, RegisterRequest
 from app.schemas.user import UserOut
 from app.services.users import create_user
 
@@ -27,6 +27,20 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _set_session_cookie(response: Response, user: User) -> None:
+    settings = get_settings()
+    token, _jti, _exp = create_access_token(user.id)
+    response.set_cookie(
+        SESSION_COOKIE_NAME,
+        token,
+        max_age=settings.jwt_expire_minutes * 60,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/",
+    )
+
+
 @router.post("/login", response_model=UserOut)
 async def login(
     body: LoginRequest,
@@ -35,7 +49,6 @@ async def login(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ) -> User:
-    settings = get_settings()
     ip = client_ip(request)
     email = body.email.strip().lower()
     await enforce_rate_limit(redis, "login_ip_email", (ip, email), LOGIN_PER_IP_EMAIL)
@@ -51,16 +64,7 @@ async def login(
         user.password_hash = hash_password(body.password)
         await db.commit()
 
-    token, _jti, _exp = create_access_token(user.id)
-    response.set_cookie(
-        SESSION_COOKIE_NAME,
-        token,
-        max_age=settings.jwt_expire_minutes * 60,
-        httponly=True,
-        secure=settings.cookie_secure,
-        samesite="lax",
-        path="/",
-    )
+    _set_session_cookie(response, user)
     return user
 
 
@@ -78,6 +82,29 @@ async def logout(
     out.delete_cookie(
         SESSION_COOKIE_NAME, path="/", httponly=True, secure=settings.cookie_secure, samesite="lax"
     )
+    return out
+
+
+@router.post("/password", status_code=204)
+async def change_password(
+    body: PasswordChangeRequest,
+    principal: Principal = Depends(get_session_principal),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+) -> Response:
+    user = principal.user
+    await enforce_rate_limit(redis, "password_change", (str(user.id),), 5)
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    user.password_hash = hash_password(body.new_password)
+    user.sessions_valid_after = datetime.now(UTC)
+    await db.commit()
+    if principal.jti and principal.session_expires_at:
+        ttl = int((principal.session_expires_at - datetime.now(UTC)).total_seconds()) + 1
+        if ttl > 0:
+            await redis.set(DENYLIST_PREFIX + principal.jti, "1", ex=ttl)
+    out = Response(status_code=204)
+    _set_session_cookie(out, user)
     return out
 
 

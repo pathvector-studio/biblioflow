@@ -108,15 +108,16 @@
 
 ## 6. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-03（Phase 2 実装）
+> 最終更新: 2026-11-03（Phase 4 実装完了・PR 作成。次は Phase 3）
 
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
 |---|---|---|
 | 1. インフラ・DBスキーマ・セキュリティ基盤 | ✅ 完了（CI green） | PR #1 `feat/phase1-foundation`（https://github.com/pathvector-studio/biblioflow/pull/1）。設計詳細は `specs/phase1.md` |
 | 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（https://github.com/pathvector-studio/biblioflow/pull/2）。設計詳細は `specs/phase2.md` |
-| 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ** | Phase 2 のマージ後に `main` から `feat/phase3-rag` を切る |
-| 4. Frontend Web UI | 未着手 | `frontend/` は Phase1 で最小 scaffold のみ |
+| 4. Frontend Web UI（AI 以外） | ✅ 実装完了（PR レビュー待ち） | `specs/phase4.md`。ブランチ `feat/phase4-ui` |
+| 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ** | §6.5 の TODO から |
+| 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | 未着手（Phase 3 の後） | 右ペインに AI タブを追加する |
 
 ### 6.2 確定済みの設計判断（再検討しない）
 - 認証: **FastAPI 自前 JWT**（Cookie `bf_session`、HttpOnly/SameSite=Lax、ログアウトで Redis の jti denylist に登録）。NextAuth は使わない。
@@ -144,14 +145,22 @@ docker compose up -d                    # .env は作成済み（gitignore 対�
 docker compose ps                       # 5サービスが healthy であること
 INSTALL_DEV=true docker compose build biblioflow-api
 docker compose run --rm --no-deps -v "$PWD/backend/app:/app/app:ro" -v "$PWD/backend/tests:/app/tests:ro" \
-  -v "$PWD/backend/alembic:/app/alembic:ro" biblioflow-api pytest -q -p no:cacheprovider   # 現状 260 passed
+  -v "$PWD/backend/alembic:/app/alembic:ro" -e ENABLE_DOCS=false biblioflow-api pytest -q -p no:cacheprovider   # 現状 289 passed（ローカル .env の ENABLE_DOCS=true だと test_docs_disabled が落ちるので上書きする）
 gh auth status                          # 切れていれば `gh auth login`
 ```
-- ローカル環境の注意: ホストの `localhost:3000` は IPv6 側で Grafana と衝突するため、**`http://127.0.0.1:3000`** でアクセスする。5432 番は別プロジェクト（kabu-db）が使用しており、BiblioFlow の DB はホストに公開していない。
+- ローカル環境の注意: ホストの 3000 番は Grafana が全インターフェースで使っているため、ローカル `.env` は **`FRONTEND_PORT=3080`、`BIND_ADDRESS=0.0.0.0`（LAN 公開）**、`ENABLE_DOCS=true`。アクセス先は `http://127.0.0.1:3080` / LAN からは `http://192.168.1.10:3080` または `http://dev-host.local:3080`。`CORS_ALLOWED_ORIGINS` にこれらを登録済み（ないとブラウザからの書き込みが CSRF で 403）。
+- テスト用ユーザー: `e2e@biblioflow.example.com`（パスワードはユーザーに伝達済み。リポジトリには書かない）。論文 5 件入り。5432 番は別プロジェクト（kabu-db）が使用しており、BiblioFlow の DB はホストに公開していない。
 - テストイメージは `INSTALL_DEV=true docker compose build biblioflow-api` でビルドする。
 - CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend build、compose スモークテスト）。
 
-### 6.4 Phase 3 着手時の TODO
+### 6.4 Phase 4 の要点（完了）
+- フロントは Cookie セッションで同一オリジンの `/api` リライト経由。**`middleware.ts` を置かない**（Next のミドルウェアの body 上限で PDF アップロードが切れるため）。
+- i18n は自前辞書（`frontend/lib/i18n/{ja,en}.ts`）。`en` は `ja` の型に縛られ、未翻訳キーは `npm run typecheck` で落ちる。
+- PDF ビューアは `react-pdf-highlighter-extended`。右ペインのタブ（`components/paper/paper-view.tsx`）に Phase 4b で AI タブを足す。エリア注釈（kind `area`）が矩形選択 Vision 解説の入口。
+- ローカル DB に QA 用ユーザー `qa-owner@` / `qa-viewer@biblioflow.example.com` と共有ワークスペース「QA Lab」がある（パスワードはリポジトリに書かない）。
+- ブラウザ確認は Playwright（scratchpad にインストール）で LAN アドレスを開いて行った。
+
+### 6.5 Phase 3 着手時の TODO（Phase 4 の後）
 1. `specs/phase3.md` に計画を書いてユーザーの承認を得る（§3.3 Grounding・矩形選択 Vision・ハイブリッド検索）
 2. PDF パーサを選定する（ライセンス: PyMuPDF は AGPL。pypdf / pdfplumber / Docling を比較する）
 3. `workers/tasks.py` の `process_paper` を拡張し、チャンク + bbox + embedding を作って `index_status` を ready / failed に遷移させる

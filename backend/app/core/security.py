@@ -64,6 +64,7 @@ class SessionClaims:
     sub: uuid.UUID
     jti: str
     exp: datetime
+    iat: int  # epoch seconds
 
 
 def create_access_token(
@@ -97,6 +98,7 @@ def decode_access_token(token: str, *, secret: str | None = None) -> SessionClai
             sub=uuid.UUID(str(claims["sub"])),
             jti=str(claims["jti"]),
             exp=datetime.fromtimestamp(claims["exp"], tz=UTC),
+            iat=int(claims["iat"]),
         )
     except (jwt.PyJWTError, ValueError) as exc:
         raise TokenError(str(exc)) from exc

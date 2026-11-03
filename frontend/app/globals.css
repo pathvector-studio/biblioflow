@@ -1,3 +1,79 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 45%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 214 32% 94%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 214 32% 96%;
+    --muted-foreground: 215 16% 40%;
+    --accent: 214 32% 93%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 24% 87%;
+    --input: 214 24% 87%;
+    --ring: 221 83% 45%;
+    --radius: 0.5rem;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: 222 30% 9%;
+      --foreground: 210 40% 96%;
+      --card: 222 30% 11%;
+      --card-foreground: 210 40% 96%;
+      --popover: 222 30% 11%;
+      --popover-foreground: 210 40% 96%;
+      --primary: 217 91% 65%;
+      --primary-foreground: 222 47% 11%;
+      --secondary: 217 20% 19%;
+      --secondary-foreground: 210 40% 96%;
+      --muted: 217 20% 16%;
+      --muted-foreground: 215 16% 66%;
+      --accent: 217 20% 20%;
+      --accent-foreground: 210 40% 96%;
+      --destructive: 0 70% 58%;
+      --destructive-foreground: 210 40% 98%;
+      --border: 217 20% 22%;
+      --input: 217 20% 22%;
+      --ring: 217 91% 65%;
+      color-scheme: dark;
+    }
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* ノートのプレビュー（Markdown） */
+.markdown { @apply text-sm leading-relaxed; overflow-wrap: anywhere; }
+.markdown h1 { @apply mb-2 mt-4 text-xl font-semibold; }
+.markdown h2 { @apply mb-2 mt-4 text-lg font-semibold; }
+.markdown h3 { @apply mb-1 mt-3 text-base font-semibold; }
+.markdown p { @apply my-2; }
+.markdown ul { @apply my-2 list-disc pl-5; }
+.markdown ol { @apply my-2 list-decimal pl-5; }
+.markdown a { @apply text-primary underline; }
+.markdown code { @apply rounded bg-muted px-1 py-0.5 font-mono text-xs; }
+.markdown pre { @apply my-2 overflow-x-auto rounded bg-muted p-2; }
+.markdown pre code { @apply bg-transparent p-0; }
+.markdown blockquote { @apply my-2 border-l-4 pl-3 text-muted-foreground; }
+.markdown table { @apply my-2 w-full border-collapse text-xs; }
+.markdown th, .markdown td { @apply border px-2 py-1; }
+.markdown img { @apply max-w-full; }
