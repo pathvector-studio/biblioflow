@@ -25,7 +25,7 @@ from app.schemas.metadata import Author, MetadataResolver, PaperMetadata, Upstre
 from app.schemas.paper import MAX_TAG_LEN, MAX_TAGS
 from app.services.metadata import identifiers
 from app.services.metadata.bibtex import citekey_base, make_bibtex
-from app.services.pdf import InvalidPdf, PdfInfo, has_pdf_magic, inspect_pdf
+from app.services.pdf import InvalidPdf, PdfInfo, has_pdf_magic, inspect_pdf_isolated
 from app.services.storage.files import PlacementError, StagedFile, discard, place_file
 from app.services.storage.paths import (
     PathTraversalError,
@@ -292,7 +292,7 @@ async def ingest_pdf(
         if not has_pdf_magic(staged.head):
             raise IngestError(415, "File is not a PDF")
         try:
-            info = await asyncio.to_thread(inspect_pdf, staged.path)
+            info = await inspect_pdf_isolated(staged.path)
         except InvalidPdf as exc:
             raise IngestError(422, f"Invalid PDF: {exc}") from None
 

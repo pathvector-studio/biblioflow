@@ -26,7 +26,7 @@ from app.models.workspace import Workspace
 from app.schemas.metadata import MetadataResolver
 from app.services.ingest import IngestError, ingest_pdf, safe_original_name
 from app.services.metadata import get_resolver
-from app.services.pdf import InvalidPdf, inspect_pdf
+from app.services.pdf import InvalidPdf, inspect_pdf_isolated
 from app.services.storage.files import TooLarge, receive_stream, sha256_file
 from app.services.storage.paths import PathTraversalError, resolve_in_library
 
@@ -65,7 +65,7 @@ async def process_paper(ctx: dict[str, Any], paper_id: str) -> str:
                 paper.index_status = IndexStatus.failed
                 await db.commit()
                 return "failed"
-            info = await asyncio.to_thread(inspect_pdf, path)
+            info = await inspect_pdf_isolated(path)
         except (PathTraversalError, OSError, InvalidPdf):
             logger.exception("process_paper failed for %s", paper_id)
             paper.index_status = IndexStatus.failed

@@ -28,6 +28,8 @@ COPY --from=builder /app/.venv /app/.venv
 COPY pyproject.toml alembic.ini ./
 COPY alembic ./alembic
 COPY app ./app
+# Pre-compiled: the root filesystem is read-only, and the PDF parser child process imports app on every upload.
+RUN python -m compileall -q app
 COPY tests ./tests
 USER app
 EXPOSE 8000

@@ -1,10 +1,18 @@
-"""PDF validation and light metadata extraction (pypdf). Functions are synchronous; use ``asyncio.to_thread``."""
+"""PDF validation and light metadata extraction (pypdf).
+
+Untrusted PDFs are parsed in a child process (``inspect_pdf_isolated``) with CPU, memory and wall-clock
+limits, so a malicious file cannot hang or exhaust the API / worker process.
+"""
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import os
 import re
-from dataclasses import dataclass
+import sys
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from pypdf import PdfReader
@@ -99,3 +107,77 @@ def inspect_pdf(path: str | Path) -> PdfInfo:
         raise InvalidPdf("PDF structure too deep") from exc
     except Exception as exc:  # noqa: BLE001 - pypdf raises a wide variety of errors on bad input
         raise InvalidPdf("unreadable PDF") from exc
+
+
+# ------------------------------------------------------------------ isolation
+PARSE_TIMEOUT_SECONDS = 30
+PARSE_CPU_SECONDS = 30
+PARSE_MEMORY_BYTES = 1024 * 1024 * 1024
+_MAX_RESULT_BYTES = 256 * 1024
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _limit_self() -> None:
+    """Applied by the child itself (``preexec_fn`` is unsafe in the threaded parent)."""
+    import resource
+
+    resource.setrlimit(resource.RLIMIT_CPU, (PARSE_CPU_SECONDS, PARSE_CPU_SECONDS))
+    resource.setrlimit(resource.RLIMIT_AS, (PARSE_MEMORY_BYTES, PARSE_MEMORY_BYTES))
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+
+
+def _probe_command(path: Path) -> list[str]:
+    return [sys.executable, "-m", "app.services.pdf", str(path)]
+
+
+async def inspect_pdf_isolated(path: str | Path, timeout: float = PARSE_TIMEOUT_SECONDS) -> PdfInfo:
+    """``inspect_pdf`` in a resource-limited child process. Raises ``InvalidPdf`` on any failure or timeout.
+
+    The child gets a minimal environment (no secrets) and is killed when ``timeout`` expires.
+    """
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "PYTHONPATH": str(_PROJECT_ROOT), "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"}
+    proc = await asyncio.create_subprocess_exec(
+        *_probe_command(Path(path)),
+        stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
+        cwd=str(_PROJECT_ROOT),
+        env=env,
+    )
+    try:
+        out, _ = await asyncio.wait_for(proc.communicate(), timeout)
+    except TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise InvalidPdf("PDF took too long to parse") from None
+    except BaseException:
+        if proc.returncode is None:
+            proc.kill()
+            await proc.wait()
+        raise
+    if proc.returncode != 0 or len(out) > _MAX_RESULT_BYTES:
+        raise InvalidPdf("unreadable PDF")
+    try:
+        data = json.loads(out)
+    except ValueError:
+        raise InvalidPdf("unreadable PDF") from None
+    if "error" in data:
+        raise InvalidPdf(str(data["error"])[:200])
+    return PdfInfo(**data["info"])
+
+
+def _main(argv: list[str]) -> int:
+    """Child entry point: print ``{"info": {...}}`` or ``{"error": "..."}`` as JSON on stdout."""
+    _limit_self()
+    try:
+        result: dict[str, object] = {"info": asdict(inspect_pdf(argv[0]))}
+    except InvalidPdf as exc:
+        result = {"error": str(exc)}
+    except MemoryError:
+        result = {"error": "PDF needs too much memory"}
+    sys.stdout.write(json.dumps(result))
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised through inspect_pdf_isolated
+    sys.exit(_main(sys.argv[1:]))
