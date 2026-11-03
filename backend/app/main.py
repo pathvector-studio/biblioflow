@@ -14,6 +14,10 @@ from app.core.redis import close_redis
 from app.db.session import dispose_engine
 from app.services.ingest import IngestError
 
+# Every route except the PDF upload takes JSON; notes (<= 500k chars) fit in 4 MiB.
+JSON_BODY_LIMIT = 4 * 1024 * 1024
+UPLOAD_PATH = "/api/v1/papers/upload"
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -34,7 +38,11 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json" if settings.enable_docs else None,
     )
     # Added innermost first; CORS ends up outermost so even 413s carry CORS headers.
-    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_upload_bytes)
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_bytes=min(JSON_BODY_LIMIT, settings.max_upload_bytes),
+        path_limits={UPLOAD_PATH: settings.max_upload_bytes},
+    )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,

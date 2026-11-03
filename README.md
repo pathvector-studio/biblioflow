@@ -26,7 +26,10 @@ docker compose ps        # 全サービスが healthy になることを確認
 | ポート | 公開 | 用途 |
 |---|---|---|
 | `:8080` | ホストに公開（`BIND_ADDRESS:FRONTEND_PORT`） | クライアントが直接つなぐ口。クライアントが送った `X-Forwarded-*` は捨て、接続元アドレスから上書きする |
-| `:8081` | 公開しない（`biblioflow-edge` 内だけ） | cloudflared / tailscale 専用。`CF-Connecting-IP` / `X-Forwarded-*` を信用する |
+| `:8081` | 公開しない（`biblioflow-edge` 内だけ） | cloudflared 専用。クライアント IP は `CF-Connecting-IP` だけを信用する |
+| `:8082` | 公開しない（`biblioflow-edge` 内だけ） | tailscale 専用。クライアント IP は `X-Forwarded-For`（tailscale serve が上書きする）だけを信用する。`CF-Connecting-IP` は信用しない（tailscale serve が素通しするため） |
+
+リクエストボディの上限は、`/api/v1/papers/upload` が `MAX_UPLOAD_MB`、それ以外の API が 4 MiB（API が JSON の 413 を返す。Caddy は 5 MiB で打ち切る）。
 
 ### A. LAN 内だけ（http）
 

@@ -5,7 +5,7 @@
   "Web": {
     "${TS_CERT_DOMAIN}:443": {
       "Handlers": {
-        "/": { "Proxy": "http://biblioflow-gateway:8081" }
+        "/": { "Proxy": "http://biblioflow-gateway:8082" }
       }
     }
   }

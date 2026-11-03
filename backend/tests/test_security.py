@@ -184,6 +184,36 @@ async def test_body_limit_streamed_without_content_length():
         assert (await c.post("/echo", content=small())).json() == {"n": 500}
 
 
+async def test_body_limit_per_path():
+    app = FastAPI()
+
+    @app.post("/echo")
+    @app.post("/upload")
+    async def echo(request: Request):
+        return {"n": len(await request.body())}
+
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=100, path_limits={"/upload": 1000})
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        assert (await c.post("/echo", content=b"x" * 101)).status_code == 413
+        assert (await c.post("/upload", content=b"x" * 1000)).json() == {"n": 1000}
+        assert (await c.post("/upload", content=b"x" * 1001)).status_code == 413
+        assert (await c.post("/upload/", content=b"x" * 101)).status_code == 413  # exact match only
+
+
+async def test_app_json_limit_below_upload_limit(monkeypatch):
+    from app.core.config import get_settings
+    from app.main import JSON_BODY_LIMIT, UPLOAD_PATH, create_app
+
+    monkeypatch.setenv("MAX_UPLOAD_MB", "50")
+    get_settings.cache_clear()
+    try:
+        mw = next(m for m in create_app().user_middleware if m.cls is BodySizeLimitMiddleware)
+    finally:
+        get_settings.cache_clear()
+    assert mw.kwargs["max_bytes"] == JSON_BODY_LIMIT
+    assert mw.kwargs["path_limits"] == {UPLOAD_PATH: 50 * 1024 * 1024}
+
+
 async def test_security_headers():
     async with AsyncClient(transport=ASGITransport(app=_echo_app(1000)), base_url="https://t") as c:
         r = await c.post("/echo", content=b"x")

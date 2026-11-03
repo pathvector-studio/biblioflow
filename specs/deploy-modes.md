@@ -95,3 +95,13 @@ BiblioFlow はユーザーによって公開の仕方が異なる。
 - Tailscale: `tailscale serve` のプロキシは `SetXForwarded` を使い（tailscaled バイナリに `SetXForwarded` / `X-Forwarded-For|Host|Proto` / `Tailscale-User-Login` の文字列を確認）、tailnet 上の接続元 IP を `X-Forwarded-For`、`X-Forwarded-Proto: https` として付ける。Go の `SetXForwarded` は受信した XFF を捨てて上書きするので偽装はできない。実接続は authkey がないため未確認（バイナリ解析ベース）。Caddy :8081 は `client_ip_headers CF-Connecting-IP X-Forwarded-For` でこれを拾うので、IP 単位のレートリミットは tailnet の端末ごとに分かれる。
 - Tailscale コンテナは root のまま（公式イメージの containerboot が state volume とソケットに書き込むため）。`cap_drop: ALL` と `no-new-privileges` で起動することは確認した（authkey なしで認証 URL を出すところまで）。healthcheck は省略（認証前に unhealthy になり depends_on の対象にもしないため）。
 - `SecurityHeadersMiddleware` のコンストラクタ引数 `hsts` を廃止（リクエストごとに scope["scheme"] で判定）。
+
+## 追補（2026-11-04、セキュリティレビュー）
+- **Tailscale 経由のクライアント IP 偽装を塞いだ**。tailscale serve は X-Forwarded-For を上書きするが、クライアントが送った `CF-Connecting-IP` は素通しする。`:8081` は `client_ip_headers CF-Connecting-IP X-Forwarded-For`（先に見つかった方を使う）だったので、tailnet の端末は任意の IP を名乗れ、IP 単位のレートリミットを回避できた。
+  - 対策として、リスナーを sidecar ごとに分けた。`:8081` は cloudflared 専用で `CF-Connecting-IP` だけを信用する。`:8082` は tailscale 専用で、`X-Forwarded-For` を `trusted_proxies_strict` で使う。
+  - 全リスナーで `CF-Connecting-IP` を API に転送しない。
+  - edge ネットワーク上のコンテナから各ポートに `CF-Connecting-IP: 6.6.6.6` と `X-Forwarded-For: 9.9.9.9, 7.7.7.7` を送り、API のアクセスログで確認した。:8080 は接続元、:8081 は 6.6.6.6、:8082 は 7.7.7.7 になった。
+- **ボディ上限をルートごとに分けた**。以前は全エンドポイントが `MAX_UPLOAD_MB`（50 MiB）で、未認証の `/auth/login` でも、レートリミットの前に 50 MiB の JSON を読み込んでいた。
+  - 今は upload だけ `MAX_UPLOAD_MB`、それ以外の API は 4 MiB にした（ノートは最大 50 万字）。
+  - API の `BodySizeLimitMiddleware` は、Content-Length で即座に JSON の 413 を返す。Caddy は API を 5 MiB、frontend を 1 MiB で打ち切る（chunked の場合の保険で、Caddy の超過応答は 502 / 400）。
+

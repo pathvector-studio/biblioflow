@@ -12,9 +12,12 @@ class _BodyTooLarge(Exception):
 
 
 class BodySizeLimitMiddleware:
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    """Rejects bodies over ``max_bytes``; ``path_limits`` gives exact paths (e.g. the PDF upload) their own limit."""
+
+    def __init__(self, app: ASGIApp, max_bytes: int, path_limits: dict[str, int] | None = None) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self.path_limits = path_limits or {}
 
     async def _reject(self, send: Send) -> None:
         body = json.dumps({"detail": "Request body too large"}).encode()
@@ -36,13 +39,14 @@ class BodySizeLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
+        max_bytes = self.path_limits.get(scope.get("path", ""), self.max_bytes)
         for name, value in scope.get("headers", []):
             if name == b"content-length":
                 try:
                     declared = int(value)
                 except ValueError:
                     declared = -1
-                if declared < 0 or declared > self.max_bytes:
+                if declared < 0 or declared > max_bytes:
                     await self._reject(send)
                     return
                 break
@@ -55,7 +59,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.max_bytes:
+                if received > max_bytes:
                     raise _BodyTooLarge
             return message
 

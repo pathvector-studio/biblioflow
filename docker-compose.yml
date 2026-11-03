@@ -131,10 +131,10 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # The only service published to the host. Two listeners:
+  # The only service published to the host. Three listeners:
   #   :8080 (published)     untrusted clients; X-Forwarded-* from clients is discarded
-  #   :8081 (NOT published) for sidecars on biblioflow-edge (cloudflared / tailscale);
-  #                         their CF-Connecting-IP / X-Forwarded-* are trusted
+  #   :8081 (NOT published) cloudflared only; client IP from CF-Connecting-IP
+  #   :8082 (NOT published) tailscale only; client IP from X-Forwarded-For
   biblioflow-gateway:
     image: caddy:2.10.2-alpine
     container_name: biblioflow-gateway
@@ -203,7 +203,7 @@ services:
   # Optional: expose the app on your tailnet over HTTPS (userspace networking, outbound only).
   #   docker compose --profile tailscale up -d
   # Requires TS_AUTHKEY in .env on first start (state is kept in the tailscale-state volume).
-  # Serves https://<TS_HOSTNAME>.<tailnet>.ts.net -> http://biblioflow-gateway:8081.
+  # Serves https://<TS_HOSTNAME>.<tailnet>.ts.net -> http://biblioflow-gateway:8082.
   # Runs as root inside the container: the official image's containerboot needs to write
   # its state volume and socket, and userspace mode has no NET_ADMIN; all capabilities are dropped.
   biblioflow-tailscale:

@@ -92,6 +92,12 @@ jobs:
           test -z "$(docker compose port biblioflow-frontend 3000 2>/dev/null | grep -v ':0$')"
           test -z "$(docker compose port biblioflow-api 8000 2>/dev/null | grep -v ':0$')"
           test -z "$(docker compose port biblioflow-gateway 8081 2>/dev/null | grep -v ':0$')"
+          test -z "$(docker compose port biblioflow-gateway 8082 2>/dev/null | grep -v ':0$')"
+      - name: Verify body size limits
+        run: |
+          head -c $((4*1024*1024+1)) /dev/zero > big.json
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Expect:' -H 'Content-Type: application/json' --data-binary @big.json http://127.0.0.1:3000/api/v1/auth/login)
+          echo "oversized JSON -> $code"; test "$code" = 413
       - name: Verify non-root
         run: |
           for s in biblioflow-api biblioflow-worker biblioflow-frontend biblioflow-gateway; do

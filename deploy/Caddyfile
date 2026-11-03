@@ -2,8 +2,11 @@
 #
 #   :8080  published (${BIND_ADDRESS}:${FRONTEND_PORT}). Untrusted clients: any
 #          X-Forwarded-* they send is discarded; Caddy sets them from the socket.
-#   :8081  NOT published. Reachable only from sidecars on biblioflow-edge
-#          (cloudflared / tailscale). Their client-IP and proto headers are trusted.
+#   :8081  NOT published. cloudflared only: the client IP comes from CF-Connecting-IP
+#          (set by Cloudflare's edge, which overwrites any client-supplied value).
+#   :8082  NOT published. tailscale only: the client IP comes from X-Forwarded-For
+#          (tailscale serve overwrites it). CF-Connecting-IP is NOT trusted here,
+#          because tailscale serve passes it through from the tailnet client.
 {
 	admin off
 	auto_https off
@@ -11,8 +14,20 @@
 
 	servers :8081 {
 		trusted_proxies static private_ranges
-		client_ip_headers CF-Connecting-IP X-Forwarded-For
+		client_ip_headers CF-Connecting-IP
 	}
+	servers :8082 {
+		trusted_proxies static private_ranges
+		trusted_proxies_strict
+		client_ip_headers X-Forwarded-For
+	}
+}
+
+(upstream_headers) {
+	# Exactly one client IP, never an appended chain.
+	header_up X-Forwarded-For {client_ip}
+	# Already consumed by Caddy where trusted; never forward a client-supplied copy.
+	header_up -CF-Connecting-IP
 }
 
 (app) {
@@ -21,21 +36,36 @@
 		respond "ok" 200
 	}
 
-	# API: straight to FastAPI (no Next.js proxy, so no 30 s proxy timeout).
-	# MAX_UPLOAD_MB matches the API's own limit (MiB); the API returns the friendlier JSON 413.
-	handle /api/* {
+	# PDF upload: the only route that takes a large body. MAX_UPLOAD_MB matches the API's own
+	# limit (MiB); the API returns the friendlier JSON 413.
+	handle /api/v1/papers/upload {
 		request_body {
 			max_size {$MAX_UPLOAD_MB:50}MiB
 		}
 		reverse_proxy biblioflow-api:8000 {
-			# Exactly one client IP, never an appended chain.
-			header_up X-Forwarded-For {client_ip}
+			import upstream_headers
 		}
 	}
 
+	# Rest of the API: straight to FastAPI (no Next.js proxy, so no 30 s proxy timeout).
+	# JSON bodies only. The API itself caps them at 4 MiB (JSON 413 on Content-Length);
+	# this slightly larger cap is the backstop for chunked bodies (Caddy answers those with 502).
+	handle /api/* {
+		request_body {
+			max_size 5MiB
+		}
+		reverse_proxy biblioflow-api:8000 {
+			import upstream_headers
+		}
+	}
+
+	# Frontend: pages and static assets only (no server actions), so requests have no real body.
 	handle {
+		request_body {
+			max_size 1MiB
+		}
 		reverse_proxy biblioflow-frontend:3000 {
-			header_up X-Forwarded-For {client_ip}
+			import upstream_headers
 		}
 	}
 }
@@ -45,5 +75,9 @@
 }
 
 :8081 {
+	import app
+}
+
+:8082 {
 	import app
 }
