@@ -131,7 +131,7 @@
 - ストレージ: 同じパスのファイルはワークスペース間で 1 つを共有する（sha256 が同じなら再利用、違えば `_2`…）。PATCH でタイトル等を変えてもファイルはリネームしない。
 - 取り込みは upload / import-url / Watch Folder とも `app/services/ingest.py` の `ingest_pdf` に集約する。Watch Folder は `WATCH_DIR/{workspace_slug}/*.pdf`、失敗したら `_rejected/` に移す。
 - `process_paper`（Arq）は Phase 2 では整合性チェックと page_count の確定だけを行う。Phase 3 でチャンク分割と embedding をここに追加する。
-- import-url: 出版社サイト（ScienceDirect 等）はサーバーからの取得を 403 で拒否する。bot 対策の回避（UA 偽装等）はしない。その場合はブラウザで落とした PDF を upload / Watch Folder で取り込む（DOI が wishlist と一致すれば自動で紐付く）。
+- import-url: **既定で無効**（`URL_IMPORT_ENABLED=false`、ユーザー判断 2026-11-03）。コードとテストは残してある。出版社サイト（ScienceDirect 等）はサーバーからの取得を 403 で拒否する。bot 対策の回避（UA 偽装等）はしない。その場合はブラウザで落とした PDF を upload / Watch Folder で取り込む（DOI が wishlist と一致すれば自動で紐付く）。
 - PDF ライブラリ: Phase 2 は pypdf（BSD）。PyMuPDF は AGPL でリポジトリの MIT と衝突するため、Phase 3 で採用するなら要検討。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
 

@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     semantic_scholar_api_key: SecretStr | None = None
     external_http_timeout: float = Field(10.0, gt=0, le=120)
     watch_poll_seconds: int = Field(10, ge=1, le=3600)
-    url_import_enabled: bool = True
+    url_import_enabled: bool = False
 
     # Phase 3 (unused in Phase 1)
     llm_provider: str | None = None

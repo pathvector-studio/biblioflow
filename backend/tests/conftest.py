@@ -25,6 +25,7 @@ os.environ["COOKIE_SECURE"] = "true"
 os.environ["CORS_ALLOWED_ORIGINS"] = ORIGIN
 os.environ["ALLOW_REGISTRATION"] = "false"
 os.environ["MAX_UPLOAD_MB"] = "1"
+os.environ["URL_IMPORT_ENABLED"] = "true"  # feature is off by default; tests cover it explicitly
 os.environ["FILENAME_TEMPLATE"] = "{year}/{identifier}_{slug_title}.pdf"
 
 TABLES = (

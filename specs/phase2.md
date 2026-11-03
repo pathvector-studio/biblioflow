@@ -15,7 +15,7 @@ Phase 1（インフラ、DB、認証/RBAC、パスサニタイザ）は `main` �
 - メモ: PyMuPDF は AGPL で、リポジトリの MIT と相性が悪い。Phase 3 のパーサ選定で改めて扱う（Phase 2 では使わない）
 
 ## 設定追加（config.py / .env.example）
-`CROSSREF_MAILTO`（polite pool 用。任意）、`SEMANTIC_SCHOLAR_API_KEY`（任意）、`EXTERNAL_HTTP_TIMEOUT=10`、`WATCH_POLL_SECONDS=10`、`URL_IMPORT_ENABLED=true`
+`CROSSREF_MAILTO`（polite pool 用。任意）、`SEMANTIC_SCHOLAR_API_KEY`（任意）、`EXTERNAL_HTTP_TIMEOUT=10`、`WATCH_POLL_SECONDS=10`、`URL_IMPORT_ENABLED=false`（既定で無効。2026-11-03 に変更）
 
 ## 新規・変更ファイル
 ```

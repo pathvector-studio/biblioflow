@@ -224,3 +224,9 @@ async def test_import_signed_url_pii_attaches_to_wishlist(login, resolver, stora
     r = await post(c, signed.replace(PII, "S0000000000000001"))
     assert r.status_code == 201, r.text
     assert r.json()["identifier_type"] == "internal" and r.json()["identifier"].startswith("BF-")
+
+
+def test_url_import_disabled_by_default():
+    from app.core.config import Settings
+
+    assert Settings.model_fields["url_import_enabled"].default is False
