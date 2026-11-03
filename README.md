@@ -117,6 +117,20 @@ docker compose logs --no-color biblioflow-gateway | sed 's/^[^{]*//' \
   | jq -r 'select(.request) | select(.status >= 400 and .status < 500) | .request.client_ip' | sort | uniq -c | sort -rn | head
 ```
 
+## バックアップと復元
+
+`scripts/backup.sh` は、DB（`pg_dump`）と `data/library` のスナップショットを `BACKUP_DIR`（既定 `./backups`）に作る。ライブラリは前回のスナップショットとの差分だけをコピーし、変わっていない PDF はハードリンクで共有するので、毎日取っても容量はほとんど増えない。`BACKUP_KEEP`（既定 14）世代より古いものは消える。
+
+```bash
+BACKUP_DIR=/Volumes/nas/biblioflow scripts/backup.sh          # スナップショットを作る
+scripts/restore.sh --check /Volumes/nas/biblioflow/<日時>      # 一時 DB に復元して検証する（本番データには触れない）
+scripts/restore.sh --yes   /Volumes/nas/biblioflow/<日時>      # 本番を置き換える（直前の状態を自動でバックアップしてから）
+```
+
+- `BACKUP_DIR` は別のディスクか別のマシンに置く。同じディスク上のバックアップは、ディスクの故障に耐えない。
+- `.env`（秘密情報）はバックアップに含めない。別の安全な場所に保管する。
+- 定期実行は cron などで行う。例: `0 3 * * * cd ~/biblioflow && BACKUP_DIR=/mnt/nas/biblioflow scripts/backup.sh >> backups.log 2>&1`。週に 1 回は `--check` も回す。
+
 ## 管理者ユーザーの作成
 
 ```bash

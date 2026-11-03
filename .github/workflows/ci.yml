@@ -98,6 +98,16 @@ jobs:
           head -c $((4*1024*1024+1)) /dev/zero > big.json
           code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Expect:' -H 'Content-Type: application/json' --data-binary @big.json http://127.0.0.1:3000/api/v1/auth/login)
           echo "oversized JSON -> $code"; test "$code" = 413
+      - name: Backup and restore round trip
+        run: |
+          export BACKUP_DIR="$RUNNER_TEMP/backups"
+          scripts/backup.sh
+          snap="$(ls -1d "$BACKUP_DIR"/2*Z | tail -n 1)"
+          scripts/restore.sh --check "$snap"
+          sleep 1
+          scripts/restore.sh --yes "$snap"
+          docker compose up -d --wait --wait-timeout 120
+          curl -fsS http://127.0.0.1:3000/api/v1/readyz
       - name: Verify non-root
         run: |
           for s in biblioflow-api biblioflow-worker biblioflow-frontend biblioflow-gateway; do
