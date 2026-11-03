@@ -158,6 +158,7 @@ gh auth status                          # 切れていれば `gh auth login`
 - テスト用ユーザー: `e2e@biblioflow.example.com`（パスワードはユーザーに伝達済み。リポジトリには書かない）。論文 5 件入り。5432 番は別プロジェクト（kabu-db）が使用しており、BiblioFlow の DB はホストに公開していない。
 - テストイメージは `INSTALL_DEV=true docker compose build biblioflow-api` でビルドする。
 - CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend build、compose スモークテスト）。
+- 依存関係: `.github/dependabot.yml`（npm / uv / Dockerfile / compose のイメージ / Actions を毎週。minor・patch はエコシステムごとに 1 PR にまとめる）。リポジトリ設定で Dependabot alerts とセキュリティ更新を有効にしてある。`.github/workflows/audit.yml` は PR・main・毎週月曜に、本番依存の既知脆弱性を検査する（`npm audit --omit=dev --audit-level=high`、uv.lock から `pip-audit`）。Dependabot の PR も通常の PR と同じく、CI green を確認してから admin マージする。
 
 ### 6.4 Phase 4 の要点（完了）
 - フロントは Cookie セッションで同一オリジンの `/api` リライト経由。**`middleware.ts` を置かない**（Next のミドルウェアの body 上限で PDF アップロードが切れるため）。

@@ -1,0 +1,43 @@
+# Known-vulnerability check for production dependencies. Runs on every PR / push to main
+# and weekly, so advisories published after a merge are noticed without a code change.
+name: Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Reads package-lock.json only; dev-only findings (eslint etc.) never ship in the image.
+      - run: npm audit --omit=dev --audit-level=high
+
+  audit-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.3"
+      - name: pip-audit (production dependencies from uv.lock)
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project -q > requirements.txt
+          uvx pip-audit@2.10.1 -r requirements.txt --no-deps --disable-pip --progress-spinner off

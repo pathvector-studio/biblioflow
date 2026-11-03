@@ -1,0 +1,38 @@
+# Weekly dependency updates. Minor/patch updates are grouped into one PR per ecosystem;
+# security updates are opened separately as soon as an advisory is published.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
+  # Base images in backend/Dockerfile and frontend/Dockerfile
+  - package-ecosystem: docker
+    directories: [/backend, /frontend]
+    schedule:
+      interval: weekly
+
+  # Images pinned in docker-compose.yml (caddy, cloudflared, tailscale, pgvector, redis)
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
