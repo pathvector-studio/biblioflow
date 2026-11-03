@@ -131,3 +131,66 @@ async def login(create_user, make_client):
         return user, c
 
     return _login
+
+
+# ---------------------------------------------------------------- Phase 2 fixtures
+@pytest.fixture
+def resolver():
+    from app.main import app
+    from app.services.metadata import get_resolver
+
+    from tests.helpers import FakeResolver, make_meta
+
+    fake = FakeResolver()
+    fake.add(make_meta())
+    app.dependency_overrides[get_resolver] = lambda: fake
+    yield fake
+    app.dependency_overrides.pop(get_resolver, None)
+
+
+@pytest.fixture
+def storage(tmp_path, monkeypatch):
+    """Per-test library_root / watch_dir under tmp (applied to the cached Settings object)."""
+    from types import SimpleNamespace
+
+    from app.core.config import get_settings
+
+    s = get_settings()
+    lib, watch = tmp_path / "library", tmp_path / "watch"
+    lib.mkdir()
+    watch.mkdir()
+    monkeypatch.setattr(s, "library_root", lib)
+    monkeypatch.setattr(s, "watch_dir", watch)
+    return SimpleNamespace(library=lib, watch=watch)
+
+
+@pytest.fixture
+def enqueued(monkeypatch):
+    """Replace the Arq pool; ``enqueued.jobs`` records ``(function, *args)`` tuples."""
+    from app.core import queue
+
+    from tests.helpers import FakePool
+
+    pool = FakePool()
+
+    async def _get():
+        return pool
+
+    monkeypatch.setattr(queue, "get_arq_pool", _get)
+    return pool
+
+
+@pytest_asyncio.fixture(loop_scope="session")
+async def pat_client(make_client):
+    """Return ``async (session_client, scopes) -> client`` authenticating with a fresh PAT (no cookie/Origin)."""
+
+    async def _make(session_client, scopes=("read:papers", "write:papers")):
+        r = await session_client.post(
+            "/api/v1/tokens", json={"name": "t", "scopes": list(scopes), "expires_in_days": 1}
+        )
+        assert r.status_code == 201, r.text
+        c = make_client(origin=None)
+        c.headers["Authorization"] = f"Bearer {r.json()['token']}"
+        return c
+
+    return _make

@@ -108,14 +108,14 @@
 
 ## 6. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-03
+> 最終更新: 2026-11-03（Phase 2 実装）
 
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
 |---|---|---|
 | 1. インフラ・DBスキーマ・セキュリティ基盤 | ✅ 完了（CI green） | PR #1 `feat/phase1-foundation`（https://github.com/pathvector-studio/biblioflow/pull/1）。設計詳細は `specs/phase1.md` |
-| 2. 軽量メタデータAPI & 取り込み | ⏭ **次はここ** | PR #1 のマージ後に `main` から `feat/phase2-ingest` ブランチを切る |
-| 3. PDF解析・RAG・マルチモーダル | 未着手 | |
+| 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（https://github.com/pathvector-studio/biblioflow/pull/2）。設計詳細は `specs/phase2.md` |
+| 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ** | Phase 2 のマージ後に `main` から `feat/phase3-rag` を切る |
 | 4. Frontend Web UI | 未着手 | `frontend/` は Phase1 で最小 scaffold のみ |
 
 ### 6.2 確定済みの設計判断（再検討しない）
@@ -127,22 +127,31 @@
 - CSRF: Cookie 認証の unsafe method には Origin チェックをかける（`CORS_ALLOWED_ORIGINS` が許可リストを兼ねる）。PAT（Bearer）は対象外。トークン管理 API は session 認証のみ。
 - ファイルパス: 必ず `app/services/storage/paths.py`（`build_relative_path` → `resolve_in_library`）を通す。テンプレートには `{identifier}` が必須。
 - レートリミット: `app/core/ratelimit.py` の `RateLimiter` を LLM エンドポイントでも再利用する。
+- メタデータ: 外部 HTTP は必ず `app/core/net.py`（`safe_client` / `safe_stream`）を通す。解決は `app/services/metadata`（`get_resolver()`）。arXiv / DOI / ScienceDirect PII / タイトルを受け付け、BibTeX はネットワークを使わず生成する。
+- ストレージ: 同じパスのファイルはワークスペース間で 1 つを共有する（sha256 が同じなら再利用、違えば `_2`…）。PATCH でタイトル等を変えてもファイルはリネームしない。
+- 取り込みは upload / import-url / Watch Folder とも `app/services/ingest.py` の `ingest_pdf` に集約する。Watch Folder は `WATCH_DIR/{workspace_slug}/*.pdf`、失敗したら `_rejected/` に移す。
+- `process_paper`（Arq）は Phase 2 では整合性チェックと page_count の確定だけを行う。Phase 3 でチャンク分割と embedding をここに追加する。
+- import-url: 出版社サイト（ScienceDirect 等）はサーバーからの取得を 403 で拒否する。bot 対策の回避（UA 偽装等）はしない。その場合はブラウザで落とした PDF を upload / Watch Folder で取り込む（DOI が wishlist と一致すれば自動で紐付く）。
+- PDF ライブラリ: Phase 2 は pypdf（BSD）。PyMuPDF は AGPL でリポジトリの MIT と衝突するため、Phase 3 で採用するなら要検討。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
 
 ### 6.3 環境の再開手順
 ```bash
 cd ~/dev/biblioflow
-git fetch && git status                 # ブランチ確認（PR #1 がマージ済みなら main を pull）
+git fetch && git status                 # ブランチ確認（main を pull してから作業ブランチを切る）
 docker compose up -d                    # .env は作成済み（gitignore 対象、COOKIE_SECURE=false のローカル設定）
 docker compose ps                       # 5サービスが healthy であること
-docker compose exec -T biblioflow-api pytest -q -p no:cacheprovider   # 現状 122 passed
+INSTALL_DEV=true docker compose build biblioflow-api
+docker compose run --rm --no-deps -v "$PWD/backend/app:/app/app:ro" -v "$PWD/backend/tests:/app/tests:ro" \
+  -v "$PWD/backend/alembic:/app/alembic:ro" biblioflow-api pytest -q -p no:cacheprovider   # 現状 260 passed
 gh auth status                          # 切れていれば `gh auth login`
 ```
 - ローカル環境の注意: ホストの `localhost:3000` は IPv6 側で Grafana と衝突するため、**`http://127.0.0.1:3000`** でアクセスする。5432 番は別プロジェクト（kabu-db）が使用しており、BiblioFlow の DB はホストに公開していない。
 - テストイメージは `INSTALL_DEV=true docker compose build biblioflow-api` でビルドする。
 - CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend build、compose スモークテスト）。
 
-### 6.4 Phase 2 着手時の TODO
-1. `specs/phase2.md` に計画を書いてユーザーの承認を得る（§3.2・§3.1 Watch Folder・§4.3 SSRF を対象とする）
-2. 外部 API クライアント（CrossRef / Semantic Scholar / arXiv）は SSRF バリデータを通した httpx を使う。ネットワークは `biblioflow-edge` 経由で外に出る。
-3. `papers` / `tags` / `collections` テーブルは作成済みのため、新しいマイグレーションは必要なときだけ `0002_*` として追加する。
+### 6.4 Phase 3 着手時の TODO
+1. `specs/phase3.md` に計画を書いてユーザーの承認を得る（§3.3 Grounding・矩形選択 Vision・ハイブリッド検索）
+2. PDF パーサを選定する（ライセンス: PyMuPDF は AGPL。pypdf / pdfplumber / Docling を比較する）
+3. `workers/tasks.py` の `process_paper` を拡張し、チャンク + bbox + embedding を作って `index_status` を ready / failed に遷移させる
+4. LLM エンドポイントにも `RateLimiter` を使う。プロンプトは `<paper_context>` で区切る

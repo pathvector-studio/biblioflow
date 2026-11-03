@@ -4,17 +4,21 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.papers import ingest_error_handler
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
+from app.core.queue import close_arq_pool
 from app.core.middleware import BodySizeLimitMiddleware, SecurityHeadersMiddleware
 from app.core.redis import close_redis
 from app.db.session import dispose_engine
+from app.services.ingest import IngestError
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
+    await close_arq_pool()
     await close_redis()
     await dispose_engine()
 
@@ -40,6 +44,7 @@ def create_app() -> FastAPI:
         allow_headers=["Content-Type", "Authorization"],
     )
     register_exception_handlers(app)
+    app.add_exception_handler(IngestError, ingest_error_handler)
     app.include_router(api_router, prefix="/api/v1")
     return app
 

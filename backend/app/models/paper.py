@@ -71,6 +71,7 @@ class Paper(UUIDPKMixin, TimestampMixin, Base):
 
     __table_args__ = (
         UniqueConstraint("workspace_id", "identifier"),
+        UniqueConstraint("workspace_id", "citekey", name="uq_papers_workspace_id_citekey"),
         Index("ix_papers_title_trgm", "title", postgresql_using="gin", postgresql_ops={"title": "gin_trgm_ops"}),
         Index("ix_papers_search_tsv", "search_tsv", postgresql_using="gin"),
         Index("ix_papers_workspace_status", "workspace_id", "status"),

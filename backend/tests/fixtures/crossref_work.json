@@ -1,0 +1,6 @@
+{"status":"ok","message":{"DOI":"10.1145/3651890","type":"journal-article",
+"title":["Scalable BGP Routing in Clos Fabrics"],
+"author":[{"given":"Ada","family":"Lovelace"},{"name":"ACME Consortium"}],
+"issued":{"date-parts":[[2024,5]]},
+"container-title":["Proceedings of the ACM on Networking"],
+"abstract":"<jats:p>We study <jats:italic>BGP</jats:italic> routing.</jats:p>"}}

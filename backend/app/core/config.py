@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     filename_template: str = DEFAULT_TEMPLATE
     embedding_dim: int = EMBEDDING_DIMENSION
 
+    # Phase 2: external metadata APIs & ingest
+    crossref_mailto: str | None = None
+    semantic_scholar_api_key: SecretStr | None = None
+    external_http_timeout: float = Field(10.0, gt=0, le=120)
+    watch_poll_seconds: int = Field(10, ge=1, le=3600)
+    url_import_enabled: bool = True
+
     # Phase 3 (unused in Phase 1)
     llm_provider: str | None = None
     llm_model: str | None = None

@@ -136,3 +136,15 @@ def resolve_in_library(relative: str, root: str | Path) -> Path:
     if target == root_resolved or not target.is_relative_to(root_resolved):
         raise PathTraversalError("path escapes library root")
     return target
+
+
+def with_collision_index(relative: str, n: int) -> str:
+    """``2024/x_y.pdf`` + 2 -> ``2024/x_y_2.pdf`` (used when a different file already holds the path)."""
+    if not isinstance(n, int) or isinstance(n, bool) or n < 2:
+        raise ValueError("collision index must be an integer >= 2")
+    _check_parts(relative)
+    if not relative.endswith(".pdf"):
+        raise ValueError("relative path must end with '.pdf'")
+    out = f"{relative[: -len('.pdf')]}_{n}.pdf"
+    _check_parts(out)
+    return out

@@ -180,3 +180,16 @@ def test_resolve_allows_internal_symlink(tmp_path):
     (root / "real").mkdir(parents=True)
     os.symlink(root / "real", root / "alias")
     assert resolve_in_library("alias/a.pdf", root) == (root / "real" / "a.pdf").resolve()
+
+
+def test_with_collision_index():
+    from app.services.storage.paths import with_collision_index
+
+    assert with_collision_index("2024/x_y.pdf", 2) == "2024/x_y_2.pdf"
+    assert with_collision_index("Unknown/BF-ABC_untitled.pdf", 13) == "Unknown/BF-ABC_untitled_13.pdf"
+    for n in (0, 1, -3):
+        with pytest.raises(ValueError):
+            with_collision_index("2024/x_y.pdf", n)
+    for bad in ("../x.pdf", "/abs/x.pdf", "a//b.pdf", "x.txt", ""):
+        with pytest.raises(ValueError):
+            with_collision_index(bad, 2)
