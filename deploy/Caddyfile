@@ -30,30 +30,50 @@
 	header_up -CF-Connecting-IP
 }
 
+# Reject bodies over {args[0]} MiB with the same JSON 413 the API returns.
+(body_limit) {
+	@too_large expression `{http.request.header.Content-Length} != "" && int({http.request.header.Content-Length}) > {args[0]} * 1048576`
+	handle @too_large {
+		header Content-Type application/json
+		header Connection close
+		respond `{"detail":"Request body too large"}` 413
+	}
+	request_body {
+		max_size {args[0]}MiB
+	}
+}
+
 (app) {
+	# Access log (JSON on stdout -> `docker compose logs biblioflow-gateway`). Caddy redacts
+	# Cookie / Set-Cookie / Authorization by default. client_ip is the resolved client address.
+	log {
+		output stdout
+		format json
+	}
+	log_skip /gateway-healthz
+
 	# Local health endpoint for the container healthcheck.
 	handle /gateway-healthz {
 		respond "ok" 200
 	}
 
-	# PDF upload: the only route that takes a large body. MAX_UPLOAD_MB matches the API's own
-	# limit (MiB); the API returns the friendlier JSON 413.
+	# Body limits. A declared Content-Length over the limit is answered here with 413 before any
+	# byte reaches the API (letting the API reject it mid-stream makes Caddy report a 502).
+	# Chunked bodies are cut by request_body max_size, which also answers 413.
+	# The API enforces the same limits itself (app/main.py), so these must stay in sync.
+
+	# PDF upload: the only route that takes a large body (MAX_UPLOAD_MB, as in the API).
 	handle /api/v1/papers/upload {
-		request_body {
-			max_size {$MAX_UPLOAD_MB:50}MiB
-		}
+		import body_limit {$MAX_UPLOAD_MB:50}
 		reverse_proxy biblioflow-api:8000 {
 			import upstream_headers
 		}
 	}
 
 	# Rest of the API: straight to FastAPI (no Next.js proxy, so no 30 s proxy timeout).
-	# JSON bodies only. The API itself caps them at 4 MiB (JSON 413 on Content-Length);
-	# this slightly larger cap is the backstop for chunked bodies (Caddy answers those with 502).
+	# JSON bodies only; 4 MiB (notes are at most 500k characters).
 	handle /api/* {
-		request_body {
-			max_size 5MiB
-		}
+		import body_limit 4
 		reverse_proxy biblioflow-api:8000 {
 			import upstream_headers
 		}

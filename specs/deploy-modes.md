@@ -103,5 +103,6 @@ BiblioFlow はユーザーによって公開の仕方が異なる。
   - edge ネットワーク上のコンテナから各ポートに `CF-Connecting-IP: 6.6.6.6` と `X-Forwarded-For: 9.9.9.9, 7.7.7.7` を送り、API のアクセスログで確認した。:8080 は接続元、:8081 は 6.6.6.6、:8082 は 7.7.7.7 になった。
 - **ボディ上限をルートごとに分けた**。以前は全エンドポイントが `MAX_UPLOAD_MB`（50 MiB）で、未認証の `/auth/login` でも、レートリミットの前に 50 MiB の JSON を読み込んでいた。
   - 今は upload だけ `MAX_UPLOAD_MB`、それ以外の API は 4 MiB にした（ノートは最大 50 万字）。
-  - API の `BodySizeLimitMiddleware` は、Content-Length で即座に JSON の 413 を返す。Caddy は API を 5 MiB、frontend を 1 MiB で打ち切る（chunked の場合の保険で、Caddy の超過応答は 502 / 400）。
+  - 同じ上限を Caddy（`body_limit` スニペット）と API の `BodySizeLimitMiddleware` の両方で持つ。frontend は Caddy で 1 MiB。
+  - Content-Length が上限を超える要求は、Caddy が上流に流す前に JSON の 413 を返す。API に途中まで流してから API が 413 を返すと、API が接続をリセットした時点で Caddy の書き込みが失敗し、5〜8 割が 502 になった（CI でも発生）。chunked は `request_body max_size` で 413 になる。ゲートウェイ経由で 4 MiB+ / 5 MiB / chunked をそれぞれ 20 回送り、すべて 413 になることを確認した。
 

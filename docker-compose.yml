@@ -1,5 +1,12 @@
 name: biblioflow
 
+# Every container: rotate the json-file log (Docker's default keeps it forever).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 x-backend-build: &backend-build
   context: ./backend
   args:
@@ -32,11 +39,13 @@ x-backend-common: &backend-common
   security_opt:
     - no-new-privileges:true
   restart: unless-stopped
+  logging: *logging
 
 services:
   biblioflow-db:
     image: pgvector/pgvector:pg16
     container_name: biblioflow-db
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
@@ -58,6 +67,7 @@ services:
   biblioflow-redis:
     image: redis:7-alpine
     container_name: biblioflow-redis
+    logging: *logging
     command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
@@ -107,6 +117,7 @@ services:
         GID: ${APP_GID:-1000}
         API_INTERNAL_URL: ${API_INTERNAL_URL:-http://biblioflow-api:8000}
     container_name: biblioflow-frontend
+    logging: *logging
     environment:
       API_INTERNAL_URL: ${API_INTERNAL_URL:-http://biblioflow-api:8000}
     # Not published: reached only through biblioflow-gateway.
@@ -138,6 +149,7 @@ services:
   biblioflow-gateway:
     image: caddy:2.10.2-alpine
     container_name: biblioflow-gateway
+    logging: *logging
     user: "${APP_UID:-1000}:${APP_GID:-1000}"
     environment:
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
@@ -178,6 +190,7 @@ services:
   biblioflow-cloudflared:
     image: cloudflare/cloudflared:2026.10.7
     container_name: biblioflow-cloudflared
+    logging: *logging
     profiles: ["cloudflare"]
     command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
     environment:
@@ -209,6 +222,7 @@ services:
   biblioflow-tailscale:
     image: tailscale/tailscale:v1.90.9
     container_name: biblioflow-tailscale
+    logging: *logging
     profiles: ["tailscale"]
     environment:
       # Not ":?" for the same reason as CLOUDFLARE_TUNNEL_TOKEN above.

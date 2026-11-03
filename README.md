@@ -29,7 +29,7 @@ docker compose ps        # 全サービスが healthy になることを確認
 | `:8081` | 公開しない（`biblioflow-edge` 内だけ） | cloudflared 専用。クライアント IP は `CF-Connecting-IP` だけを信用する |
 | `:8082` | 公開しない（`biblioflow-edge` 内だけ） | tailscale 専用。クライアント IP は `X-Forwarded-For`（tailscale serve が上書きする）だけを信用する。`CF-Connecting-IP` は信用しない（tailscale serve が素通しするため） |
 
-リクエストボディの上限は、`/api/v1/papers/upload` が `MAX_UPLOAD_MB`、それ以外の API が 4 MiB（API が JSON の 413 を返す。Caddy は 5 MiB で打ち切る）。
+リクエストボディの上限は、`/api/v1/papers/upload` が `MAX_UPLOAD_MB`、それ以外の API が 4 MiB。超えた要求はゲートウェイが API に渡す前に JSON の 413 で返す（API 側も同じ上限を持つ）。
 
 ### A. LAN 内だけ（http）
 
@@ -101,6 +101,21 @@ docker compose ps biblioflow-cloudflared         # healthy になれば接続済
 4. `docker compose --profile cloudflare up -d --build`
 
 Access を使う場合は Zero Trust > Access > Applications で `papers.example.com` を保護するポリシーを作る。
+
+## ログ
+
+ゲートウェイ（Caddy）がすべてのリクエストを JSON で記録する。Cookie と Authorization ヘッダーは `REDACTED` に置き換わる。`request.client_ip` は解決済みのクライアント IP（Cloudflare / Tailscale 経由でも実際の接続元）。全コンテナのログは 10 MB × 5 世代でローテーションする。
+
+```bash
+# ログイン失敗（401）とレートリミット（429）
+docker compose logs --no-color biblioflow-gateway | sed 's/^[^{]*//' \
+  | jq -c 'select(.request) | select(.request.uri | startswith("/api/v1/auth/login")) | select(.status == 401 or .status == 429)
+           | {ts, status, ip: .request.client_ip}'
+
+# IP ごとの 4xx 件数
+docker compose logs --no-color biblioflow-gateway | sed 's/^[^{]*//' \
+  | jq -r 'select(.request) | select(.status >= 400 and .status < 500) | .request.client_ip' | sort | uniq -c | sort -rn | head
+```
 
 ## 管理者ユーザーの作成
 
