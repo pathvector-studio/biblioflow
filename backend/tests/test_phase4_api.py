@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 
 from app.db.session import get_sessionmaker
 from app.models import Annotation, Paper
-from tests.helpers import pdf_files
+from tests.helpers import join_workspace, pdf_files
 from tests.pdfgen import make_pdf
 
 API = "/api/v1"
@@ -22,11 +22,10 @@ async def add_wishlist(c, title, **kw):
 
 
 async def shared_ws(owner, **members):
-    """Shared workspace owned by ``owner``; ``members`` maps email -> role."""
+    """Shared workspace owned by ``owner``; ``members`` maps email -> (client, role); each invite is accepted."""
     ws = (await owner.post(f"{API}/workspaces", json={"name": "Lab"})).json()["id"]
-    for email, role in members.items():
-        r = await owner.post(f"{API}/workspaces/{ws}/members", json={"email": email, "role": role})
-        assert r.status_code == 201, r.text
+    for email, (client, role) in members.items():
+        await join_workspace(owner, client, ws, email, role)
     return ws
 
 
@@ -91,7 +90,7 @@ async def test_delete_paper_keeps_shared_file_and_checks_rbac(login, resolver, s
     assert (await a.delete(f"{API}/papers/{pid}")).status_code == 204
     assert len(pdf_files(storage.library)) == 1
 
-    ws = await shared_ws(a, **{"v@example.com": "viewer"})
+    ws = await shared_ws(a, **{"v@example.com": (v, "viewer")})
     p = await add_wishlist(a, "In shared", workspace_id=ws)
     assert (await v.delete(f"{API}/papers/{p['id']}")).status_code == 404
 
@@ -143,7 +142,7 @@ async def test_annotations(login, resolver):
     _, ed2 = await login("e2@example.com")
     _, viewer = await login("v@example.com")
     _, outsider = await login("o@example.com")
-    ws = await shared_ws(owner, **{"e1@example.com": "editor", "e2@example.com": "editor", "v@example.com": "viewer"})
+    ws = await shared_ws(owner, **{"e1@example.com": (ed1, "editor"), "e2@example.com": (ed2, "editor"), "v@example.com": (viewer, "viewer")})
     pid = (await add_wishlist(owner, "Shared", workspace_id=ws))["id"]
     url = f"{API}/papers/{pid}/annotations"
     body = {"kind": "highlight", "page_number": 2, "position": {"rects": [[0, 0, 1, 1]]}, "content_text": "t", "color": "#aabbcc"}

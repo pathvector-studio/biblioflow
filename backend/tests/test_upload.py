@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.db.session import get_sessionmaker
 from app.models import Paper
-from tests.helpers import make_meta, pdf_files
+from tests.helpers import join_workspace, make_meta, pdf_files
 from tests.pdfgen import make_pdf
 
 API = "/api/v1"
@@ -184,7 +184,7 @@ async def test_upload_permissions(login, pat_client, resolver, storage, enqueued
     _, owner = await login("a@example.com")
     _, viewer = await login("v@example.com")
     ws = (await owner.post(f"{API}/workspaces", json={"name": "Lab"})).json()
-    await owner.post(f"{API}/workspaces/{ws['id']}/members", json={"email": "v@example.com", "role": "viewer"})
+    await join_workspace(owner, viewer, ws["id"], "v@example.com", "viewer")
     r = await upload(viewer, make_pdf(ARXIV_LINES), workspace_id=ws["id"])
     assert r.status_code == 404
     _, outsider = await login("o@example.com")

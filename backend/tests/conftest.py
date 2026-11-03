@@ -29,7 +29,7 @@ os.environ["FILENAME_TEMPLATE"] = "{year}/{identifier}_{slug_title}.pdf"
 
 TABLES = (
     "paper_collections, collections, paper_tags, tags, annotations, paper_chunks, papers, "
-    "workspace_members, workspaces, api_keys, users"
+    "workspace_invitations, workspace_members, workspaces, api_keys, users"
 )
 
 

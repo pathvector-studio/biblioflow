@@ -139,6 +139,7 @@
 - `COOKIE_SECURE` は廃止。Cookie の Secure 属性と HSTS は `request.url.scheme == "https"`（uvicorn `--proxy-headers` が X-Forwarded-Proto から決める）で判定する。ローカルの `.env` に古い `COOKIE_SECURE` が残っていても無視される。
 - ログインのレートリミットは IP+メール（10/分）、IP（30/分）に加え、メール単位（20/10 分、IP 非依存）。
 - Tailscale: `biblioflow-tailscale`（`profiles: ["tailscale"]`、`tailscale/tailscale` sidecar、userspace、`deploy/tailscale-serve.json` で `https://${TS_CERT_DOMAIN}` → `http://biblioflow-gateway:8081`）。`TS_AUTHKEY` は `:?` にしない。
+- ワークスペースのメンバー: 追加は**招待の承諾制**（`workspace_invitations`、メールに紐付け、期限 14 日）。`POST /workspaces/{id}/members` は、アカウントの有無にかかわらず同じ 202 を返す（存在確認に使わせない）。招待した本人が設定画面か `POST /invitations/{id}/accept` で承諾する。権限変更・削除・脱退あり。最後の owner は守る（409）。ワークスペースの作成・メンバー管理・招待は session 限定（PAT は 403）。設計は `specs/workspace-members.md`。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
 
 ### 6.3 環境の再開手順

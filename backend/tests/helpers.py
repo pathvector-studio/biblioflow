@@ -56,3 +56,13 @@ class FakePool:
 def pdf_files(root) -> list:
     """All stored PDFs under the library (excluding the .incoming staging dir)."""
     return sorted(p for p in root.rglob("*.pdf") if ".incoming" not in p.parts)
+
+
+async def join_workspace(owner, member_client, workspace_id, email, role="viewer", api="/api/v1") -> None:
+    """Invite ``email`` as ``owner`` and accept as ``member_client`` (members are no longer added directly)."""
+    r = await owner.post(f"{api}/workspaces/{workspace_id}/members", json={"email": email, "role": role})
+    assert r.status_code == 202, r.text
+    invs = (await member_client.get(f"{api}/invitations")).json()
+    for inv in invs:
+        r = await member_client.post(f"{api}/invitations/{inv['id']}/accept")
+        assert r.status_code == 200, r.text

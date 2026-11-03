@@ -102,9 +102,9 @@ async def test_scope_enforcement(login, make_client):
     h_ro = {"Authorization": f"Bearer {ro['token']}"}
     h_rw = {"Authorization": f"Bearer {rw['token']}"}
     assert (await p.get(f"{API}/workspaces", headers=h_ro)).status_code == 200
-    r = await p.post(f"{API}/workspaces", json={"name": "Lab"}, headers=h_ro)
-    assert r.status_code == 403
-    assert (await p.post(f"{API}/workspaces", json={"name": "Lab"}, headers=h_rw)).status_code == 201
+    body = {"title": "A wished paper"}
+    assert (await p.post(f"{API}/papers/metadata-only", json=body, headers=h_ro)).status_code == 403
+    assert (await p.post(f"{API}/papers/metadata-only", json=body, headers=h_rw)).status_code == 201
     wo = await _create(c, scopes=["write:papers"])
     assert (await p.get(f"{API}/workspaces", headers={"Authorization": f"Bearer {wo['token']}"})).status_code == 403
 

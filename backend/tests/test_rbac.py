@@ -7,6 +7,7 @@ from app.api.deps import Principal, get_paper_for_user, get_workspace_for_user
 from app.core.security import ALL_SCOPES
 from app.db.session import get_sessionmaker
 from app.models import IdentifierType, Paper, User, WorkspaceRole
+from tests.helpers import join_workspace
 
 API = "/api/v1"
 
@@ -47,11 +48,12 @@ async def test_shared_workspace_roles(login):
     assert ws["kind"] == "shared" and ws["role"] == "owner" and ws["slug"].startswith("lab-network-")
     wid = ws["id"]
 
-    assert (await a.post(f"{API}/workspaces/{wid}/members", json={"email": "e@example.com", "role": "editor"})).status_code == 201
-    assert (await a.post(f"{API}/workspaces/{wid}/members", json={"email": "v@example.com", "role": "viewer"})).status_code == 201
+    await join_workspace(a, e, wid, "e@example.com", "editor")
+    await join_workspace(a, v, wid, "v@example.com", "viewer")
     dup = await a.post(f"{API}/workspaces/{wid}/members", json={"email": "v@example.com", "role": "viewer"})
     assert dup.status_code == 409
-    assert (await a.post(f"{API}/workspaces/{wid}/members", json={"email": "nobody@example.com", "role": "viewer"})).status_code == 404
+    # unknown e-mail is indistinguishable from a known one
+    assert (await a.post(f"{API}/workspaces/{wid}/members", json={"email": "nobody@example.com", "role": "viewer"})).status_code == 202
 
     # members can read; roles are reported correctly
     d = (await v.get(f"{API}/workspaces/{wid}")).json()
@@ -82,7 +84,7 @@ async def test_get_workspace_and_paper_helpers(login):
     viewer, v = await login("v@example.com")
     outsider, _ = await login("o@example.com")
     ws = (await a.post(f"{API}/workspaces", json={"name": "Lab"})).json()
-    await a.post(f"{API}/workspaces/{ws['id']}/members", json={"email": "v@example.com", "role": "viewer"})
+    await join_workspace(a, v, ws["id"], "v@example.com", "viewer")
     wid = uuid.UUID(ws["id"])
 
     async with get_sessionmaker()() as db:

@@ -28,6 +28,33 @@ export interface Workspace {
   role: Role;
 }
 
+export interface Member {
+  user_id: string;
+  email: string;
+  display_name: string;
+  role: Role;
+}
+
+export interface WorkspaceDetail extends Workspace {
+  members: Member[];
+}
+
+export interface MyInvitation {
+  id: string;
+  workspace_name: string;
+  role: Role;
+  invited_by_name: string;
+  expires_at: string;
+}
+
+export interface WorkspaceInvitation {
+  id: string;
+  email: string;
+  role: Role;
+  created_at: string;
+  expires_at: string;
+}
+
 export interface PaperLight {
   id: string;
   identifier: string;

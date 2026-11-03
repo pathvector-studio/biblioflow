@@ -6,7 +6,7 @@ from sqlalchemy import select, update
 from app.db.session import get_sessionmaker
 from app.models import Collection, Paper, Workspace
 from app.schemas.metadata import UpstreamError
-from tests.helpers import pdf_files
+from tests.helpers import join_workspace, pdf_files
 from tests.pdfgen import make_pdf
 
 API = "/api/v1"
@@ -107,7 +107,7 @@ async def test_light_shared_workspace_visible_to_members(login, resolver):
     _, a = await login("a@example.com")
     _, v = await login("v@example.com")
     ws = (await a.post(f"{API}/workspaces", json={"name": "Lab"})).json()
-    await a.post(f"{API}/workspaces/{ws['id']}/members", json={"email": "v@example.com", "role": "viewer"})
+    await join_workspace(a, v, ws["id"], "v@example.com", "viewer")
     p = (await a.post(f"{API}/papers/metadata-only", json={"title": "Shared paper", "workspace_id": ws["id"]})).json()
     assert [r["id"] for r in (await v.get(f"{API}/papers/light")).json()] == [p["id"]]
     assert (await v.get(f"{API}/papers/{p['id']}")).status_code == 200

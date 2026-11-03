@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -31,3 +32,29 @@ class WorkspaceDetail(WorkspaceOut):
 class MemberAdd(BaseModel):
     email: EmailStr
     role: WorkspaceRole = WorkspaceRole.viewer
+
+
+class InvitationCreated(BaseModel):
+    email: str
+    role: WorkspaceRole
+    status: str = "pending"
+
+
+class MemberRolePatch(BaseModel):
+    role: WorkspaceRole
+
+
+class MyInvitationOut(BaseModel):
+    id: uuid.UUID
+    workspace_name: str
+    role: WorkspaceRole
+    invited_by_name: str
+    expires_at: datetime
+
+
+class WorkspaceInvitationOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    role: WorkspaceRole
+    created_at: datetime
+    expires_at: datetime

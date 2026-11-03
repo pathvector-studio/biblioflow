@@ -1,8 +1,9 @@
 import enum
 import uuid
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy.dialects.postgresql import CITEXT, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, CreatedAtMixin, TimestampMixin, UUIDPKMixin, pg_enum
@@ -47,3 +48,20 @@ class WorkspaceMember(CreatedAtMixin, Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True
     )
     role: Mapped[WorkspaceRole] = mapped_column(pg_enum(WorkspaceRole, "workspace_role"), nullable=False)
+
+
+class WorkspaceInvitation(UUIDPKMixin, CreatedAtMixin, Base):
+    """Pending invitation, keyed by e-mail so the response never reveals whether an account exists."""
+
+    __tablename__ = "workspace_invitations"
+    __table_args__ = (UniqueConstraint("workspace_id", "email"),)
+
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    email: Mapped[str] = mapped_column(CITEXT, nullable=False, index=True)
+    role: Mapped[WorkspaceRole] = mapped_column(pg_enum(WorkspaceRole, "workspace_role"), nullable=False)
+    invited_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
