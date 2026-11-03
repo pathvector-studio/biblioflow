@@ -22,7 +22,6 @@ class Settings(BaseSettings):
 
     jwt_secret: SecretStr
     jwt_expire_minutes: int = Field(720, ge=1, le=60 * 24 * 30)
-    cookie_secure: bool = True
     cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     allow_registration: bool = False
     enable_docs: bool = False

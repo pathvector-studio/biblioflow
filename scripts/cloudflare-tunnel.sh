@@ -6,10 +6,10 @@
 # What it does (safe to re-run):
 #   1. finds the Cloudflare zone and account for the hostname
 #   2. creates a remotely-managed tunnel (default name: biblioflow), or reuses it
-#   3. routes https://<hostname> -> http://biblioflow-frontend:3000
+#   3. routes https://<hostname> -> http://biblioflow-gateway:8081 (trusted listener)
 #   4. creates the proxied CNAME <hostname> -> <tunnel-id>.cfargotunnel.com
-#   5. writes CLOUDFLARE_TUNNEL_TOKEN, COOKIE_SECURE=true and the https origin
-#      in CORS_ALLOWED_ORIGINS into .env
+#   5. writes CLOUDFLARE_TUNNEL_TOKEN and the https origin in CORS_ALLOWED_ORIGINS
+#      into .env
 # Then start it with: docker compose --profile cloudflare up -d
 #
 # The API token needs: Account > Cloudflare Tunnel > Edit,
@@ -18,7 +18,7 @@
 set -euo pipefail
 
 API="${CF_API_BASE:-https://api.cloudflare.com/client/v4}"
-SERVICE="http://biblioflow-frontend:3000"
+SERVICE="http://biblioflow-gateway:8081"
 
 die() { printf ' ✗ %s\n' "$*" >&2; exit 1; }
 ok()  { printf ' ✓ %s\n' "$*"; }
@@ -109,13 +109,11 @@ set_env() {
 }
 
 set_env CLOUDFLARE_TUNNEL_TOKEN "$token"
-set_env COOKIE_SECURE true
 origins="$(grep -E '^CORS_ALLOWED_ORIGINS=' .env | tail -1 | cut -d= -f2- || true)"
 case ",${origins}," in
   *",https://${HOST},"*) ;;
   *) set_env CORS_ALLOWED_ORIGINS "${origins:+${origins},}https://${HOST}" ;;
 esac
-ok ".env updated (CLOUDFLARE_TUNNEL_TOKEN, COOKIE_SECURE=true, CORS_ALLOWED_ORIGINS)"
+ok ".env updated (CLOUDFLARE_TUNNEL_TOKEN, CORS_ALLOWED_ORIGINS)"
 
 printf '\nNext:\n  docker compose --profile cloudflare up -d\n  open https://%s\n\n' "$HOST"
-printf 'Note: COOKIE_SECURE=true means login works over https://%s, not plain http://localhost.\n' "$HOST"

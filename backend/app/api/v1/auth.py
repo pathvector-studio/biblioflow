@@ -21,13 +21,20 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 LOGIN_PER_IP_EMAIL = 10
 LOGIN_PER_IP = 30
+LOGIN_PER_EMAIL = 20
+LOGIN_EMAIL_WINDOW = 600
 
 
 def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _set_session_cookie(response: Response, user: User) -> None:
+def _is_https(request: Request) -> bool:
+    # uvicorn --proxy-headers turns the gateway's X-Forwarded-Proto into the scheme.
+    return request.url.scheme == "https"
+
+
+def _set_session_cookie(request: Request, response: Response, user: User) -> None:
     settings = get_settings()
     token, _jti, _exp = create_access_token(user.id)
     response.set_cookie(
@@ -35,7 +42,7 @@ def _set_session_cookie(response: Response, user: User) -> None:
         token,
         max_age=settings.jwt_expire_minutes * 60,
         httponly=True,
-        secure=settings.cookie_secure,
+        secure=_is_https(request),
         samesite="lax",
         path="/",
     )
@@ -53,6 +60,8 @@ async def login(
     email = body.email.strip().lower()
     await enforce_rate_limit(redis, "login_ip_email", (ip, email), LOGIN_PER_IP_EMAIL)
     await enforce_rate_limit(redis, "login_ip", (ip,), LOGIN_PER_IP)
+    # Independent of the client IP: caps password guessing even if the IP is shared or spoofed.
+    await enforce_rate_limit(redis, "login_email", (email,), LOGIN_PER_EMAIL, window=LOGIN_EMAIL_WINDOW)
 
     user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
     # Always verify (dummy hash when the user is unknown) to avoid a timing oracle.
@@ -64,23 +73,23 @@ async def login(
         user.password_hash = hash_password(body.password)
         await db.commit()
 
-    _set_session_cookie(response, user)
+    _set_session_cookie(request, response, user)
     return user
 
 
 @router.post("/logout", status_code=204)
 async def logout(
+    request: Request,
     principal: Principal = Depends(get_session_principal),
     redis: Redis = Depends(get_redis),
 ) -> Response:
-    settings = get_settings()
     if principal.jti and principal.session_expires_at:
         ttl = int((principal.session_expires_at - datetime.now(UTC)).total_seconds()) + 1
         if ttl > 0:
             await redis.set(DENYLIST_PREFIX + principal.jti, "1", ex=ttl)
     out = Response(status_code=204)
     out.delete_cookie(
-        SESSION_COOKIE_NAME, path="/", httponly=True, secure=settings.cookie_secure, samesite="lax"
+        SESSION_COOKIE_NAME, path="/", httponly=True, secure=_is_https(request), samesite="lax"
     )
     return out
 
@@ -88,6 +97,7 @@ async def logout(
 @router.post("/password", status_code=204)
 async def change_password(
     body: PasswordChangeRequest,
+    request: Request,
     principal: Principal = Depends(get_session_principal),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
@@ -104,7 +114,7 @@ async def change_password(
         if ttl > 0:
             await redis.set(DENYLIST_PREFIX + principal.jti, "1", ex=ttl)
     out = Response(status_code=204)
-    _set_session_cookie(out, user)
+    _set_session_cookie(request, out, user)
     return out
 
 

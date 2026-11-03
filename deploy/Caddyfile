@@ -1,0 +1,49 @@
+# BiblioFlow gateway. The only service published to the host.
+#
+#   :8080  published (${BIND_ADDRESS}:${FRONTEND_PORT}). Untrusted clients: any
+#          X-Forwarded-* they send is discarded; Caddy sets them from the socket.
+#   :8081  NOT published. Reachable only from sidecars on biblioflow-edge
+#          (cloudflared / tailscale). Their client-IP and proto headers are trusted.
+{
+	admin off
+	auto_https off
+	persist_config off
+
+	servers :8081 {
+		trusted_proxies static private_ranges
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
+	}
+}
+
+(app) {
+	# Local health endpoint for the container healthcheck.
+	handle /gateway-healthz {
+		respond "ok" 200
+	}
+
+	# API: straight to FastAPI (no Next.js proxy, so no 30 s proxy timeout).
+	# MAX_UPLOAD_MB matches the API's own limit (MiB); the API returns the friendlier JSON 413.
+	handle /api/* {
+		request_body {
+			max_size {$MAX_UPLOAD_MB:50}MiB
+		}
+		reverse_proxy biblioflow-api:8000 {
+			# Exactly one client IP, never an appended chain.
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	handle {
+		reverse_proxy biblioflow-frontend:3000 {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+}
+
+:8080 {
+	import app
+}
+
+:8081 {
+	import app
+}

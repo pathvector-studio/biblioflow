@@ -157,7 +157,7 @@ def _echo_app(max_bytes: int) -> FastAPI:
         return {"n": len(await request.body())}
 
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=max_bytes)
-    app.add_middleware(SecurityHeadersMiddleware, hsts=True)
+    app.add_middleware(SecurityHeadersMiddleware)
     return app
 
 
@@ -185,7 +185,7 @@ async def test_body_limit_streamed_without_content_length():
 
 
 async def test_security_headers():
-    async with AsyncClient(transport=ASGITransport(app=_echo_app(1000)), base_url="http://t") as c:
+    async with AsyncClient(transport=ASGITransport(app=_echo_app(1000)), base_url="https://t") as c:
         r = await c.post("/echo", content=b"x")
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["x-frame-options"] == "DENY"

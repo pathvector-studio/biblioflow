@@ -33,10 +33,27 @@ async def test_login_success_and_cookie_attributes(client, create_user):
     assert cookie.startswith("bf_session=")
     for attr in ("httponly", "secure", "samesite=lax", "path=/", "max-age=43200"):
         assert attr in cookie
+    assert "max-age=31536000" in r.headers["strict-transport-security"]
     me = await client.get(f"{API}/auth/me")
     assert me.status_code == 200
     assert me.json()["auth_method"] == "session"
     assert me.json()["user"]["email"] == "alice@example.com"
+
+
+async def test_cookie_secure_and_hsts_follow_request_scheme(create_user, clean):
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+
+    await create_user("scheme@example.com")
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://testserver", headers={"Origin": ORIGIN}
+    ) as c:
+        r = await c.post(f"{API}/auth/login", json={"email": "scheme@example.com", "password": PW})
+        assert r.status_code == 200
+        cookie = r.headers["set-cookie"].lower()
+        assert "httponly" in cookie and "secure" not in cookie
+        assert "strict-transport-security" not in r.headers
 
 
 async def test_login_failures_are_uniform(client, create_user):
@@ -113,6 +130,23 @@ async def test_login_rate_limit_per_ip(client):
         assert r.status_code == 401
     r = await client.post(f"{API}/auth/login", json={"email": "u99@example.com", "password": "bad-password-1"})
     assert r.status_code == 429 and "retry-after" in r.headers
+
+
+async def test_login_rate_limit_per_email_across_ips(create_user, clean):
+    from httpx import ASGITransport, AsyncClient
+
+    from app.main import app
+
+    await create_user("frank@example.com")
+    for i in range(20):  # a fresh client IP each time: only the per-email bucket can trip
+        transport = ASGITransport(app=app, client=(f"198.51.100.{i + 1}", 5000))
+        async with AsyncClient(transport=transport, base_url="https://testserver", headers={"Origin": ORIGIN}) as c:
+            r = await c.post(f"{API}/auth/login", json={"email": "frank@example.com", "password": "bad-password-1"})
+            assert r.status_code == 401
+    transport = ASGITransport(app=app, client=("198.51.100.99", 5000))
+    async with AsyncClient(transport=transport, base_url="https://testserver", headers={"Origin": ORIGIN}) as c:
+        r = await c.post(f"{API}/auth/login", json={"email": "frank@example.com", "password": PW})
+        assert r.status_code == 429
 
 
 async def test_register_disabled_by_default(client):

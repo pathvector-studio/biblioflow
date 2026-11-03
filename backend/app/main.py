@@ -35,7 +35,7 @@ def create_app() -> FastAPI:
     )
     # Added innermost first; CORS ends up outermost so even 413s carry CORS headers.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_upload_bytes)
-    app.add_middleware(SecurityHeadersMiddleware, hsts=settings.cookie_secure)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_allowed_origins,

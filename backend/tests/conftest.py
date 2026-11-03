@@ -21,7 +21,6 @@ def _redis_test_url() -> str:
 os.environ["DATABASE_URL"] = TEST_DB or "postgresql+asyncpg://u:p@localhost:1/none"
 os.environ["REDIS_URL"] = _redis_test_url()
 os.environ["JWT_SECRET"] = "test-secret-" + "x" * 40
-os.environ["COOKIE_SECURE"] = "true"
 os.environ["CORS_ALLOWED_ORIGINS"] = ORIGIN
 os.environ["ALLOW_REGISTRATION"] = "false"
 os.environ["MAX_UPLOAD_MB"] = "1"

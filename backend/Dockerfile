@@ -31,4 +31,7 @@ COPY app ./app
 COPY tests ./tests
 USER app
 EXPOSE 8000
+# --forwarded-allow-ips=* is safe only because this container is never published:
+# the API is reachable solely through biblioflow-gateway (Caddy), which overwrites
+# X-Forwarded-For / X-Forwarded-Proto on every request. Do not add `ports:` to the API.
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*"]
