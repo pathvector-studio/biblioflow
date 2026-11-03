@@ -73,6 +73,7 @@ jobs:
             sed -i "s|^$k=.*|$k=$(openssl rand -hex 32)|" .env
           done
       - run: docker compose config -q
+      - run: docker compose --profile cloudflare config -q
       - name: Build and start stack
         run: docker compose up -d --build --wait --wait-timeout 180
       - name: Smoke test via frontend proxy

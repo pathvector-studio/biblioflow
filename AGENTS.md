@@ -133,6 +133,7 @@
 - `process_paper`（Arq）は Phase 2 では整合性チェックと page_count の確定だけを行う。Phase 3 でチャンク分割と embedding をここに追加する。
 - import-url: **既定で無効**（`URL_IMPORT_ENABLED=false`、ユーザー判断 2026-11-03）。コードとテストは残してある。出版社サイト（ScienceDirect 等）はサーバーからの取得を 403 で拒否する。bot 対策の回避（UA 偽装等）はしない。その場合はブラウザで落とした PDF を upload / Watch Folder で取り込む（DOI が wishlist と一致すれば自動で紐付く）。
 - PDF ライブラリ: Phase 2 は pypdf（BSD）。PyMuPDF は AGPL でリポジトリの MIT と衝突するため、Phase 3 で採用するなら要検討。
+- Cloudflare Tunnel: `biblioflow-cloudflared`（`profiles: ["cloudflare"]`、edge ネットワークのみ、トークン方式）。トンネルの転送先は `http://biblioflow-frontend:3000`。`CLOUDFLARE_TUNNEL_TOKEN` は `:?` にしない（profile 未使用でも compose が全サービスを展開するため）。設定は `scripts/cloudflare-tunnel.sh <hostname>`（Cloudflare API、冪等。API トークンは .env に入れない）。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
 
 ### 6.3 環境の再開手順
