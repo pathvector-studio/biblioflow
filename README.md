@@ -139,6 +139,32 @@ docker compose --profile cloudflare up -d     # apply Access before starting the
 - Cloudflare's edge rejects a client-supplied `CF-Connecting-IP` with 403 and a forged `X-Forwarded-For` is ignored; the gateway log and the API see the real client IP.
 - If Web Analytics (RUM) auto-injection is enabled for the zone, Cloudflare inserts a `static.cloudflareinsights.com` script into the HTML. Turn it off in Cloudflare if you do not want it.
 
+## Production deployment
+
+Use a dedicated clone for production and update it only with `scripts/deploy.sh`:
+
+```bash
+scripts/deploy.sh            # deploy origin/main
+scripts/deploy.sh <commit>   # deploy a specific commit or tag (also how you roll back)
+```
+
+It refuses to run with local changes, takes a backup (`scripts/backup.sh`), checks out the ref, rebuilds, waits until every service is healthy and checks `/api/v1/readyz` through the gateway. Migrations run when the API starts; a migration is not undone by rolling back the code, so restore the backup taken by the deploy if you need to.
+
+The compose profiles to start (for example `cloudflare`) are read from `COMPOSE_PROFILES` in `.env`.
+
+### A second instance on the same machine
+
+To run production next to a development checkout, give the production clone its own names and port in its `.env`:
+
+```bash
+BF_INSTANCE=biblioflow-prod          # container and network names: biblioflow-prod-*
+COMPOSE_PROJECT_NAME=biblioflow-prod # separate volumes and images
+FRONTEND_PORT=3090                   # must not clash with the other instance
+COMPOSE_PROFILES=cloudflare
+```
+
+Each clone has its own `data/`, database volume, secrets and Cloudflare tunnel. Service names (`biblioflow-api`, ...) stay the same, so the commands in this README work in either directory.
+
 ## Logs
 
 The gateway (Caddy) logs every request as JSON. `Cookie` and `Authorization` headers are replaced with `REDACTED`. `request.client_ip` is the resolved client IP (the real origin, also behind Cloudflare or Tailscale). Every container's log is rotated at 10 MB × 5 files.

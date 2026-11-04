@@ -77,6 +77,12 @@ jobs:
       - run: docker compose config -q
       - run: docker compose --profile cloudflare config -q
       - run: docker compose --profile tailscale config -q
+      - name: A second instance gets its own container and network names
+        run: |
+          out="$(BF_INSTANCE=biblioflow-prod COMPOSE_PROJECT_NAME=biblioflow-prod docker compose --profile cloudflare config --format json)"
+          test "$(jq -r '[.services[].container_name] | map(startswith("biblioflow-prod-")) | all' <<<"$out")" = true
+          test "$(jq -r '[.networks[].name] | sort | join(",")' <<<"$out")" = "biblioflow-prod-edge,biblioflow-prod-internal"
+          test "$(docker compose config --format json | jq -r '.services["biblioflow-api"].container_name')" = biblioflow-api
       - name: Build and start stack
         run: docker compose up -d --build --wait --wait-timeout 180
       - name: Smoke test via gateway
