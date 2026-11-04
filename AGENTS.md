@@ -108,15 +108,16 @@
 
 ## 6. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-03（Phase 4 実装完了・PR 作成。次は Phase 3）
+> 最終更新: 2026-11-05（Phase 3 の計画承認。全体の順番は `specs/roadmap.md`）
 
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
 |---|---|---|
 | 1. インフラ・DBスキーマ・セキュリティ基盤 | ✅ 完了（CI green） | PR #1 `feat/phase1-foundation`（https://github.com/pathvector-studio/biblioflow/pull/1）。設計詳細は `specs/phase1.md` |
 | 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（https://github.com/pathvector-studio/biblioflow/pull/2）。設計詳細は `specs/phase2.md` |
-| 4. Frontend Web UI（AI 以外） | ✅ 実装完了（PR レビュー待ち） | `specs/phase4.md`。ブランチ `feat/phase4-ui` |
-| 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ** | §6.5 の TODO から |
+| 4. Frontend Web UI（AI 以外） | ✅ 完了 | `specs/phase4.md` |
+| 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ**（計画承認済み） | `specs/phase3.md`。MCP（キーワード検索）→ embedding → チャットの順 |
+| ロードマップ（ブラウザ拡張・エクスポート/インポート・Zotero との機能差） | 計画 | `specs/roadmap.md`。ブラウザ拡張とエクスポート/インポートは Phase 3 と並行 |
 | 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | 未着手（Phase 3 の後） | 右ペインに AI タブを追加する |
 
 ### 6.2 確定済みの設計判断（再検討しない）
@@ -172,8 +173,9 @@ gh auth status                          # 切れていれば `gh auth login`
 - ローカル DB に QA 用ユーザー `qa-owner@` / `qa-viewer@biblioflow.example.com` と共有ワークスペース「QA Lab」がある（パスワードはリポジトリに書かない）。
 - ブラウザ確認は Playwright（scratchpad にインストール）で LAN アドレスを開いて行った。
 
-### 6.5 Phase 3 着手時の TODO（Phase 4 の後）
-1. `specs/phase3.md` に計画を書いてユーザーの承認を得る（§3.3 Grounding・矩形選択 Vision・ハイブリッド検索）
-2. PDF パーサを選定する（ライセンス: PyMuPDF は AGPL。pypdf / pdfplumber / Docling を比較する）
-3. `workers/tasks.py` の `process_paper` を拡張し、チャンク + bbox + embedding を作って `index_status` を ready / failed に遷移させる
-4. LLM エンドポイントにも `RateLimiter` を使う。プロンプトは `<paper_context>` で区切る
+### 6.5 Phase 3 着手時の TODO
+1. ~~`specs/phase3.md` に計画を書いてユーザーの承認を得る~~（2026-11-05 承認。決定事項は spec に記載）
+2. ~~PDF パーサを選定する~~（pypdf。PyMuPDF は AGPL なので使わない）
+3. まず 3c: `mcp/` に `biblioflow-mcp`（stdio、HTTP API の薄いクライアント）と、キーワード検索の `GET /api/v1/search`
+4. `workers/tasks.py` の `process_paper` を拡張し、チャンク + bbox + embedding（既定 bge-m3）を作って `index_status` を ready / failed に遷移させる
+5. LLM エンドポイントにも `RateLimiter` を使う。プロンプトは `<paper_context>` で区切る
