@@ -1,56 +1,74 @@
 # BiblioFlow
 
-自己ホスト型の論文管理・AI リサーチアシスタント（Docker Compose 完結）。仕様は `AGENTS.md`、Phase 1 の計画は `specs/phase1.md` を参照。
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/pathvector-studio)
 
-## セットアップ
+A self-hosted paper manager and AI research assistant that runs entirely on Docker Compose.
+
+- Read, highlight and take Markdown notes on PDFs in the browser; share them in lab workspaces.
+- PDFs are stored as plain files you can open from the host (`{Year}/{Identifier}_{SlugTitle}.pdf`).
+- Metadata and BibTeX are filled in from arXiv, CrossRef and Semantic Scholar.
+- A lightweight metadata API with personal access tokens, for CLIs, scripts and MCP servers.
+- AI features (chat grounded in the paper, figure/equation explanations, hybrid search across the library) are planned (Phase 3).
+
+The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`.
+
+## Setup
 
 ```bash
 cp .env.example .env
-# .env の change-me-* を置き換える（シークレット生成）
-openssl rand -hex 32   # POSTGRES_PASSWORD / REDIS_PASSWORD / JWT_SECRET それぞれに使う
+# Replace every change-me-* value in .env with a generated secret:
+openssl rand -hex 32   # once each for POSTGRES_PASSWORD / REDIS_PASSWORD / JWT_SECRET
 ```
 
 ```bash
 docker compose up -d --build
-docker compose ps        # 全サービスが healthy になることを確認
+docker compose ps        # every service should become healthy
 ```
 
-ホストに公開されるのは `biblioflow-gateway`（Caddy）の 1 ポート（`BIND_ADDRESS:FRONTEND_PORT`、既定 http://127.0.0.1:3000）だけ。DB・Redis・API・frontend は公開されない。ゲートウェイは `/api/*` を API へ直接、それ以外を frontend へ転送する。
+Only one port is published to the host: the `biblioflow-gateway` (Caddy) on `BIND_ADDRESS:FRONTEND_PORT` (default http://127.0.0.1:3000). The database, Redis, the API and the frontend are not published. The gateway sends `/api/*` straight to the API and everything else to the frontend.
 
-## 公開形態
+## Create a user
 
-アプリ本体は公開形態を意識しない。違いは `.env` の数項目と、入口のコンテナ（profile）だけ。Cookie の Secure 属性と HSTS はリクエストが https かどうかで自動的に決まるので、LAN（http）とトンネル（https）を同時に使ってもよい。
+Self-registration is off by default (`ALLOW_REGISTRATION=false`). Create accounts from the CLI, in a terminal (the password prompt needs a TTY):
 
-ゲートウェイは 2 つのリスナーを持つ。
+```bash
+docker compose exec biblioflow-api python -m app.cli create-user --email you@example.com --admin
+```
 
-| ポート | 公開 | 用途 |
+## Deployment modes
+
+The application itself does not care how it is exposed; only a few `.env` values and the entry container (a compose profile) differ. The `Secure` cookie attribute and HSTS follow whether the request is https, so LAN (http) and a tunnel (https) can be used at the same time.
+
+The gateway has three listeners:
+
+| Port | Published | Purpose |
 |---|---|---|
-| `:8080` | ホストに公開（`BIND_ADDRESS:FRONTEND_PORT`） | クライアントが直接つなぐ口。クライアントが送った `X-Forwarded-*` は捨て、接続元アドレスから上書きする |
-| `:8081` | 公開しない（`biblioflow-edge` 内だけ） | cloudflared 専用。クライアント IP は `CF-Connecting-IP` だけを信用する |
-| `:8082` | 公開しない（`biblioflow-edge` 内だけ） | tailscale 専用。クライアント IP は `X-Forwarded-For`（tailscale serve が上書きする）だけを信用する。`CF-Connecting-IP` は信用しない（tailscale serve が素通しするため） |
+| `:8080` | Yes (`BIND_ADDRESS:FRONTEND_PORT`) | Direct clients. Any `X-Forwarded-*` they send is discarded and rewritten from the socket address. |
+| `:8081` | No (`biblioflow-edge` network only) | cloudflared only. The client IP is taken from `CF-Connecting-IP` and nothing else. |
+| `:8082` | No (`biblioflow-edge` network only) | tailscale only. The client IP is taken from `X-Forwarded-For` (overwritten by tailscale serve). `CF-Connecting-IP` is not trusted here, because tailscale serve passes it through. |
 
-リクエストボディの上限は、`/api/v1/papers/upload` が `MAX_UPLOAD_MB`、それ以外の API が 4 MiB。超えた要求はゲートウェイが API に渡す前に JSON の 413 で返す（API 側も同じ上限を持つ）。
+Request bodies are limited to `MAX_UPLOAD_MB` for `/api/v1/papers/upload` and 4 MiB for the rest of the API. Larger requests get a JSON 413 from the gateway before they reach the API (the API enforces the same limits).
 
-### A. LAN 内だけ（http）
+### A. LAN only (http)
 
 `.env`:
 
 ```bash
-BIND_ADDRESS=0.0.0.0            # 自分の PC だけなら 127.0.0.1
+BIND_ADDRESS=0.0.0.0            # 127.0.0.1 for this machine only
 FRONTEND_PORT=3000
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.10:3000   # ブラウザで開く URL をすべて列挙
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://192.168.1.10:3000   # every URL you open in a browser
 ```
 
-起動: `docker compose up -d --build`。外部側の設定は不要。
+Start with `docker compose up -d --build`. Nothing else to configure.
 
-Docker Desktop（Mac）では、LAN の他端末からの接続元 IP がすべて VM のゲートウェイ IP に見える。そのため IP 単位のレートリミットは全端末で共有になる。ログインにはメールアドレス単位の上限（20 回 / 10 分）もあり、これで補う。
+With Docker Desktop (macOS), every LAN client appears to come from the VM's gateway IP, so per-IP rate limits are shared by all devices. Login also has a per-email limit (20 attempts / 10 minutes), which covers this.
 
-### B. Tailscale（ゼロトラスト）
+### B. Tailscale (zero trust)
 
-ポートは開けない。tailnet に参加している端末だけがつなげる。
+No open ports; only devices on your tailnet can connect.
 
-1. Tailscale 管理画面の DNS で MagicDNS と HTTPS Certificates を有効にする
-2. Settings > Keys で auth key を発行する（One-off 推奨）
+1. In the Tailscale admin console, enable MagicDNS and HTTPS Certificates (DNS page).
+2. Create an auth key under Settings > Keys (one-off is fine). It is only needed for the first login; you can also run Tailscale on the host instead and skip the sidecar.
 3. `.env`:
 
    ```bash
@@ -60,115 +78,115 @@ Docker Desktop（Mac）では、LAN の他端末からの接続元 IP がすべ�
    CORS_ALLOWED_ORIGINS=https://biblioflow.<tailnet>.ts.net,http://localhost:3000
    ```
 
-4. 起動: `docker compose --profile tailscale up -d --build`
-5. `docker compose logs biblioflow-tailscale` で接続を確認し、https://biblioflow.<tailnet>.ts.net を開く。初回ログイン後は `TS_AUTHKEY` を空に戻してよい（状態は `tailscale-state` volume に残る）
+4. Start: `docker compose --profile tailscale up -d --build`
+5. Check `docker compose logs biblioflow-tailscale` and open https://biblioflow.<tailnet>.ts.net. After the first login you may clear `TS_AUTHKEY` (the node state stays in the `tailscale-state` volume).
 
-tailnet の中だけに公開される（Funnel は使わない）。
+It is reachable inside the tailnet only (Funnel is not used).
 
-### C. Cloudflare Tunnel（一般公開）
+### C. Cloudflare Tunnel (public)
 
-ポート開放なしで外から使える。トンネルはホストから外向きにだけ接続する。**公開する場合は Cloudflare Access（Zero Trust のアクセスポリシー）でホスト名の前に認証をかけることを推奨する。** `ALLOW_REGISTRATION=false`（既定）のままにする。
+Reachable from anywhere without opening ports; the tunnel only connects outbound from the host. **If you expose it publicly, put Cloudflare Access in front of the hostname** (see below) and keep `ALLOW_REGISTRATION=false` (the default).
 
-まず `.env` の `BIND_ADDRESS=127.0.0.1` を確認する（LAN に公開しない場合）。
+Set `BIND_ADDRESS=127.0.0.1` in `.env` unless you also want LAN access.
 
-#### CLI で設定する（推奨）
+#### Set up from the CLI (recommended)
 
-API トークンを1つ用意する（ダッシュボードの My Profile > API Tokens で一度だけ作成）。必要な権限:
-`Account > Cloudflare Tunnel > Edit`、`Zone > DNS > Edit`、`Zone > Zone > Read`。
+Create one API token (dashboard: My Profile > API Tokens > Create Token > Custom token) with:
+`Account > Cloudflare Tunnel > Edit`, `Zone > DNS > Edit`, `Zone > Zone > Read` (limit the zone resources to your zone).
 
 ```bash
-export CLOUDFLARE_API_TOKEN=<API トークン>      # .env には書かない（アプリのコンテナに渡るため）
-scripts/cloudflare-tunnel.sh papers.example.com   # トンネル・転送先・DNS・.env をまとめて設定
+export CLOUDFLARE_API_TOKEN=<API token>          # not in .env: .env is passed to the app containers
+scripts/cloudflare-tunnel.sh papers.example.com   # tunnel, route, DNS record and .env in one go
 docker compose --profile cloudflare up -d --build
-docker compose ps biblioflow-cloudflared         # healthy になれば接続済み
+docker compose ps biblioflow-cloudflared         # healthy = connected
 ```
 
-スクリプトは何度実行しても同じ結果になる。トンネル（既定名 `biblioflow`）を作成または再利用し、
-`https://papers.example.com` → `http://biblioflow-gateway:8081` の転送と CNAME を設定し、
-`.env` に `CLOUDFLARE_TUNNEL_TOKEN` と、`CORS_ALLOWED_ORIGINS` への https オリジン追加を書き込む。
+The script is idempotent. It creates or reuses a tunnel (default name `biblioflow`), routes `https://papers.example.com` to `http://biblioflow-gateway:8081`, creates the proxied CNAME, and writes `CLOUDFLARE_TUNNEL_TOKEN` plus the https origin in `CORS_ALLOWED_ORIGINS` into `.env`.
 
-#### ダッシュボードで設定する場合
+#### Set up from the dashboard
 
-1. Zero Trust > Networks > Tunnels でトンネルを作成し、トークンを控える
-2. Public hostname を追加し、Service に `http://biblioflow-gateway:8081` を指定する（`:8080` ではない）
+1. Zero Trust > Networks > Tunnels: create a tunnel and copy its token.
+2. Add a public hostname with service `http://biblioflow-gateway:8081` (not `:8080`).
 3. `.env`:
 
    ```bash
-   CLOUDFLARE_TUNNEL_TOKEN=<トークン>
+   CLOUDFLARE_TUNNEL_TOKEN=<token>
    CORS_ALLOWED_ORIGINS=https://papers.example.com,http://localhost:3000
    ```
 
 4. `docker compose --profile cloudflare up -d --build`
 
-#### Cloudflare Access をかける（推奨）
+#### Cloudflare Access (recommended)
 
-トンネルの手前（Cloudflare の edge）で認証をかける。BiblioFlow のログインより前に、許可したメールアドレスの本人確認（ワンタイム PIN など）が必要になる。
+Authentication at Cloudflare's edge, in front of the tunnel: before the BiblioFlow login, visitors must prove they own an allowed e-mail address (one-time PIN or any login method of your Zero Trust account).
 
-API トークンに次の権限を足す: `Account > Access: Apps and Policies > Edit`、`Account > Access: Service Tokens > Edit`。
+Add these permissions to the API token: `Account > Access: Apps and Policies > Edit`, `Account > Access: Service Tokens > Edit`.
 
 ```bash
 scripts/cloudflare-access.sh papers.example.com me@example.com,you@example.com > access-token.txt
-docker compose --profile cloudflare up -d     # Access を先にかけてから起動すると、無防備な時間がない
+docker compose --profile cloudflare up -d     # apply Access before starting the tunnel: no unprotected window
 ```
 
-- ホスト全体（`/api` を含む）を保護する。ポリシーは 2 つ: 指定したメールアドレス（allow）と、サービストークン（Service Auth）。
-- サービストークン（`biblioflow-<ホスト名>`、期限 1 年）の `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` は、作成時に一度だけ標準出力に出る。`.env` には書かない。失くしたら `--rotate` で再発行する（古いシークレットは無効になる）。
-- 何度実行しても同じ結果になる（メールアドレスを変えたいときも再実行するだけ）。
-- **PAT を使うクライアント（CLI・スクリプト・MCP）は、サービストークンのヘッダーも付ける。** 付けないと Access のログイン画面（302）に飛ばされる。
+- The whole host is protected, `/api` included, with two policies: the listed e-mail addresses (allow) and a service token (Service Auth).
+- The service token (`biblioflow-<hostname>`, valid for one year) is printed once on stdout as `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`. Keep it out of `.env`. If you lose it, `--rotate` issues a new secret (the old one stops working).
+- The script is idempotent; re-run it to change the allowed addresses.
+- **Clients that use a personal access token (CLI, scripts, MCP) must also send the service token headers**, or Access redirects them to its login page (302):
 
   ```bash
   curl -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
        -H "Authorization: Bearer bf_pat_..." https://papers.example.com/api/v1/papers/light
   ```
-- Cloudflare の edge は、クライアントが付けた `CF-Connecting-IP` を 403 で拒否し、`X-Forwarded-For` は無視される（ゲートウェイのログと API には実際の接続元 IP が出る）。
-- ゾーンで Web Analytics（RUM）の自動挿入が有効だと、Cloudflare が HTML に `static.cloudflareinsights.com` のスクリプトを差し込む。不要なら Cloudflare 側で無効にする。
+- Cloudflare's edge rejects a client-supplied `CF-Connecting-IP` with 403 and a forged `X-Forwarded-For` is ignored; the gateway log and the API see the real client IP.
+- If Web Analytics (RUM) auto-injection is enabled for the zone, Cloudflare inserts a `static.cloudflareinsights.com` script into the HTML. Turn it off in Cloudflare if you do not want it.
 
-## ログ
+## Logs
 
-ゲートウェイ（Caddy）がすべてのリクエストを JSON で記録する。Cookie と Authorization ヘッダーは `REDACTED` に置き換わる。`request.client_ip` は解決済みのクライアント IP（Cloudflare / Tailscale 経由でも実際の接続元）。全コンテナのログは 10 MB × 5 世代でローテーションする。
+The gateway (Caddy) logs every request as JSON. `Cookie` and `Authorization` headers are replaced with `REDACTED`. `request.client_ip` is the resolved client IP (the real origin, also behind Cloudflare or Tailscale). Every container's log is rotated at 10 MB × 5 files.
 
 ```bash
-# ログイン失敗（401）とレートリミット（429）
+# Failed logins (401) and rate limiting (429)
 docker compose logs --no-color biblioflow-gateway | sed 's/^[^{]*//' \
   | jq -c 'select(.request) | select(.request.uri | startswith("/api/v1/auth/login")) | select(.status == 401 or .status == 429)
            | {ts, status, ip: .request.client_ip}'
 
-# IP ごとの 4xx 件数
+# 4xx responses per IP
 docker compose logs --no-color biblioflow-gateway | sed 's/^[^{]*//' \
   | jq -r 'select(.request) | select(.status >= 400 and .status < 500) | .request.client_ip' | sort | uniq -c | sort -rn | head
 ```
 
-## バックアップと復元
+## Backup and restore
 
-`scripts/backup.sh` は、DB（`pg_dump`）と `data/library` のスナップショットを `BACKUP_DIR`（既定 `./backups`）に作る。ライブラリは前回のスナップショットとの差分だけをコピーし、変わっていない PDF はハードリンクで共有するので、毎日取っても容量はほとんど増えない。`BACKUP_KEEP`（既定 14）世代より古いものは消える。
-
-```bash
-BACKUP_DIR=/Volumes/nas/biblioflow scripts/backup.sh          # スナップショットを作る
-scripts/restore.sh --check /Volumes/nas/biblioflow/<日時>      # 一時 DB に復元して検証する（本番データには触れない）
-scripts/restore.sh --yes   /Volumes/nas/biblioflow/<日時>      # 本番を置き換える（直前の状態を自動でバックアップしてから）
-```
-
-- `BACKUP_DIR` は別のディスクか別のマシンに置く。同じディスク上のバックアップは、ディスクの故障に耐えない。
-- `.env`（秘密情報）はバックアップに含めない。別の安全な場所に保管する。
-- 定期実行は cron などで行う。例: `0 3 * * * cd ~/biblioflow && BACKUP_DIR=/mnt/nas/biblioflow scripts/backup.sh >> backups.log 2>&1`。週に 1 回は `--check` も回す。
-
-## 管理者ユーザーの作成
+`scripts/backup.sh` writes a snapshot of the database (`pg_dump`) and of `data/library` to `BACKUP_DIR` (default `./backups`). Only files changed since the previous snapshot are copied; unchanged PDFs are hard links, so daily snapshots take little space. Snapshots beyond `BACKUP_KEEP` (default 14) are deleted.
 
 ```bash
-docker compose exec biblioflow-api python -m app.cli create-user --email you@example.com --admin
+BACKUP_DIR=/Volumes/nas/biblioflow scripts/backup.sh          # take a snapshot
+scripts/restore.sh --check /Volumes/nas/biblioflow/<timestamp> # restore into a throwaway DB and verify (live data untouched)
+scripts/restore.sh --yes   /Volumes/nas/biblioflow/<timestamp> # replace live data (backs up the current state first)
 ```
 
-## テスト
+- Put `BACKUP_DIR` on another disk or machine; a backup on the same disk does not survive that disk.
+- `.env` (secrets) is not included. Keep it somewhere safe yourself.
+- Schedule it with cron or similar, e.g. `0 3 * * * cd ~/biblioflow && BACKUP_DIR=/mnt/nas/biblioflow scripts/backup.sh >> backups.log 2>&1`, and run `--check` weekly.
 
-統合テストは `biblioflow_test` DB に対して実行される（`INSTALL_DEV=true` でビルドしたイメージが必要）。
+## Tests
+
+Integration tests run against the `biblioflow_test` database and need an image built with `INSTALL_DEV=true`.
 
 ```bash
 INSTALL_DEV=true docker compose build biblioflow-api
 docker compose run --rm biblioflow-api pytest
 ```
 
-## ディレクトリ
+## Directories
 
-- `data/library/` : `{Year}/{Identifier}_{SlugTitle}.pdf` で保存される PDF（ホストから直接参照可）
-- `data/watch/` : 監視フォルダ（Phase 2 で有効化）
-- `db/init/` : DB 初期化 SQL（初回起動時のみ実行）
+- `data/library/`: stored PDFs, `{Year}/{Identifier}_{SlugTitle}.pdf` (readable directly from the host)
+- `data/watch/`: watch folder; PDFs dropped in `data/watch/<workspace-slug>/` are imported automatically
+- `db/init/`: database initialization SQL (runs on first start only)
+
+## Sponsoring
+
+If BiblioFlow is useful to you, you can support its development through [GitHub Sponsors](https://github.com/sponsors/pathvector-studio).
+
+## License
+
+MIT
