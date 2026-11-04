@@ -100,7 +100,28 @@ docker compose ps biblioflow-cloudflared         # healthy になれば接続済
 
 4. `docker compose --profile cloudflare up -d --build`
 
-Access を使う場合は Zero Trust > Access > Applications で `papers.example.com` を保護するポリシーを作る。
+#### Cloudflare Access をかける（推奨）
+
+トンネルの手前（Cloudflare の edge）で認証をかける。BiblioFlow のログインより前に、許可したメールアドレスの本人確認（ワンタイム PIN など）が必要になる。
+
+API トークンに次の権限を足す: `Account > Access: Apps and Policies > Edit`、`Account > Access: Service Tokens > Edit`。
+
+```bash
+scripts/cloudflare-access.sh papers.example.com me@example.com,you@example.com > access-token.txt
+docker compose --profile cloudflare up -d     # Access を先にかけてから起動すると、無防備な時間がない
+```
+
+- ホスト全体（`/api` を含む）を保護する。ポリシーは 2 つ: 指定したメールアドレス（allow）と、サービストークン（Service Auth）。
+- サービストークン（`biblioflow-<ホスト名>`、期限 1 年）の `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` は、作成時に一度だけ標準出力に出る。`.env` には書かない。失くしたら `--rotate` で再発行する（古いシークレットは無効になる）。
+- 何度実行しても同じ結果になる（メールアドレスを変えたいときも再実行するだけ）。
+- **PAT を使うクライアント（CLI・スクリプト・MCP）は、サービストークンのヘッダーも付ける。** 付けないと Access のログイン画面（302）に飛ばされる。
+
+  ```bash
+  curl -H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET" \
+       -H "Authorization: Bearer bf_pat_..." https://papers.example.com/api/v1/papers/light
+  ```
+- Cloudflare の edge は、クライアントが付けた `CF-Connecting-IP` を 403 で拒否し、`X-Forwarded-For` は無視される（ゲートウェイのログと API には実際の接続元 IP が出る）。
+- ゾーンで Web Analytics（RUM）の自動挿入が有効だと、Cloudflare が HTML に `static.cloudflareinsights.com` のスクリプトを差し込む。不要なら Cloudflare 側で無効にする。
 
 ## ログ
 
