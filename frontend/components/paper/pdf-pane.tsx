@@ -15,6 +15,7 @@ import {
   type ScaledPosition,
 } from "react-pdf-highlighter-extended";
 import { BoxSelect, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
+import { version as pdfjsVersion } from "pdfjs-dist";
 import { useI18n } from "@/lib/i18n";
 import type { Annotation, AnnotationDraft } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ColorSwatches, DEFAULT_COLOR } from "@/components/paper/colors";
+
+// public/ にコピーした worker（scripts/copy-pdf-worker.mjs）。バージョンを URL に含め、長期キャッシュさせる（next.config.ts）
+const WORKER_SRC = `/pdf.worker.min.mjs?v=${pdfjsVersion}`;
 
 interface AnnotationHighlight extends Highlight {
   annotation: Annotation;
@@ -293,7 +297,7 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
         ) : (
           <PdfLoader
             document={source}
-            workerSrc="/pdf.worker.min.mjs"
+            workerSrc={WORKER_SRC}
             beforeLoad={() => <p className="p-4 text-sm text-muted-foreground">{t.reader.loadingPdf}</p>}
             errorMessage={() => <p className="p-4 text-sm text-destructive">{t.reader.pdfFailed}</p>}
             onError={() => setError(t.reader.pdfFailed)}

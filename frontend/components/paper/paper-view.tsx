@@ -43,8 +43,8 @@ export function PaperView({ paperId }: { paperId: string }) {
   const paper = useQuery({ queryKey: ["paper", paperId], queryFn: () => api.get<PaperDetail>(`/papers/${paperId}`) });
   const annotations = useQuery({
     queryKey: ["annotations", paperId],
+    // 論文の取得を待たずに並行して取りに行く（PDF がない論文でも空配列が返るだけ）
     queryFn: () => api.get<Annotation[]>(`/papers/${paperId}/annotations`),
-    enabled: paper.data?.has_pdf === true,
   });
 
   const [split, setSplit] = useState(58);

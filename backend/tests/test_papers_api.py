@@ -265,7 +265,19 @@ async def test_file_download(login, resolver, storage, enqueued):
     assert f.status_code == 200 and f.content == data
     assert f.headers["content-type"] == "application/pdf"
     assert f.headers["content-disposition"].startswith("inline") and ".pdf" in f.headers["content-disposition"]
-    assert "private" in f.headers["cache-control"]
+    assert f.headers["cache-control"] == "private, no-cache"
+    import hashlib
+
+    etag = f'"{hashlib.sha256(data).hexdigest()}"'
+    assert f.headers["etag"] == etag
+    # revalidation: 304 without a body, but access is still checked
+    nm = await a.get(f"{API}/papers/{pid}/file", headers={"If-None-Match": etag})
+    assert nm.status_code == 304 and nm.content == b"" and nm.headers["etag"] == etag
+    assert (await a.get(f"{API}/papers/{pid}/file", headers={"If-None-Match": f'W/"x", {etag}'})).status_code == 304
+    assert (await a.get(f"{API}/papers/{pid}/file", headers={"If-None-Match": '"other"'})).status_code == 200
+    assert (await b.get(f"{API}/papers/{pid}/file", headers={"If-None-Match": etag})).status_code == 404
+    ranged = await a.get(f"{API}/papers/{pid}/file", headers={"Range": "bytes=0-9"})
+    assert ranged.status_code == 206 and ranged.content == data[:10] and ranged.headers["etag"] == etag
     assert (await b.get(f"{API}/papers/{pid}/file")).status_code == 404
 
     nofile = await add_wishlist(a, "No pdf yet")

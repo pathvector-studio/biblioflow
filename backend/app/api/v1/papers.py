@@ -503,12 +503,24 @@ async def delete_paper(
     return Response(status_code=204)
 
 
-@router.get("/{paper_id}/file")
+# A paper's PDF never changes once attached (a second upload is a 409), so the browser may keep it.
+# "no-cache" still sends every open to the API (access is re-checked), which answers 304 from the ETag.
+FILE_CACHE_CONTROL = "private, no-cache"
+
+
+def _etag_matches(header: str | None, etag: str) -> bool:
+    if not header:
+        return False
+    return header.strip() == "*" or etag in {t.strip().removeprefix("W/") for t in header.split(",")}
+
+
+@router.get("/{paper_id}/file", response_model=None)
 async def get_paper_file(
     paper_id: uuid.UUID,
+    request: Request,
     principal: Principal = Depends(require_scopes(SCOPE_READ_PAPERS)),
     db: AsyncSession = Depends(get_db),
-) -> FileResponse:
+) -> FileResponse | Response:
     paper = await get_paper_for_user(db, paper_id, principal, WorkspaceRole.viewer)
     if not paper.has_pdf or not paper.relative_file_path:
         raise not_found()
@@ -518,11 +530,16 @@ async def get_paper_file(
         raise not_found() from None
     if not path.is_file():
         raise not_found()
+    headers = {"Cache-Control": FILE_CACHE_CONTROL}
+    if paper.file_sha256:
+        headers["ETag"] = f'"{paper.file_sha256}"'
+        if _etag_matches(request.headers.get("if-none-match"), headers["ETag"]):
+            return Response(status_code=304, headers=headers)
     filename = re.sub(r"[^A-Za-z0-9._-]", "_", PurePosixPath(paper.relative_file_path).name) or "paper.pdf"
     return FileResponse(
         path,
         media_type="application/pdf",
         filename=filename,
         content_disposition_type="inline",
-        headers={"Cache-Control": "private, max-age=0"},
+        headers=headers,
     )
