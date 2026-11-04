@@ -192,7 +192,23 @@ scripts/restore.sh --yes   /Volumes/nas/biblioflow/<timestamp> # replace live da
 
 - Put `BACKUP_DIR` on another disk or machine; a backup on the same disk does not survive that disk.
 - `.env` (secrets) is not included. Keep it somewhere safe yourself.
-- Schedule it with cron or similar, e.g. `0 3 * * * cd ~/biblioflow && BACKUP_DIR=/mnt/nas/biblioflow scripts/backup.sh >> backups.log 2>&1`, and run `--check` weekly.
+- `scripts/deploy.sh` also takes a backup (to `./backups` unless `BACKUP_DIR` is set) before every deployment.
+
+### Scheduled backups
+
+Run the backup daily and verify the latest snapshot weekly. With cron (`crontab -e`), replacing the paths with yours:
+
+```cron
+# daily 03:00: snapshot
+0 3 * * *  cd /path/to/biblioflow && PATH=/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin BACKUP_DIR=/mnt/nas/biblioflow scripts/backup.sh >> /mnt/nas/biblioflow.log 2>&1
+# Sunday 03:30: restore the newest snapshot into a throwaway database and compare
+30 3 * * 0 cd /path/to/biblioflow && PATH=/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin scripts/restore.sh --check "$(ls -1d /mnt/nas/biblioflow/2*Z | tail -n 1)" >> /mnt/nas/biblioflow.log 2>&1
+```
+
+- cron runs with a minimal `PATH`; it must include the directory of the `docker` CLI (`/usr/local/bin` for Docker Desktop and OrbStack on macOS, `/usr/bin` on most Linux distributions).
+- cron does not expand `~`; use absolute paths.
+- The machine must be awake at that time (on macOS, disable sleep or use `pmset repeat wake` before the job).
+- Check the log now and then: a failed backup only shows up there.
 
 ## Tests
 
