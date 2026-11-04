@@ -147,7 +147,7 @@ services:
   #   :8081 (NOT published) cloudflared only; client IP from CF-Connecting-IP
   #   :8082 (NOT published) tailscale only; client IP from X-Forwarded-For
   biblioflow-gateway:
-    image: caddy:2.10.2-alpine
+    image: caddy:2.11.7-alpine
     container_name: ${BF_INSTANCE:-biblioflow}-gateway
     logging: *logging
     user: "${APP_UID:-1000}:${APP_GID:-1000}"

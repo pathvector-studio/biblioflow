@@ -31,11 +31,12 @@
 }
 
 # Reject bodies over {args[0]} MiB with the same JSON 413 the API returns.
+# No "Connection: close" here: with Caddy 2.11 it made the server close the socket while the
+# client was still sending, and clients saw a reset instead of the 413 (about 4 in 10 requests).
 (body_limit) {
 	@too_large expression `{http.request.header.Content-Length} != "" && int({http.request.header.Content-Length}) > {args[0]} * 1048576`
 	handle @too_large {
 		header Content-Type application/json
-		header Connection close
 		respond `{"detail":"Request body too large"}` 413
 	}
 	request_body {
