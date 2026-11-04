@@ -17,7 +17,12 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from app.services.metadata.identifiers import find_identifiers_in_text
+from app.services.metadata.identifiers import (
+    compact_letter_spacing,
+    find_identifiers_in_text,
+    find_pii,
+    strip_download_suffix,
+)
 
 logger = logging.getLogger("biblioflow.pdf")
 
@@ -44,6 +49,7 @@ class PdfInfo:
     doi: str | None
     arxiv_id: str | None
     first_page_text: str = ""
+    pii: str | None = None
 
 
 def has_pdf_magic(head: bytes) -> bool:
@@ -53,7 +59,7 @@ def has_pdf_magic(head: bytes) -> bool:
 def _clean_title(raw: object) -> str | None:
     if not isinstance(raw, str):
         return None
-    title = " ".join(raw.replace("\x00", " ").split())[:MAX_TITLE_LEN]
+    title = strip_download_suffix(" ".join(raw.replace("\x00", " ").split()))[:MAX_TITLE_LEN]
     if len(title) < 3 or _JUNK_TITLE.match(title):
         return None
     return title
@@ -78,9 +84,11 @@ def inspect_pdf(path: str | Path) -> PdfInfo:
                 raise InvalidPdf("PDF has too many pages")
 
             title = None
+            raw_title = ""
             try:
                 meta = reader.metadata
-                title = _clean_title(meta.title) if meta is not None else None
+                raw_title = meta.title if meta is not None and isinstance(meta.title, str) else ""
+                title = _clean_title(raw_title)
             except Exception:  # noqa: BLE001
                 logger.debug("could not read PDF metadata", exc_info=True)
 
@@ -99,8 +107,15 @@ def inspect_pdf(path: str | Path) -> PdfInfo:
                 total += len(chunks[-1])
                 if total >= MAX_TEXT_CHARS:
                     break
-            doi, arxiv_id = find_identifiers_in_text("\n".join(chunks))
-            return PdfInfo(page_count=page_count, title=title, doi=doi, arxiv_id=arxiv_id, first_page_text=first_page_text)
+            text = "\n".join(chunks)
+            doi, arxiv_id = find_identifiers_in_text(text)
+            compact = compact_letter_spacing(text)
+            if doi is None and arxiv_id is None and compact != text:
+                doi, arxiv_id = find_identifiers_in_text(compact)
+            pii = find_pii(raw_title) or find_pii(text) or find_pii(compact)
+            return PdfInfo(
+                page_count=page_count, title=title, doi=doi, arxiv_id=arxiv_id, first_page_text=first_page_text, pii=pii
+            )
     except InvalidPdf:
         raise
     except RecursionError as exc:

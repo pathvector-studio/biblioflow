@@ -101,6 +101,42 @@ def parse_query(q: str) -> ParsedQuery:
     return ParsedQuery("title", q.strip())
 
 
+# ScienceDirect's download name: "<title> - 1-s2.0-S0142061525003874-main.pdf" (also kept as the PDF title
+# by "print to PDF").
+_SD_DOWNLOAD = re.compile(rf"\s*(?:[-\u2013\u2014_]\s*)?1-s2\.0-({_PII})(?:-main)?(?:\.pdf)?\s*$", re.IGNORECASE)
+_PII_IN_TEXT = re.compile(rf"(?<![A-Za-z0-9]){_PII}(?![0-9])", re.IGNORECASE)
+_LETTER_SPACED_MIN_TOKENS = 6
+_LETTER_SPACED_RATIO = 0.6
+
+
+def strip_download_suffix(title: str) -> str:
+    """Drop a trailing ScienceDirect download suffix (``" - 1-s2.0-<PII>-main.pdf"``) from a title or file name.
+
+    Anything else is returned unchanged (a plain ``foo.pdf`` title stays junk for the caller to reject)."""
+    return _SD_DOWNLOAD.sub("", title).strip() if _SD_DOWNLOAD.search(title) else title
+
+
+def find_pii(text: str) -> str | None:
+    """A ScienceDirect PII in a download name (``1-s2.0-<PII>-main``) or in free text, normalized."""
+    m = _SD_DOWNLOAD.search(text) or _PII_IN_TEXT.search(text)
+    return _norm_pii(m.group(1) if m.re is _SD_DOWNLOAD else m.group(0)) if m else None
+
+
+def compact_letter_spacing(text: str) -> str:
+    """Join lines that a PDF text layer spells out letter by letter ("C o n t e n t s  l i s t s").
+
+    Browsers' "print to PDF" often emits one glyph per text run. Word boundaries are lost on those lines,
+    which is fine for identifier search and substring title checks.
+    """
+    out = []
+    for line in text.splitlines():
+        tokens = [t for t in line.split(" ") if t]
+        if len(tokens) >= _LETTER_SPACED_MIN_TOKENS and sum(len(t) == 1 for t in tokens) / len(tokens) >= _LETTER_SPACED_RATIO:
+            line = "".join(tokens)
+        out.append(line)
+    return "\n".join(out)
+
+
 def find_identifiers_in_text(text: str) -> tuple[str | None, str | None]:
     """Return ``(doi, arxiv_id)`` found in free text such as the first pages of a PDF."""
     arxiv_id = None

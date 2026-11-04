@@ -129,6 +129,7 @@
 - ファイルパス: 必ず `app/services/storage/paths.py`（`build_relative_path` → `resolve_in_library`）を通す。テンプレートには `{identifier}` が必須。
 - レートリミット: `app/core/ratelimit.py` の `RateLimiter` を LLM エンドポイントでも再利用する。
 - メタデータ: 外部 HTTP は必ず `app/core/net.py`（`safe_client` / `safe_stream`）を通す。解決は `app/services/metadata`（`get_resolver()`）。arXiv / DOI / ScienceDirect PII / タイトルを受け付け、BibTeX はネットワークを使わず生成する。
+- 取り込み時のメタデータ解決の順: 明示の識別子 → PDF 本文・PDF タイトル・ファイル名の arXiv / DOI / PII（1 ページ目かタイトル・ファイル名に解決結果のタイトルが出ることを確認する。引用文献の DOI を拾わないため）→ タイトル検索（4 語以上、正規化したタイトルの類似度 0.9 以上だけ採用）→ 内部 ID。ブラウザの「PDF に印刷」は本文が 1 文字ずつ空白区切りで抽出されるので、`compact_letter_spacing` で詰めてから識別子を探す。ScienceDirect のファイル名 `… - 1-s2.0-<PII>-main.pdf` から PII を取り、タイトルからはこの接尾辞を外す。
 - ストレージ: 同じパスのファイルはワークスペース間で 1 つを共有する（sha256 が同じなら再利用、違えば `_2`…）。PATCH でタイトル等を変えてもファイルはリネームしない。
 - 取り込みは upload / import-url / Watch Folder とも `app/services/ingest.py` の `ingest_pdf` に集約する。Watch Folder は `WATCH_DIR/{workspace_slug}/*.pdf`、失敗したら `_rejected/` に移す。
 - `process_paper`（Arq）は Phase 2 では整合性チェックと page_count の確定だけを行う。Phase 3 でチャンク分割と embedding をここに追加する。

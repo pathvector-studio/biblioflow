@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import logging
 import re
 import uuid
@@ -40,6 +41,10 @@ CITEKEY_CONSTRAINT = "uq_papers_workspace_id_citekey"
 MAX_CITEKEY_ATTEMPTS = 5
 TITLE_MATCH_RATIO = 0.6
 MIN_TITLE_WORD_LEN = 3
+# Title search (no identifier anywhere): only titles this specific, and only near-identical matches.
+TITLE_SEARCH_MIN_WORDS = 4
+TITLE_SEARCH_MAX_LEN = 300
+TITLE_SEARCH_SIMILARITY = 0.9
 
 
 class IngestError(Exception):
@@ -203,8 +208,20 @@ async def _resolve_first(resolver: MetadataResolver, query: str) -> PaperMetadat
 def _fallback_title(info: PdfInfo, original_filename: str) -> str:
     if info.title:
         return info.title[:MAX_TITLE_LEN]
-    stem = Path(original_filename or "").stem.replace("_", " ").strip()
+    stem = identifiers.strip_download_suffix(Path(original_filename or "").stem.replace("_", " ")).strip()
     return (stem or "Untitled")[:MAX_TITLE_LEN]
+
+
+def _filename_identifiers(original_filename: str) -> list[str]:
+    """arXiv id (``2405.12345v1.pdf``) or ScienceDirect PII (``... - 1-s2.0-<PII>-main.pdf``) in the file name."""
+    stem = Path(original_filename or "").stem.strip()
+    if not stem:
+        return []
+    pii = identifiers.find_pii(stem)
+    if pii:
+        return [pii]
+    parsed = identifiers.parse_query(stem)
+    return [parsed.value] if parsed.kind == "arxiv" else []
 
 
 def _words(text: str) -> list[str]:
@@ -218,12 +235,30 @@ def _title_coverage(title: str, text: str) -> float:
     return len(wanted & set(_words(text))) / len(wanted)
 
 
-def _belongs_to_pdf(meta: PaperMetadata, info: PdfInfo) -> bool:
+def _compact_coverage(title: str, text: str) -> float:
+    """``_title_coverage`` for letter-spaced text whose word boundaries are lost: substring matches."""
+    wanted = {w for w in _words(title) if len(w) >= MIN_TITLE_WORD_LEN}
+    if not wanted:
+        return 0.0
+    compact = re.sub(r"[^a-z0-9]", "", identifiers.compact_letter_spacing(text).lower())
+    return sum(w in compact for w in wanted) / len(wanted)
+
+
+def _belongs_to_pdf(meta: PaperMetadata, info: PdfInfo, file_title: str = "") -> bool:
     """An identifier scraped from PDF text may belong to a cited reference: require the resolved title
-    to show up on the first page (or match the PDF's own metadata title)."""
-    return any(
-        _title_coverage(meta.title, text) >= TITLE_MATCH_RATIO for text in (info.first_page_text, info.title or "")
+    to show up on the first page (or match the PDF's own metadata title / the file name)."""
+    texts = (info.first_page_text, info.title or "", file_title)
+    return any(_title_coverage(meta.title, t) >= TITLE_MATCH_RATIO for t in texts) or (
+        _compact_coverage(meta.title, info.first_page_text) >= TITLE_MATCH_RATIO
     )
+
+
+def _normalized_title(title: str) -> str:
+    return " ".join(_words(title))
+
+
+def _same_title(a: str, b: str) -> bool:
+    return difflib.SequenceMatcher(None, _normalized_title(a), _normalized_title(b)).ratio() >= TITLE_SEARCH_SIMILARITY
 
 
 async def _resolve_metadata(
@@ -233,7 +268,8 @@ async def _resolve_metadata(
     identifier_hint: str | None,
     hint_strict: bool = True,
 ) -> PaperMetadata:
-    """Precedence: explicit identifier -> identifiers found in the PDF -> PDF title/filename + internal id."""
+    """Precedence: explicit identifier -> identifiers in the PDF or its file name (verified against the first
+    page) -> title search (near-identical title only) -> PDF title/filename + internal id."""
     fallback_title = _fallback_title(info, original_filename)
     if identifier_hint:
         parsed = identifiers.parse_query(identifier_hint)
@@ -254,13 +290,18 @@ async def _resolve_metadata(
                 identifier=parsed.value, identifier_type=IdentifierType.doi, doi=parsed.value,
                 title=fallback_title, source="pdf",
             )
-    for query in (info.arxiv_id, info.doi):
-        if query:
-            meta = await _resolve_first(resolver, query)
-            if meta is not None and _belongs_to_pdf(meta, info):
-                return meta
-            if meta is not None:
-                logger.info("ignoring identifier %s found in PDF text: title not on first page", query)
+    candidates = [q for q in (info.arxiv_id, info.doi, info.pii, *_filename_identifiers(original_filename)) if q]
+    for query in dict.fromkeys(candidates):
+        meta = await _resolve_first(resolver, query)
+        if meta is not None and _belongs_to_pdf(meta, info, fallback_title):
+            return meta
+        if meta is not None:
+            logger.info("ignoring identifier %s found in the PDF: title not on first page", query)
+    # No usable identifier: look the title up, and accept only a near-identical title.
+    if len([w for w in _words(fallback_title) if len(w) >= MIN_TITLE_WORD_LEN]) >= TITLE_SEARCH_MIN_WORDS:
+        meta = await _resolve_first(resolver, fallback_title[:TITLE_SEARCH_MAX_LEN])
+        if meta is not None and _same_title(meta.title, fallback_title):
+            return meta
     return PaperMetadata(
         identifier=generate_internal_identifier(), identifier_type=IdentifierType.internal,
         title=fallback_title, source="pdf",
