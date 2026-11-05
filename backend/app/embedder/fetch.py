@@ -14,6 +14,7 @@ import hashlib
 import logging
 import os
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -180,5 +181,30 @@ def main() -> int:
     return 0
 
 
+RETRY_FIRST_SECONDS = 60
+RETRY_MAX_SECONDS = 3600
+
+
+def run_forever() -> None:
+    """Container entry point: set the model up, retrying with backoff on failure, then idle.
+
+    The container must stay running: ``docker compose up --wait`` (used by install.sh) fails when a service
+    without dependants exits, even with status 0. Idling costs a sleeping Python process; retrying in-process
+    keeps a flaky download from turning into a restart loop that ``--wait`` would also report as a failure."""
+    import signal
+
+    # PID 1 ignores SIGTERM unless a handler is installed; exit promptly on `docker compose stop`.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    delay = RETRY_FIRST_SECONDS
+    while main() != 0:
+        logger.info("retrying in %d s", delay)
+        time.sleep(delay)
+        delay = min(delay * 2, RETRY_MAX_SECONDS)
+    while True:
+        signal.pause()
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    if "--once" in sys.argv[1:]:
+        sys.exit(main())
+    run_forever()

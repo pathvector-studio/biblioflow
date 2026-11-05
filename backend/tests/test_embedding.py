@@ -457,3 +457,25 @@ def test_main_with_none_says_what_enabling_would_download(monkeypatch, tmp_path,
     assert "nothing is downloaded" in text and "EMBEDDING_PROVIDER=local" in text
     assert "0.6 GB" in text and "GitHub Release" in text and "MIT" in text and "never leaves" in text
     assert list(tmp_path.iterdir()) == []
+
+
+def test_model_init_retries_with_backoff_then_idles(monkeypatch):
+    """The container must not exit (``up --wait`` fails on an exited service), and a failed download retries."""
+    from app.embedder import fetch
+
+    results = iter([1, 1, 0])
+    sleeps: list[int] = []
+
+    class Idle(Exception):
+        pass
+
+    def pause():
+        raise Idle
+
+    monkeypatch.setattr(fetch, "main", lambda: next(results))
+    monkeypatch.setattr(fetch.time, "sleep", sleeps.append)
+    monkeypatch.setattr("signal.signal", lambda *a: None)
+    monkeypatch.setattr("signal.pause", pause)
+    with pytest.raises(Idle):
+        fetch.run_forever()
+    assert sleeps == [fetch.RETRY_FIRST_SECONDS, fetch.RETRY_FIRST_SECONDS * 2]

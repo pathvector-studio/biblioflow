@@ -135,7 +135,9 @@ services:
       - models:/models
     networks:
       - biblioflow-edge
-    # It only streams files to disk and hashes them; there is no conversion any more.
+    # It only streams files to disk and hashes them; there is no conversion any more. It stays running (idle)
+    # after the download, retrying on failure: `up --wait` treats an exited service as an error, even with
+    # status 0. No healthcheck, so `--wait` does not wait for the download.
     mem_limit: ${MODEL_INIT_MEM_LIMIT:-512m}
     read_only: true
     tmpfs:
@@ -144,7 +146,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    restart: "no"
+    restart: unless-stopped
 
   # The one resident embedding model. Internal network only (it cannot reach the internet), no secrets, models
   # mounted read-only. The API (search queries) and the worker (indexing) call it over HTTP.
