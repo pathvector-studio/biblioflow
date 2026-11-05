@@ -47,7 +47,7 @@ async def test_search_english_japanese_and_wildcards(login, resolver):
     assert hits[0]["bboxes"] == BBOX and hits[0]["title"] == "Clos fabrics"
     assert set(hits[0]) == {
         "paper_id", "workspace_id", "title", "year", "citekey", "chunk_id", "page_number", "section", "snippet",
-        "bboxes", "score",
+        "bboxes", "score", "matched",
     }
     assert "Clos" in hits[0]["snippet"]
 

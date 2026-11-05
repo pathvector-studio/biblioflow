@@ -16,15 +16,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import delete, insert, select
+from arq import Retry
+from sqlalchemy import bindparam, delete, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import get_settings
+from app.core.queue import enqueue_embed_paper
 from app.db.session import get_sessionmaker
 from app.models.chunk import PaperChunk
 from app.models.paper import IndexStatus, Paper
 from app.models.workspace import Workspace
 from app.schemas.metadata import MetadataResolver
+from app.services import embedding
+from app.services.embedding import EmbeddingError
 from app.services.ingest import IngestError, ingest_pdf, safe_original_name
 from app.services.metadata import get_resolver
 from app.services.pdf import InvalidPdf, extract_chunks_isolated
@@ -48,9 +52,10 @@ _SAFE_COMPONENT = re.compile(r"[^A-Za-z0-9._-]+")
 
 # ------------------------------------------------------------------ process_paper
 async def process_paper(ctx: dict[str, Any], paper_id: str) -> str:
-    """Verify the stored file, extract its text chunks (with page coordinates) and mark it ``ready``.
+    """Verify the stored file and extract its text chunks (with page coordinates).
 
-    Embeddings are added in a later step; ``paper_chunks.embedding`` stays null for now."""
+    Keyword search works as soon as the chunks are committed. With an embedding provider the paper stays
+    ``processing`` and ``embed_paper`` is queued; without one (``EMBEDDING_PROVIDER=none``) it is ``ready``."""
     sessionmaker = get_sessionmaker()
     settings = get_settings()
     async with sessionmaker() as db:
@@ -85,9 +90,76 @@ async def process_paper(ctx: dict[str, Any], paper_id: str) -> str:
         ]
         for start in range(0, len(rows), 500):
             await db.execute(insert(PaperChunk), rows[start : start + 500])
-        paper.index_status = IndexStatus.ready
+        embeds = embedding.get_embedder() is not None and bool(rows)
+        paper.index_status = IndexStatus.processing if embeds else IndexStatus.ready
         await db.commit()
+        if embeds and not await enqueue_embed_paper(paper.id, ctx.get("redis")):
+            paper.index_status = IndexStatus.failed  # the chunks stay searchable by keyword; `reindex` retries
+            await db.commit()
         return "ok"
+
+
+# ------------------------------------------------------------------ embed_paper
+EMBED_BATCH = 8
+EMBED_MAX_TRIES = 3
+EMBED_TIMEOUT = 30 * 60
+
+
+async def embed_paper(ctx: dict[str, Any], paper_id: str) -> str:
+    """Embed the chunks of one paper that have no vector from the current model, then mark it ``ready``.
+
+    All vectors are written in one transaction at the end. A provider error is retried with a growing delay
+    (``EMBED_MAX_TRIES`` attempts in all); after the last one the paper is ``failed`` but its chunks stay
+    searchable by keyword."""
+    sessionmaker = get_sessionmaker()
+    embedder = embedding.get_embedder()
+    try_no = int(ctx.get("job_try", 1))
+    async with sessionmaker() as db:
+        paper = await db.get(Paper, uuid.UUID(paper_id))
+        if paper is None or not paper.has_pdf:
+            return "skipped"
+        if embedder is None:
+            paper.index_status = IndexStatus.ready
+            await db.commit()
+            return "ok"
+        stale = or_(PaperChunk.embedding.is_(None), PaperChunk.embedding_model.is_distinct_from(embedder.model_id))
+        rows = (
+            await db.execute(
+                select(PaperChunk.id, PaperChunk.text).where(PaperChunk.paper_id == paper.id, stale).order_by(PaperChunk.chunk_index)
+            )
+        ).all()
+        if rows:
+            paper.index_status = IndexStatus.processing
+            await db.commit()
+        try:
+            vectors: list[list[float]] = []
+            for start in range(0, len(rows), EMBED_BATCH):
+                vectors += await embedder.embed([r.text for r in rows[start : start + EMBED_BATCH]], "document")
+            if rows:
+                await db.execute(
+                    update(PaperChunk.__table__)  # Core: no ORM bulk-by-primary-key handling
+                    .where(PaperChunk.__table__.c.id == bindparam("b_id"))
+                    .values(embedding=bindparam("b_vec"), embedding_model=embedder.model_id),
+                    [{"b_id": r.id, "b_vec": v} for r, v in zip(rows, vectors, strict=True)],
+                )
+                missing = (
+                    await db.execute(select(func.count()).select_from(PaperChunk).where(PaperChunk.paper_id == paper.id, stale))
+                ).scalar_one()
+                if missing:  # the chunks were replaced (process_paper ran again) while we were embedding
+                    raise EmbeddingError(f"{missing} chunk(s) changed during embedding")
+            paper.index_status = IndexStatus.ready
+            await db.commit()
+            return "ok"
+        except EmbeddingError as exc:
+            await db.rollback()
+            logger.warning("embed_paper %s: attempt %d/%d failed: %s", paper_id, try_no, EMBED_MAX_TRIES, exc)
+            if try_no < EMBED_MAX_TRIES:
+                raise Retry(defer=30 * try_no) from None
+            paper = await db.get(Paper, uuid.UUID(paper_id))
+            if paper is not None:
+                paper.index_status = IndexStatus.failed
+                await db.commit()
+            return "failed"
 
 
 # ------------------------------------------------------------------ watch folder

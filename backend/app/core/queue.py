@@ -46,3 +46,14 @@ async def enqueue_process_paper(paper_id: uuid.UUID | str, pool: Any | None = No
     except Exception:  # noqa: BLE001
         logger.warning("failed to enqueue process_paper for %s", paper_id, exc_info=True)
         return False
+
+
+async def enqueue_embed_paper(paper_id: uuid.UUID | str, pool: Any | None = None) -> bool:
+    """Enqueue ``embed_paper``; never raises (returns False so the caller can mark the paper)."""
+    try:
+        pool = pool if pool is not None else await get_arq_pool()
+        await pool.enqueue_job("embed_paper", str(paper_id))
+        return True
+    except Exception:  # noqa: BLE001
+        logger.warning("failed to enqueue embed_paper for %s", paper_id, exc_info=True)
+        return False

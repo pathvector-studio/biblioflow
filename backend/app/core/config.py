@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -39,13 +39,22 @@ class Settings(BaseSettings):
     watch_poll_seconds: int = Field(10, ge=1, le=3600)
     url_import_enabled: bool = False
 
-    # Phase 3 (unused in Phase 1)
+    # Phase 3 (chat / vision: not wired yet)
     llm_provider: str | None = None
     llm_model: str | None = None
     llm_api_key: SecretStr | None = None
     llm_api_base: str | None = None
     vision_model: str | None = None
-    embedding_model: str | None = None
+
+    # Embeddings (semantic search). `local` = the biblioflow-embedder container (bge-m3 on ONNX Runtime).
+    embedding_provider: Literal["local", "voyage", "openai", "none"] = "local"
+    embedding_local_precision: Literal["int8", "fp32"] = "int8"
+    embedder_url: str = "http://biblioflow-embedder:8001"
+    embedding_base_url: str | None = None  # openai: any OpenAI-compatible server (Ollama, vLLM, TEI, ...)
+    embedding_api_key: SecretStr | None = None
+    embedding_model: str | None = None  # voyage / openai only; defaults: voyage-3.5, text-embedding-3-large
+    embedding_query_timeout: float = Field(2.0, gt=0, le=30)
+    search_min_similarity: float = Field(0.0, ge=-1.0, le=1.0)
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod

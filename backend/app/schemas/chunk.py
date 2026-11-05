@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -38,6 +38,7 @@ class SearchHit(BaseModel):
     snippet: str
     bboxes: list[dict[str, Any]]
     score: float
+    matched: list[Literal["keyword", "substring", "semantic"]]
 
 
 class NoteAppendIn(BaseModel):
