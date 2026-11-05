@@ -246,3 +246,40 @@ def test_wrap_attributes_keep_unicode_but_not_tag_breakers():
     head = out.splitlines()[0]
     assert 'section="4.4. Case 4 — 参考文献x ab"' in head
     assert head.count('"') == 4 and "<x" not in head and ">" == head[-1]
+
+
+HIT = {
+    "paper_id": PID, "workspace_id": PID, "title": "T", "year": 2024, "citekey": "k", "chunk_id": PID,
+    "page_number": 2, "section": None, "snippet": "meaning based passage", "bboxes": [], "score": 0.0328,
+    "matched": ["keyword", "semantic"],
+}
+
+
+async def test_search_mode_matched_and_default():
+    server, seen = make(lambda r: js([HIT]))
+    out = await call(server, "search_library", {"query": "bgp"})
+    assert seen[0].url.params["mode"] == "hybrid"
+    assert "matched=keyword,semantic" in out and "unavailable" not in out
+    await call(server, "search_library", {"query": "bgp", "mode": "semantic"})
+    assert seen[1].url.params["mode"] == "semantic"
+    with pytest.raises(ToolError):
+        await call(server, "search_library", {"query": "bgp", "mode": "fuzzy"})
+    schema = next(t for t in await server.list_tools() if t.name == "search_library").inputSchema
+    assert set(schema["properties"]["mode"]["enum"]) == {"hybrid", "keyword", "semantic"}
+
+
+async def test_search_reports_degraded_mode_with_and_without_hits():
+    server, _ = make(lambda r: js([HIT], **{"X-Search-Degraded": "semantic-unavailable"}))
+    out = await call(server, "search_library", {"query": "bgp"})
+    assert "Semantic search is unavailable" in out and "keyword matches only" in out
+    assert out.lower().count("<paper_context ") == 1  # still wrapped
+    server, _ = make(lambda r: js([], **{"X-Search-Degraded": "semantic-unavailable"}))
+    out = await call(server, "search_library", {"query": "bgp"})
+    assert out.startswith("No matches") and "Semantic search is unavailable" in out
+
+
+async def test_search_tolerates_an_older_server_without_matched():
+    old = {k: v for k, v in HIT.items() if k != "matched"}
+    server, _ = make(lambda r: js([old]))
+    out = await call(server, "search_library", {"query": "bgp"})
+    assert "matched=" not in out and "page=2" in out

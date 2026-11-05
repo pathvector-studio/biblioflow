@@ -67,7 +67,9 @@ class BiblioflowClient:
     async def aclose(self) -> None:
         await self._http.aclose()
 
-    async def request(self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None) -> Any:
+    async def _send(
+        self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None
+    ) -> tuple[Any, httpx.Headers]:
         clean = {k: v for k, v in (params or {}).items() if v is not None}
         try:
             response = await self._http.request(method, path, params=clean, json=json)
@@ -79,7 +81,10 @@ class BiblioflowClient:
             raise ApiError(
                 f"Could not reach the BiblioFlow server: {type(exc).__name__} (サーバーに接続できません)."
             ) from None
-        return self._check(response)
+        return self._check(response), response.headers
+
+    async def request(self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None) -> Any:
+        return (await self._send(method, path, params=params, json=json))[0]
 
     @staticmethod
     def _check(response: httpx.Response) -> Any:
@@ -124,6 +129,10 @@ class BiblioflowClient:
 
     async def get(self, path: str, **params: Any) -> Any:
         return await self.request("GET", path, params=params)
+
+    async def get_with_headers(self, path: str, **params: Any) -> tuple[Any, httpx.Headers]:
+        """Like ``get`` but also returns the response headers (search reports degraded mode there)."""
+        return await self._send("GET", path, params=params)
 
     async def post(self, path: str, json: Any) -> Any:
         return await self.request("POST", path, json=json)
