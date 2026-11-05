@@ -1,0 +1,90 @@
+# Builds the int8 bge-m3 model from the pinned upstream revision and publishes it as a GitHub Release,
+# with SHA256SUMS and a build-provenance attestation. Manual only; run it when the pinned revision in
+# backend/app/embedder/spec.py changes (or to re-publish with a new suffix).
+#
+# Tag / release name: model-bge-m3-int8-<first 7 chars of REVISION>-<release_suffix>
+# The build logic lives in scripts/build-model-artifact.py with its own pinned dependencies, so it does not
+# depend on the backend's runtime dependencies.
+name: Model artifact
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_suffix:
+        description: "Suffix for the release tag (model-bge-m3-int8-<rev7>-<suffix>)"
+        type: string
+        default: "1"
+
+permissions:
+  contents: write # create the release
+  id-token: write # sign the attestation
+  attestations: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # 16 GB; quantization peaks at about 9 GiB
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SUFFIX: ${{ inputs.release_suffix }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Compute the tag and refuse if it exists
+        id: tag
+        run: |
+          set -euo pipefail
+          if ! [[ "$SUFFIX" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "release_suffix must match [A-Za-z0-9._-]+" >&2
+            exit 1
+          fi
+          revision="$(sed -n 's/^REVISION = "\([0-9a-f]\{40\}\)"$/\1/p' backend/app/embedder/spec.py)"
+          if [ -z "$revision" ]; then
+            echo "could not read REVISION from spec.py" >&2
+            exit 1
+          fi
+          tag="model-bge-m3-int8-${revision:0:7}-${SUFFIX}"
+          if gh release view "$tag" >/dev/null 2>&1 || git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "release or tag $tag already exists; choose another release_suffix" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: Download, verify and quantize (twice)
+        run: uv run scripts/build-model-artifact.py --out "$RUNNER_TEMP/model" --work "$RUNNER_TEMP/model-work"
+
+      - name: Step summary
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          {
+            echo "Release tag: \`$TAG\`"
+            echo
+            cat "$RUNNER_TEMP/model/summary.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            ${{ runner.temp }}/model/model_int8.onnx
+            ${{ runner.temp }}/model/tokenizer.json
+
+      - name: Create the release
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          REVISION: ${{ steps.tag.outputs.revision }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/model"
+          sha256sum -c SHA256SUMS
+          notes="int8 build of BAAI/bge-m3 at ${REVISION} for BiblioFlow semantic search (model data, not an app release). See README.txt and REPRODUCIBILITY.txt; verify with SHA256SUMS and gh attestation verify."
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --notes "$notes" \
+            --latest=false \
+            model_int8.onnx tokenizer.json LICENSE SHA256SUMS README.txt REPRODUCIBILITY.txt
