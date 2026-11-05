@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AreaHighlight,
   MonitoredHighlightContainer,
@@ -185,7 +185,9 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
   const [areaMode, setAreaMode] = useState(false);
   // ライブラリはマウスイベントの購読時に enableAreaSelection を閉じ込めて使い回すため、最新値は ref で読む
   const areaModeRef = useRef(areaMode);
-  areaModeRef.current = areaMode;
+  useLayoutEffect(() => {
+    areaModeRef.current = areaMode;
+  }, [areaMode]);
   const [error, setError] = useState<string | null>(null);
 
   const source = useMemo(() => ({ url: `/api/v1/papers/${paperId}/file`, withCredentials: true }), [paperId]);
