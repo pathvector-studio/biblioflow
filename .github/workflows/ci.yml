@@ -93,6 +93,23 @@ jobs:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
         run: python3 scripts/check-private-info.py --commits "$RANGE"
 
+  # install.sh (also served at https://biblioflow.pathvector.dev/install.sh): lint, then prepare a checkout of this commit.
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck install.sh
+      - name: Prepare without starting
+        run: |
+          git switch -c ci-installer
+          BIBLIOFLOW_DIR="$RUNNER_TEMP/bf" BIBLIOFLOW_REPO="$PWD" BIBLIOFLOW_REF=ci-installer BIBLIOFLOW_NO_START=1 bash install.sh
+          cd "$RUNNER_TEMP/bf"
+          test "$(stat -c %a .env)" = 600
+          ! grep -q '=change-me-' .env
+          grep -qx "APP_UID=$(id -u)" .env
+          grep -qx 'CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000' .env
+          docker compose config -q
+
   compose:
     runs-on: ubuntu-latest
     steps:
