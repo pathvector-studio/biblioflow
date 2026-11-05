@@ -6,13 +6,13 @@ A self-hosted paper manager and AI research assistant that runs entirely on Dock
 
 Website: https://biblioflow.pathvector.dev
 
-> **Status: early preview (v0.1.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, full-text keyword search, MCP server) works today. The in-app AI features are not implemented yet; see [Roadmap](#roadmap).
+> **Status: early preview (v0.1.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, hybrid keyword + semantic search, MCP server) and semantic search work today. The in-app AI features are not implemented yet; see [Roadmap](#roadmap).
 
 - Read, highlight and take Markdown notes on PDFs in the browser; share them in lab workspaces.
 - PDFs are stored as plain files you can open from the host (`{Year}/{Identifier}_{SlugTitle}.pdf`).
 - Metadata and BibTeX are filled in from arXiv, CrossRef and Semantic Scholar.
 - A lightweight metadata API with personal access tokens, for CLIs, scripts and MCP servers.
-- Keyword search over the full text of every paper, with page and position of each hit.
+- Hybrid search over the full text of every paper (keywords, substrings and meaning-based matching), with page and position of each hit.
 - An MCP server, so an MCP client you already use (Claude Code and others) can search and read your library with its own model.
 
 The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`.
@@ -167,6 +167,8 @@ It refuses to run with local changes, takes a backup (`scripts/backup.sh`), chec
 
 The compose profiles to start (for example `cloudflare`) are read from `COMPOSE_PROFILES` in `.env`.
 
+The first deploy that includes semantic search downloads the embedding model (see [Search, embeddings and MCP](#search-embeddings-and-mcp)), and afterwards you queue the existing papers once: `docker compose exec biblioflow-api python -m app.cli reindex --all --embeddings-only --missing`.
+
 ### Upgrading from Redis to Valkey (one time)
 
 The job queue and session store moved from Redis to [Valkey](https://valkey.io) (BSD-3). Redis 7.4+ is RSALv2/SSPLv1. Valkey cannot read Redis 7.4 data files, so it starts with a new volume. After the deploy, copy over the revoked sessions (logged-out cookies), or they are accepted again until they expire:
@@ -236,17 +238,42 @@ Run the backup daily and verify the latest snapshot weekly. With cron (`crontab 
 - The machine must be awake at that time (on macOS, disable sleep or use `pmset repeat wake` before the job).
 - Check the log now and then: a failed backup only shows up there.
 
-## Full-text search and MCP
+## Search, embeddings and MCP
 
-When a PDF is imported, the worker extracts its text page by page (with pypdf, in a resource-limited child process) and stores passages together with their position on the page. This powers keyword search (`GET /api/v1/search`, substring matching also works for Japanese) and reading by page (`GET /api/v1/papers/{id}/chunks`). Embedding-based search is planned.
+When a PDF is imported, the worker extracts its text page by page (with pypdf, in a resource-limited child process) and stores passages together with their position on the page. A second job then computes one embedding per passage. This powers `GET /api/v1/search?q=...&mode=hybrid|keyword|semantic` and reading by page (`GET /api/v1/papers/{id}/chunks`).
 
-Papers imported before this feature are indexed by queueing them again:
+`hybrid` (the default) merges three ranked lists with reciprocal rank fusion: full-text words, substring matches (this is what finds Japanese text) and nearest embeddings. Each hit says which lists found it in `matched`. A paper is searchable by keyword as soon as its text is extracted; its `index_status` becomes `ready` when the embeddings are done too. If the embedding service is down or too slow (2 seconds for the query), the search still answers with the keyword results and sends the response header `X-Search-Degraded: semantic-unavailable`. Nearest embeddings below a cosine similarity of `SEARCH_MIN_SIMILARITY` (default 0.45) are dropped, so an unrelated query is not padded with semantic matches; set it to 0 to keep them all.
+
+### Embedding providers
+
+Set `EMBEDDING_PROVIDER` in `.env`:
+
+| Provider | What it does |
+|---|---|
+| `local` (default) | [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) on ONNX Runtime (CPU) in the `biblioflow-embedder` container. Nothing leaves your machine. |
+| `voyage` | Voyage AI `voyage-3.5` (1024 dimensions). Needs `EMBEDDING_API_KEY`. |
+| `openai` | OpenAI `text-embedding-3-large` (1024 dimensions), or any OpenAI-compatible server through `EMBEDDING_BASE_URL` and `EMBEDDING_MODEL` (Ollama, vLLM, TEI). On a Mac, Ollama runs bge-m3 on the GPU, which is much faster than Docker. |
+| `none` | No embeddings. Search uses keywords and substrings only. For small machines. |
+
+**Privacy:** with `voyage` or `openai` the text of every passage of every paper you import, and every search query, is sent to that service. Use `local` (or an OpenAI-compatible server you run yourself) for unpublished or confidential papers. With `local` the `biblioflow-embedder` container has no internet access, no database access and none of your secrets.
+
+The vectors are tagged with the model that made them (`paper_chunks.embedding_model`), and search compares only vectors of the current model. After you switch the provider, search is keyword-only until you re-embed (see below).
+
+### The local model
+
+On the first `docker compose up`, the one-shot `biblioflow-model-init` container downloads the pinned bge-m3 ONNX files from Hugging Face (about 2.3 GB, checked against sha256 values in the source), quantizes them to int8 (about 0.6 GB) and stores them in the `models` volume. The quantization needs about 9 GiB of free RAM for roughly ten seconds, once (`MODEL_INIT_MEM_LIMIT`, default 10g); on a machine or Docker VM with less, set `EMBEDDING_LOCAL_PRECISION=fp32`, which skips it. It does nothing on later starts, and it is not backed up because it can be downloaded again. Plan for about 3 GB of disk, 2 GB of RAM for the embedder (`EMBEDDER_MEM_LIMIT`, default 3g) and up to 4 CPUs (`EMBEDDER_CPUS`). Measured on an 8-CPU machine inside Docker: about 4 passages per second with int8 (an average paper takes 15 to 30 seconds; 1,000 papers take several hours the first time), 10 ms per search query. `EMBEDDING_LOCAL_PRECISION=fp32` is about three times slower and needs `EMBEDDER_MEM_LIMIT=4g`; the int8 vectors agree with fp32 on about 90% of nearest neighbours.
+
+### After upgrading, or after switching the provider
+
+Papers imported earlier have no embeddings. Queue them once (it is safe to repeat; `--missing` skips papers that are up to date):
 
 ```bash
-docker compose exec biblioflow-api python -m app.cli reindex --all        # or: --paper <paper-id>
+docker compose exec biblioflow-api python -m app.cli reindex --all --embeddings-only --missing
 ```
 
-`mcp/` contains `biblioflow-mcp`, an MCP server (stdio) for Claude Code and other MCP clients. It is a thin client of the HTTP API: it needs a personal access token (Settings > API tokens; `read:papers`, plus `write:papers` for `add_note`) and no LLM key. Tools: `search_library`, `list_papers`, `get_paper`, `read_pages`, `list_annotations`, `add_note`. Text that comes from papers is wrapped in `<paper_context>` tags, which the client is told to treat as data, not instructions.
+Without `--embeddings-only`, `reindex` extracts the text again (`--all`, or `--paper <paper-id>` for one paper).
+
+`mcp/` contains `biblioflow-mcp`, an MCP server (stdio) for Claude Code and other MCP clients. It is a thin client of the HTTP API: it needs a personal access token (Settings > API tokens; `read:papers`, plus `write:papers` for `add_note`) and no LLM key. Tools: `search_library` (with `mode`; results show which lists matched and whether semantic search was unavailable), `list_papers`, `get_paper`, `read_pages`, `list_annotations`, `add_note`. Text that comes from papers is wrapped in `<paper_context>` tags, which the client is told to treat as data, not instructions.
 
 ```bash
 claude mcp add biblioflow \
@@ -276,15 +303,14 @@ docker compose run --rm biblioflow-api pytest
 
 Not implemented yet, roughly in this order (details in `specs/phase3.md` and `specs/roadmap.md`):
 
-- **Semantic and hybrid search**: embeddings in pgvector (bge-m3 by default), combined with the keyword index, across the whole library.
-- **LLM providers**: OpenAI, Anthropic, Gemini or a local model (Ollama, vLLM) through LiteLLM, with your own API key. The `LLM_*` and `EMBEDDING_MODEL` settings in `.env.example` are placeholders until then.
+- **LLM providers**: OpenAI, Anthropic, Gemini or a local model (Ollama, vLLM) through LiteLLM, with your own API key. The `LLM_*` settings in `.env.example` are placeholders until then.
 - **AI chat about a paper**, with citation badges such as `[p.4, Sec 3.2]` that jump to the page and position in the PDF.
 - **Figure and equation explanations**: drag-select an area of the PDF and ask a Vision LLM about it. (Area selection itself already works, as an annotation.)
 - **Comparing papers**: questions across several papers and comparison tables of methods.
 - **Browser extension** to save a paper and its PDF from publisher pages in one click.
 - **Export and import**: BibTeX / RIS / CSL JSON for collections and tags, automatic export, notes and annotations as Markdown, and migration from Zotero, Mendeley, BibTeX and RIS.
 
-Until the in-app AI lands, the [MCP server](#full-text-search-and-mcp) lets an MCP client search and read your library.
+Until the in-app AI lands, the [MCP server](#search-embeddings-and-mcp) lets an MCP client search and read your library.
 
 ## Sponsoring
 

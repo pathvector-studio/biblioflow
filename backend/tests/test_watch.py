@@ -208,4 +208,4 @@ def test_cron_schedule_mapping():
     assert watch_cron_schedule(3600) == {"minute": {0}, "second": {0}}
     names = {j.name for j in WorkerSettings.cron_jobs}
     assert any("scan_watch_folder" in n for n in names)
-    assert {f.__name__ for f in WorkerSettings.functions} >= {"process_paper"}
+    assert {getattr(f, "name", None) or f.__name__ for f in WorkerSettings.functions} >= {"process_paper", "embed_paper"}

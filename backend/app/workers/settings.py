@@ -1,12 +1,12 @@
 from typing import Any
 
-from arq import cron
+from arq import cron, func
 from arq.connections import RedisSettings
 from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.db.session import dispose_engine, get_engine
-from app.workers.tasks import process_paper, scan_watch_folder
+from app.workers.tasks import EMBED_MAX_TRIES, EMBED_TIMEOUT, embed_paper, process_paper, scan_watch_folder
 
 
 async def ping(ctx: dict[str, Any]) -> str:
@@ -39,7 +39,7 @@ def watch_cron_schedule(poll_seconds: int) -> dict[str, Any]:
 
 
 class WorkerSettings:
-    functions = [ping, process_paper]
+    functions = [ping, process_paper, func(embed_paper, timeout=EMBED_TIMEOUT, max_tries=EMBED_MAX_TRIES)]
     cron_jobs = [
         cron(scan_watch_folder, run_at_startup=True, unique=True, timeout=300, **watch_cron_schedule(get_settings().watch_poll_seconds))
     ]

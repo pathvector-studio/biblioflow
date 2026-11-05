@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from mcp.server.fastmcp import FastMCP
 
@@ -50,27 +50,40 @@ def build_server(client: BiblioflowClient) -> FastMCP:
 
     @mcp.tool()
     async def search_library(
-        query: str, limit: int = 10, workspace_id: str | None = None, paper_id: str | None = None
+        query: str,
+        limit: int = 10,
+        workspace_id: str | None = None,
+        paper_id: str | None = None,
+        mode: Literal["hybrid", "keyword", "semantic"] = "hybrid",
     ) -> str:
-        """Keyword search over the full text of indexed papers. Returns matching passages with paper_id, page
-        number and section so they can be read with read_pages. Substring matching also works for Japanese.
+        """Search the full text of indexed papers. mode "hybrid" (default) combines keyword, substring and
+        semantic (meaning-based) matching, so a paraphrase can find a passage that does not contain the exact
+        words; "keyword" matches words and substrings only (also Japanese); "semantic" matches by meaning only.
+        Returns passages with paper_id, page number and section so they can be read with read_pages.
         Optionally restrict to one workspace_id or paper_id."""
-        hits = await client.get(
+        hits, headers = await client.get_with_headers(
             "/search",
             q=query,
+            mode=mode,
             limit=max(1, min(int(limit), 50)),
             workspace_id=workspace_id,
             paper_id=_paper_id(paper_id) if paper_id else None,
         )
+        degraded = (
+            " Semantic search is unavailable right now, so these results are keyword matches only."
+            if headers.get("x-search-degraded") == "semantic-unavailable"
+            else ""
+        )
         if not hits:
-            return "No matches. (Papers without an extracted text index are not searchable yet.)"
-        out = [f"{len(hits)} match(es).{DATA_NOTE}"]
+            return "No matches. (Papers without an extracted text index are not searchable yet.)" + degraded
+        out = [f"{len(hits)} match(es).{degraded}{DATA_NOTE}"]
         for i, h in enumerate(hits, start=1):
             year = f" ({h['year']})" if h.get("year") else ""
             section = f" section={one_line(h['section'], 80)}" if h.get("section") else ""
+            matched = f" matched={','.join(h['matched'])}" if h.get("matched") else ""
             out.append(
                 f"[{i}] {one_line(h['title'])}{year} paper_id={h['paper_id']} page={h['page_number']}{section}"
-                f" score={h['score']}\n" + wrap(h["snippet"], h["paper_id"], page=h["page_number"])
+                f"{matched} score={h['score']}\n" + wrap(h["snippet"], h["paper_id"], page=h["page_number"])
             )
         return "\n\n".join(out)
 

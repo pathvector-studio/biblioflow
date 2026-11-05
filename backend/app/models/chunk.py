@@ -25,6 +25,8 @@ class PaperChunk(UUIDPKMixin, CreatedAtMixin, Base):
     bboxes: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default=sql_text("'[]'::jsonb"))
     token_count: Mapped[int | None] = mapped_column(Integer)
     embedding: Mapped[Any] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
+    # e.g. "bge-m3@5617a9f:int8", "voyage-3.5", "openai:text-embedding-3-large"; null while there is no vector
+    embedding_model: Mapped[str | None] = mapped_column(Text)
     tsv: Mapped[Any] = mapped_column(TSVECTOR, Computed("to_tsvector('simple', text)", persisted=True))
 
     __table_args__ = (

@@ -15,10 +15,24 @@ production dependencies under GPL, AGPL, SSPL, BUSL, Elastic, Commons Clause or 
 | libvips (bundled by `sharp` as `@img/sharp-libvips-*`, dynamically linked) | frontend image | LGPL-3.0-or-later | https://github.com/libvips/libvips |
 | caniuse-lite (dependency of Next.js) | frontend image | CC-BY-4.0 | https://github.com/browserslist/caniuse-lite |
 | certifi | backend image | MPL-2.0 | https://github.com/certifi/python-certifi |
+| tqdm (dependency of `tokenizers` via `huggingface-hub`; the code path that uses it is never run) | backend image | MPL-2.0 AND MIT | https://github.com/tqdm/tqdm |
 
 The other npm and Python production dependencies are under MIT, BSD, Apache-2.0, ISC, 0BSD, PSF,
 Unlicense or MIT-0. Their license texts are in each package (`node_modules/<name>/LICENSE`, or
 `site-packages/<name>-<version>.dist-info/` in the backend image).
+
+## Embedding model and runtime
+
+Semantic search runs BAAI/bge-m3 on ONNX Runtime. The model is **not** part of the repository or of any image:
+`biblioflow-model-init` downloads the files from https://huggingface.co/BAAI/bge-m3 (pinned revision, sha256-verified)
+into a Docker volume on first start, and quantizes them to int8 there. bge-m3 is MIT-licensed.
+
+| Component | Where | License |
+|---|---|---|
+| BAAI/bge-m3 (model weights and tokenizer, downloaded at run time) | `models` volume | MIT |
+| onnxruntime | backend image | MIT |
+| onnx, tokenizers, huggingface-hub, hf-xet, ml-dtypes | backend image | Apache-2.0 |
+| numpy, protobuf, fsspec | backend image | BSD-3-Clause |
 
 ## Container images used by docker-compose.yml
 
