@@ -116,6 +116,7 @@
 | 1. インフラ・DBスキーマ・セキュリティ基盤 | ✅ 完了（CI green） | PR #1 `feat/phase1-foundation`（https://github.com/pathvector-studio/biblioflow/pull/1）。設計詳細は `specs/phase1.md` |
 | 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（https://github.com/pathvector-studio/biblioflow/pull/2）。設計詳細は `specs/phase2.md` |
 | 4. Frontend Web UI（AI 以外） | ✅ 完了 | `specs/phase4.md` |
+| 公開形態（LAN / Tailscale / Cloudflare Tunnel） | ✅ 完了 | PR #4・#6。設計詳細は `specs/deploy-modes.md`。Cloudflare Tunnel + Access は実環境で検証済み（2026-11-04） |
 | 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ**（計画承認済み） | `specs/phase3.md`。MCP（キーワード検索）→ embedding → チャットの順 |
 | ロードマップ（ブラウザ拡張・エクスポート/インポート・Zotero との機能差） | 計画 | `specs/roadmap.md`。ブラウザ拡張とエクスポート/インポートは Phase 3 と並行 |
 | 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | 未着手（Phase 3 の後） | 右ペインに AI タブを追加する |
@@ -157,17 +158,19 @@ docker compose up -d                    # .env は作成済み（gitignore 対�
 docker compose ps                       # 6サービス（db / redis / api / worker / frontend / gateway）が healthy であること
 INSTALL_DEV=true docker compose build biblioflow-api
 docker compose run --rm --no-deps -v "$PWD/backend/app:/app/app:ro" -v "$PWD/backend/tests:/app/tests:ro" \
-  -v "$PWD/backend/alembic:/app/alembic:ro" -e ENABLE_DOCS=false biblioflow-api pytest -q -p no:cacheprovider   # 現状 289 passed（ローカル .env の ENABLE_DOCS=true だと test_docs_disabled が落ちるので上書きする）
+  -v "$PWD/backend/alembic:/app/alembic:ro" -e ENABLE_DOCS=false biblioflow-api pytest -q -p no:cacheprovider   # 現状 331 passed（ローカル .env の ENABLE_DOCS=true だと test_docs_disabled が落ちるので上書きする）
 gh auth status                          # 切れていれば `gh auth login`
 ```
 - ローカル環境の注意: ホストの 3000 番は Grafana が全インターフェースで使っているため、ローカル `.env` は **`FRONTEND_PORT=3080`、`BIND_ADDRESS=0.0.0.0`（LAN 公開）**、`ENABLE_DOCS=true`。アクセス先は `http://127.0.0.1:3080` と LAN のアドレス（`.env` の `CORS_ALLOWED_ORIGINS` を参照）。ブラウザで開く URL はすべて `CORS_ALLOWED_ORIGINS` に登録する（ないとブラウザからの書き込みが CSRF で 403）。
 - テスト用ユーザー: `e2e@biblioflow.example.com`（パスワードはユーザーに伝達済み。リポジトリには書かない）。論文 5 件入り。5432 番は別プロジェクト（kabu-db）が使用しており、BiblioFlow の DB はホストに公開していない。
 - テストイメージは `INSTALL_DEV=true docker compose build biblioflow-api` でビルドする。
-- CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend build、compose スモークテスト）。
+- CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend lint / typecheck / build、compose スモークテスト〔ゲートウェイ経由、公開ポートがゲートウェイだけであることも検査〕）。
+- マージ手順: `main` はルールセット（ID 26451030）で保護されている。直接 push・force push・削除は禁止、PR には承認 1 件（コードオーナー）が必要。Organization Admin は「PR のみ」バイパスできるので、CI green を確認してから `gh pr merge <N> --squash --admin` でマージする。
+- ブランチの更新は rebase + force push ではなく、`git merge origin/main` で行う（Claude Code の auto mode では force push が拒否される）。PR を積み重ねた場合は、下の PR を squash merge した後に上の PR のベースを `main` に付け替え、`main` をマージして衝突を解消する。
 - 依存関係: `.github/dependabot.yml`（npm / uv / Dockerfile / compose のイメージ / Actions を毎週。minor・patch はエコシステムごとに 1 PR にまとめる）。リポジトリ設定で Dependabot alerts とセキュリティ更新を有効にしてある。`.github/workflows/audit.yml` は PR・main・毎週月曜に、本番依存の既知脆弱性を検査する（`npm audit --omit=dev --audit-level=high`、uv.lock から `pip-audit`）。Dependabot の PR も通常の PR と同じく、CI green を確認してから admin マージする。
 
 ### 6.4 Phase 4 の要点（完了）
-- フロントは Cookie セッションで同一オリジンの `/api` リライト経由。**`middleware.ts` を置かない**（Next のミドルウェアの body 上限で PDF アップロードが切れるため）。
+- フロントは Cookie セッションで同一オリジンの `/api` を呼ぶ。本番はゲートウェイが `/api/*` を API に直接振り分ける（Next の `/api` リライトは `npm run dev` 用に残してある）。**`middleware.ts` を置かない**（Next のミドルウェアの body 上限で PDF アップロードが切れるため）。
 - i18n は自前辞書（`frontend/lib/i18n/{ja,en}.ts`）。`en` は `ja` の型に縛られ、未翻訳キーは `npm run typecheck` で落ちる。
 - PDF ビューアは `react-pdf-highlighter-extended`。右ペインのタブ（`components/paper/paper-view.tsx`）に Phase 4b で AI タブを足す。エリア注釈（kind `area`）が矩形選択 Vision 解説の入口。
 - ローカル DB に QA 用ユーザー `qa-owner@` / `qa-viewer@biblioflow.example.com` と共有ワークスペース「QA Lab」がある（パスワードはリポジトリに書かない）。
