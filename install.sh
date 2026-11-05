@@ -83,7 +83,9 @@ main() {
     git clone -q --depth 1 --branch "$ref" "$repo" "$dir"
   fi
   cd "$dir"
-  [ -f docker-compose.yml ] && [ -f .env.example ] || die "docker-compose.yml or .env.example missing in ${dir}"
+  if [ ! -f docker-compose.yml ] || [ ! -f .env.example ]; then
+    die "docker-compose.yml or .env.example missing in ${dir}"
+  fi
   ok "Source ready at $(pwd)"
 
   # 3. .env
