@@ -9,6 +9,12 @@ updates:
     groups:
       frontend-minor-patch:
         update-types: [minor, patch]
+    ignore:
+      # react-pdf-highlighter-extended 8.x depends on pdfjs-dist ^4, and the viewer's worker must match
+      # the API version it bundles. pdfjs-dist 5.6.83 to <6.2.108 also has GHSA-hq66-cqwq-w95j.
+      # Lift this when the highlighter supports pdfjs-dist >= 6.2.108.
+      - dependency-name: pdfjs-dist
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: uv
@@ -34,6 +40,11 @@ updates:
     directories: [/backend, /frontend]
     schedule:
       interval: weekly
+    ignore:
+      # The backend is locked to Python 3.12 (pyproject requires-python, uv.lock). 3.15 lacks cp315 wheels
+      # for onnxruntime (local embeddings) and pyyaml. Move the image together with requires-python.
+      - dependency-name: python
+        versions: [">=3.13"]
 
   # Images pinned in docker-compose.yml (caddy, cloudflared, tailscale, pgvector, valkey)
   - package-ecosystem: docker-compose

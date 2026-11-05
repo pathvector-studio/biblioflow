@@ -170,6 +170,7 @@ gh auth status                          # 切れていれば `gh auth login`
 - マージ手順: `main` はルールセット（ID 26451030）で保護されている。直接 push・force push・削除は禁止、PR には承認 1 件（コードオーナー）が必要。Organization Admin は「PR のみ」バイパスできるので、CI green を確認してから `gh pr merge <N> --squash --admin` でマージする。
 - ブランチの更新は rebase + force push ではなく、`git merge origin/main` で行う（Claude Code の auto mode では force push が拒否される）。PR を積み重ねた場合は、下の PR を squash merge した後に上の PR のベースを `main` に付け替え、`main` をマージして衝突を解消する。
 - 依存関係: `.github/dependabot.yml`（npm / uv / Dockerfile / compose のイメージ / Actions を毎週。minor・patch はエコシステムごとに 1 PR にまとめる）。リポジトリ設定で Dependabot alerts とセキュリティ更新を有効にしてある。`.github/workflows/audit.yml` は PR・main・毎週月曜に、本番依存の既知脆弱性を検査する（`npm audit --omit=dev --audit-level=high`、uv.lock から `pip-audit`）。Dependabot の PR も通常の PR と同じく、CI green を確認してから admin マージする。
+- 保留中のメジャー更新（2026-11-05、`dependabot.yml` の `ignore` に理由つきで記載）: **pdfjs-dist 5 以降**（`react-pdf-highlighter-extended` 8.x が pdfjs-dist ^4 に依存し、worker は API と同じ版でなければならない。5.6.83〜6.2.108 未満には GHSA-hq66-cqwq-w95j もある。ハイライタが 6.2.108 以降に対応したら外す）、**Python 3.13 以降のイメージ**（3.15 は onnxruntime と pyyaml の cp315 wheel がない。上げるときは `requires-python` と uv.lock も一緒に）。フロントは Next 16・TypeScript 6 で、lint は `eslint .`（flat config の `eslint.config.mjs`。`next lint` は廃止）。
 
 ### 6.4 Phase 4 の要点（完了）
 - フロントは Cookie セッションで同一オリジンの `/api` を呼ぶ。本番はゲートウェイが `/api/*` を API に直接振り分ける（Next の `/api` リライトは `npm run dev` 用に残してある）。**`middleware.ts` を置かない**（Next のミドルウェアの body 上限で PDF アップロードが切れるため）。
