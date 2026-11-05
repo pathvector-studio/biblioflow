@@ -45,6 +45,24 @@ def _bbox_summary(bboxes: list[dict[str, Any]]) -> str:
     return f"region=({x1:g},{y1:g})-({x2:g},{y2:g}) pdf_points_origin_bottom_left page_size={w:g}x{h:g}"
 
 
+_DEGRADED_NOTES = {
+    "disabled": " Semantic search is turned off on this server, so these results are keyword matches only.",
+    "absent": " The semantic search model is not installed yet, so these results are keyword matches only.",
+    "loading": " The semantic search model is still loading, so these results are keyword matches only.",
+}
+
+
+async def _degraded_note(client: BiblioflowClient) -> str:
+    """Why hybrid search fell back to keywords, from ``/search/status``; a generic note if that cannot be read."""
+    try:
+        status = await client.get("/search/status")
+        state = status.get("model_state") if isinstance(status, dict) else None
+    except ApiError:
+        state = None
+    generic = " Semantic search is unavailable right now, so these results are keyword matches only."
+    return _DEGRADED_NOTES.get(state, generic)
+
+
 def build_server(client: BiblioflowClient) -> FastMCP:
     mcp = FastMCP("biblioflow", instructions=INSTRUCTIONS)
 
@@ -70,9 +88,7 @@ def build_server(client: BiblioflowClient) -> FastMCP:
             paper_id=_paper_id(paper_id) if paper_id else None,
         )
         degraded = (
-            " Semantic search is unavailable right now, so these results are keyword matches only."
-            if headers.get("x-search-degraded") == "semantic-unavailable"
-            else ""
+            await _degraded_note(client) if headers.get("x-search-degraded") == "semantic-unavailable" else ""
         )
         if not hits:
             return "No matches. (Papers without an extracted text index are not searchable yet.)" + degraded

@@ -56,6 +56,10 @@ export const en: Dict = {
     rateLimited: "Too many login attempts. Please wait and try again.",
   },
   library: {
+    semanticOffTitle: "Semantic search is off",
+    semanticOffBody:
+      "Search currently matches words only. To search by meaning, put EMBEDDING_PROVIDER=local in .env and run docker compose up -d. This downloads a model of about 0.6 GB (GitHub Release, MIT) in the background. Your papers' text is never sent anywhere.",
+    semanticOffDismiss: "Dismiss",
     tabAll: "All",
     tabWishlist: "Wishlist",
     search: "Search title, author, identifier",

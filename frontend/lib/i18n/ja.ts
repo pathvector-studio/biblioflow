@@ -54,6 +54,10 @@ export const ja = {
     rateLimited: "ログインの試行回数が多すぎます。しばらく待ってからやり直してください。",
   },
   library: {
+    semanticOffTitle: "意味検索は無効です",
+    semanticOffBody:
+      "いまの検索は語句の一致だけです。意味で探せるようにするには、.env に EMBEDDING_PROVIDER=local を書いて docker compose up -d を実行してください。約 0.6 GB のモデル（GitHub Release、MIT）を裏で取得します。論文の本文は外に送られません。",
+    semanticOffDismiss: "閉じる",
     tabAll: "すべて",
     tabWishlist: "Wishlist",
     search: "タイトル・著者・識別子で検索",

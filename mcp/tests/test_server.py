@@ -278,6 +278,27 @@ async def test_search_reports_degraded_mode_with_and_without_hits():
     assert out.startswith("No matches") and "Semantic search is unavailable" in out
 
 
+async def test_search_degraded_note_says_why_from_search_status():
+    degraded = {"X-Search-Degraded": "semantic-unavailable"}
+    for state, words in (("disabled", "turned off"), ("absent", "not installed yet"), ("loading", "still loading")):
+
+        def handler(request, state=state):
+            if request.url.path.endswith("/search/status"):
+                return js({"provider": "local", "model_state": state, "chunks_total": 1, "chunks_embedded": 0, "degraded": True})
+            return js([HIT], **degraded)
+
+        server, seen = make(handler)
+        out = await call(server, "search_library", {"query": "bgp"})
+        assert words in out and "keyword matches only" in out
+        assert any(r.url.path.endswith("/search/status") for r in seen)
+
+    def broken_status(request):  # an older server without /search/status
+        return js({"detail": "Not found"}, status=404) if request.url.path.endswith("/status") else js([HIT], **degraded)
+
+    server, _ = make(broken_status)
+    assert "Semantic search is unavailable right now" in await call(server, "search_library", {"query": "bgp"})
+
+
 async def test_search_tolerates_an_older_server_without_matched():
     old = {k: v for k, v in HIT.items() if k != "matched"}
     server, _ = make(lambda r: js([old]))
