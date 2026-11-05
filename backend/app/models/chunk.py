@@ -30,6 +30,7 @@ class PaperChunk(UUIDPKMixin, CreatedAtMixin, Base):
     __table_args__ = (
         UniqueConstraint("paper_id", "chunk_index"),
         Index("ix_paper_chunks_tsv", "tsv", postgresql_using="gin"),
+        Index("ix_paper_chunks_text_trgm", "text", postgresql_using="gin", postgresql_ops={"text": "gin_trgm_ops"}),
         Index(
             "ix_paper_chunks_embedding_hnsw",
             "embedding",

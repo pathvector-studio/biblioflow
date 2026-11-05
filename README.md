@@ -8,7 +8,7 @@ A self-hosted paper manager and AI research assistant that runs entirely on Dock
 - PDFs are stored as plain files you can open from the host (`{Year}/{Identifier}_{SlugTitle}.pdf`).
 - Metadata and BibTeX are filled in from arXiv, CrossRef and Semantic Scholar.
 - A lightweight metadata API with personal access tokens, for CLIs, scripts and MCP servers.
-- AI features (chat grounded in the paper, figure/equation explanations, hybrid search across the library) are planned (Phase 3).
+- AI features (chat grounded in the paper, figure/equation explanations, semantic search across the library) are planned (Phase 3). Keyword search over the full text and an MCP server are available.
 
 The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`.
 
@@ -220,6 +220,27 @@ Run the backup daily and verify the latest snapshot weekly. With cron (`crontab 
 - cron does not expand `~`; use absolute paths.
 - The machine must be awake at that time (on macOS, disable sleep or use `pmset repeat wake` before the job).
 - Check the log now and then: a failed backup only shows up there.
+
+## Full-text search and MCP
+
+When a PDF is imported, the worker extracts its text page by page (with pypdf, in a resource-limited child process) and stores passages together with their position on the page. This powers keyword search (`GET /api/v1/search`, substring matching also works for Japanese) and reading by page (`GET /api/v1/papers/{id}/chunks`). Embedding-based search is planned.
+
+Papers imported before this feature are indexed by queueing them again:
+
+```bash
+docker compose exec biblioflow-api python -m app.cli reindex --all        # or: --paper <paper-id>
+```
+
+`mcp/` contains `biblioflow-mcp`, an MCP server (stdio) for Claude Code and other MCP clients. It is a thin client of the HTTP API: it needs a personal access token (Settings > API tokens; `read:papers`, plus `write:papers` for `add_note`) and no LLM key. Tools: `search_library`, `list_papers`, `get_paper`, `read_pages`, `list_annotations`, `add_note`. Text that comes from papers is wrapped in `<paper_context>` tags, which the client is told to treat as data, not instructions.
+
+```bash
+claude mcp add biblioflow \
+  -e BIBLIOFLOW_URL=https://papers.example.com \
+  -e BIBLIOFLOW_TOKEN=bf_pat_... \
+  -- uvx --from "git+https://github.com/pathvector-studio/biblioflow#subdirectory=mcp" biblioflow-mcp
+```
+
+Behind Cloudflare Access, also pass the service token: `-e CF_ACCESS_CLIENT_ID=... -e CF_ACCESS_CLIENT_SECRET=...`. To develop it: `uv run --directory mcp pytest`.
 
 ## Tests
 

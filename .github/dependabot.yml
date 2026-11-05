@@ -20,6 +20,15 @@ updates:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
 
+  - package-ecosystem: uv
+    directory: /mcp
+    schedule:
+      interval: weekly
+    groups:
+      mcp-minor-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
   # Base images in backend/Dockerfile and frontend/Dockerfile
   - package-ecosystem: docker
     directories: [/backend, /frontend]

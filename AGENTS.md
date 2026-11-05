@@ -148,6 +148,7 @@
 - Tailscale: `biblioflow-tailscale`（`profiles: ["tailscale"]`、`tailscale/tailscale` sidecar、userspace、`deploy/tailscale-serve.json` で `https://${TS_CERT_DOMAIN}` → `http://biblioflow-gateway:8082`）。`TS_AUTHKEY` は `:?` にしない。
 - ワークスペースのメンバー: 追加は**招待の承諾制**（`workspace_invitations`、メールに紐付け、期限 14 日）。`POST /workspaces/{id}/members` は、アカウントの有無にかかわらず同じ 202 を返す（存在確認に使わせない）。招待した本人が設定画面か `POST /invitations/{id}/accept` で承諾する。権限変更・削除・脱退あり。最後の owner は守る（409）。ワークスペースの作成・メンバー管理・招待は session 限定（PAT は 403）。設計は `specs/workspace-members.md`。
 - 本番: 専用の clone を `scripts/deploy.sh [ref]` だけで更新する（ローカル変更があれば拒否 → バックアップ → ref を detached で checkout → build → `up -d --wait` → ゲートウェイ経由で readyz。ロールバックは前のコミットを deploy する）。同じマシンに 2 つ目のインスタンスを置くときは `.env` に `BF_INSTANCE`（コンテナ名・ネットワーク名の接頭辞、`biblioflow-*` のまま）と `COMPOSE_PROJECT_NAME`、別の `FRONTEND_PORT` を設定する。起動する profile は `COMPOSE_PROFILES`。compose に `container_name` やネットワークの `name` を足すときは `${BF_INSTANCE:-biblioflow}-` を付ける。
+- 本文の索引と MCP（Phase 3c）: チャンク抽出は `app/services/chunking.py`（pypdf の `visitor_text`）で、必ず `extract_chunks_isolated`（子プロセス、壁時計・CPU 120 秒、メモリ 1 GiB、結果 32 MiB）を通す。bbox は PDF のポイント単位・原点左下（`y1` < `y2`）で、ページの `width`/`height` を各 bbox に持つ。検索は `GET /api/v1/search`（`tsv` + `text ILIKE`、`enforce_rate_limit` 60/分）。MCP サーバーは `mcp/`（独自の pyproject / uv.lock、`uv run --directory mcp pytest`）で、論文由来の文字列は必ず `<paper_context>` で囲む（`wrap.py`）。 1 文字ずつ描かれた行（ブラウザの「PDF に印刷」）は、pypdf が返す空白を捨て、Helvetica の字幅で推定した送り幅との差（0.08 em 超）で単語の区切りを決める（`_glyph_line_text`）。見出しは、番号付き・既知の見出し語（Abstract、References、参考文献など）は本文サイズでも採用し、それ以外は本文の 1.2 倍以上でカンマ 2 個未満の行だけ。References の後の番号付きの行は見出しにしない。
 - ライセンス: リポジトリは MIT で、寄付・有償サポート・ホスティング版での収益化を想定する。本番依存に GPL / AGPL / SSPL / BUSL / Elastic / Commons Clause / 非商用のライセンスを入れない（CI の `scripts/check-licenses.py` が拒否する。LGPL は動的リンクで改変しない場合だけ可）。PyMuPDF（AGPL）、`litellm[proxy]` / `litellm-enterprise`（商用ライセンス）は使わない（LiteLLM は SDK 本体だけ）。Redis 7.4 以降は RSALv2 / SSPLv1（8 で AGPLv3 も追加）なので、キューは **Valkey**（BSD-3）を使う。サービス名 `biblioflow-redis` と `REDIS_URL` はそのまま。帰属表示が要るものは `THIRD_PARTY_NOTICES.md` に書く。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
 
@@ -180,6 +181,6 @@ gh auth status                          # 切れていれば `gh auth login`
 ### 6.5 Phase 3 着手時の TODO
 1. ~~`specs/phase3.md` に計画を書いてユーザーの承認を得る~~（2026-11-05 承認。決定事項は spec に記載）
 2. ~~PDF パーサを選定する~~（pypdf。PyMuPDF は AGPL なので使わない）
-3. まず 3c: `mcp/` に `biblioflow-mcp`（stdio、HTTP API の薄いクライアント）と、キーワード検索の `GET /api/v1/search`
+3. ~~まず 3c: `mcp/` に `biblioflow-mcp` と、キーワード検索の `GET /api/v1/search`~~（2026-11-05 完了。実際の論文で検索・座標・Access 越しの MCP を確認済み）
 4. `workers/tasks.py` の `process_paper` を拡張し、チャンク + bbox + embedding（既定 bge-m3）を作って `index_status` を ready / failed に遷移させる
 5. LLM エンドポイントにも `RateLimiter` を使う。プロンプトは `<paper_context>` で区切る

@@ -11,7 +11,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from starlette.datastructures import UploadFile as StarletteUploadFile
-from sqlalchemy import and_, exists, func, or_, select
+from sqlalchemy import and_, case, exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,10 +30,12 @@ from app.core.redis import get_redis
 from app.core.security import SCOPE_READ_PAPERS, SCOPE_WRITE_PAPERS
 from app.db.session import get_db
 from app.db.sql import LIKE_ESCAPE, escape_like
+from app.models.chunk import PaperChunk
 from app.models.collection import Collection, paper_collections
 from app.models.paper import IdentifierType, Paper, PaperStatus
 from app.models.tag import Tag, paper_tags
 from app.models.workspace import Workspace, WorkspaceKind, WorkspaceRole
+from app.schemas.chunk import ChunkOut, ChunksOut, NoteAppendIn, NoteAppendOut
 from app.schemas.metadata import Author, LookupResult, PaperMetadata, UpstreamError
 from app.schemas.paper import ImportUrlIn, MetadataOnlyIn, PaperDetail, PaperLight, PaperPatch
 from app.services import ingest, remote_pdf
@@ -415,6 +417,64 @@ async def get_paper(
 ) -> PaperDetail:
     paper = await get_paper_for_user(db, paper_id, principal, WorkspaceRole.viewer)
     return await _detail(db, paper)
+
+
+MAX_CHUNK_PAGES_PER_REQUEST = 10
+MAX_NOTES_CHARS = 500_000
+
+
+@router.get("/{paper_id}/chunks", response_model=ChunksOut)
+async def get_paper_chunks(
+    paper_id: uuid.UUID,
+    page_from: int = Query(1, ge=1),
+    page_to: int | None = Query(None, ge=1),
+    principal: Principal = Depends(require_scopes(SCOPE_READ_PAPERS)),
+    db: AsyncSession = Depends(get_db),
+) -> ChunksOut:
+    """Extracted text and coordinates for ``page_from``..``page_to`` (at most 10 pages, default one page)."""
+    paper = await get_paper_for_user(db, paper_id, principal, WorkspaceRole.viewer)
+    last = page_from if page_to is None else page_to
+    if last < page_from or last - page_from + 1 > MAX_CHUNK_PAGES_PER_REQUEST:
+        raise HTTPException(
+            status_code=422, detail=f"page range must be 1..{MAX_CHUNK_PAGES_PER_REQUEST} pages and page_to >= page_from"
+        )
+    rows = (
+        await db.execute(
+            select(PaperChunk)
+            .where(PaperChunk.paper_id == paper.id, PaperChunk.page_number.between(page_from, last))
+            .order_by(PaperChunk.page_number, PaperChunk.chunk_index)
+        )
+    ).scalars()
+    return ChunksOut(
+        paper_id=paper.id, index_status=paper.index_status, page_count=paper.page_count, page_from=page_from,
+        page_to=last, chunks=[ChunkOut.model_validate(c, from_attributes=True) for c in rows],
+    )
+
+
+@router.post("/{paper_id}/notes/append", response_model=NoteAppendOut)
+async def append_note(
+    paper_id: uuid.UUID,
+    body: NoteAppendIn,
+    principal: Principal = Depends(require_scopes(SCOPE_WRITE_PAPERS)),
+    db: AsyncSession = Depends(get_db),
+) -> NoteAppendOut:
+    """Append to ``notes_md`` in SQL so a note being edited in the UI is never overwritten."""
+    paper = await get_paper_for_user(db, paper_id, principal, WorkspaceRole.editor)
+    added = len(body.text)
+    new_notes = case((Paper.notes_md == "", body.text), else_=Paper.notes_md + "\n\n" + body.text)
+    length = (
+        await db.execute(
+            update(Paper)
+            .where(Paper.id == paper.id, func.length(Paper.notes_md) + added + 2 <= MAX_NOTES_CHARS)
+            .values(notes_md=new_notes)
+            .returning(func.length(Paper.notes_md))
+        )
+    ).scalar_one_or_none()
+    if length is None:
+        await db.rollback()
+        raise HTTPException(status_code=422, detail="Notes would exceed the size limit")
+    await db.commit()
+    return NoteAppendOut(paper_id=paper.id, notes_length=length)
 
 
 _BIB_FIELDS = {"title", "authors", "year", "venue", "citekey"}

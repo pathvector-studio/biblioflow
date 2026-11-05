@@ -309,7 +309,7 @@ async def test_process_paper(login, resolver, storage, enqueued):
         await db.commit()
     assert await process_paper({}, pid) == "ok"
     d = (await a.get(f"{API}/papers/{pid}")).json()
-    assert d["page_count"] == 3 and d["index_status"] == "pending"
+    assert d["page_count"] == 3 and d["index_status"] == "ready"
 
     # no pdf -> skipped
     w = await add_wishlist(a, "wish")

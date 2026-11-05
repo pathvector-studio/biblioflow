@@ -47,3 +47,22 @@ jobs:
         run: |
           uv sync --frozen --no-dev --no-install-project -q
           uv run --no-sync python ../scripts/check-licenses.py python
+
+  audit-mcp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.3"
+      - name: pip-audit (production dependencies from uv.lock)
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project -q > requirements.txt
+          uvx pip-audit@2.10.1 -r requirements.txt --no-deps --disable-pip --progress-spinner off
+      - name: Licenses of production dependencies (THIRD_PARTY_NOTICES.md)
+        run: |
+          uv sync --frozen --no-dev --no-install-project -q
+          uv run --no-sync python ../scripts/check-licenses.py python

@@ -64,6 +64,20 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+  mcp:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.12.3"
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+
   compose:
     runs-on: ubuntu-latest
     steps:

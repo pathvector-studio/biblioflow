@@ -16,17 +16,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import get_settings
 from app.db.session import get_sessionmaker
+from app.models.chunk import PaperChunk
 from app.models.paper import IndexStatus, Paper
 from app.models.workspace import Workspace
 from app.schemas.metadata import MetadataResolver
 from app.services.ingest import IngestError, ingest_pdf, safe_original_name
 from app.services.metadata import get_resolver
-from app.services.pdf import InvalidPdf, inspect_pdf_isolated
+from app.services.pdf import InvalidPdf, extract_chunks_isolated
 from app.services.storage.files import TooLarge, receive_stream, sha256_file
 from app.services.storage.paths import PathTraversalError, resolve_in_library
 
@@ -47,7 +48,9 @@ _SAFE_COMPONENT = re.compile(r"[^A-Za-z0-9._-]+")
 
 # ------------------------------------------------------------------ process_paper
 async def process_paper(ctx: dict[str, Any], paper_id: str) -> str:
-    """Verify the stored file and fix up ``page_count``. Phase 3 adds chunking/embedding here."""
+    """Verify the stored file, extract its text chunks (with page coordinates) and mark it ``ready``.
+
+    Embeddings are added in a later step; ``paper_chunks.embedding`` stays null for now."""
     sessionmaker = get_sessionmaker()
     settings = get_settings()
     async with sessionmaker() as db:
@@ -65,13 +68,24 @@ async def process_paper(ctx: dict[str, Any], paper_id: str) -> str:
                 paper.index_status = IndexStatus.failed
                 await db.commit()
                 return "failed"
-            info = await inspect_pdf_isolated(path)
+            extracted = await extract_chunks_isolated(path)
         except (PathTraversalError, OSError, InvalidPdf):
             logger.exception("process_paper failed for %s", paper_id)
             paper.index_status = IndexStatus.failed
             await db.commit()
             return "failed"
-        paper.page_count = info.page_count
+        paper.page_count = extracted.page_count
+        await db.execute(delete(PaperChunk).where(PaperChunk.paper_id == paper.id))
+        rows = [
+            {
+                "paper_id": paper.id, "chunk_index": i, "page_number": c.page_number, "section": c.section,
+                "text": c.text, "bboxes": c.bboxes, "token_count": None,
+            }
+            for i, c in enumerate(extracted.chunks)
+        ]
+        for start in range(0, len(rows), 500):
+            await db.execute(insert(PaperChunk), rows[start : start + 500])
+        paper.index_status = IndexStatus.ready
         await db.commit()
         return "ok"
 

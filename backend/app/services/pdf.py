@@ -14,6 +14,7 @@ import re
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from pypdf import PdfReader
 
@@ -23,6 +24,9 @@ from app.services.metadata.identifiers import (
     find_pii,
     strip_download_suffix,
 )
+
+if TYPE_CHECKING:
+    from app.services.chunking import ExtractedChunks
 
 logger = logging.getLogger("biblioflow.pdf")
 
@@ -132,11 +136,16 @@ _MAX_RESULT_BYTES = 256 * 1024
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _limit_self() -> None:
+CHUNK_TIMEOUT_SECONDS = 120
+CHUNK_CPU_SECONDS = 120
+_MAX_CHUNK_RESULT_BYTES = 32 * 1024 * 1024
+
+
+def _limit_self(cpu_seconds: int = PARSE_CPU_SECONDS) -> None:
     """Applied by the child itself (``preexec_fn`` is unsafe in the threaded parent)."""
     import resource
 
-    resource.setrlimit(resource.RLIMIT_CPU, (PARSE_CPU_SECONDS, PARSE_CPU_SECONDS))
+    resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
     resource.setrlimit(resource.RLIMIT_AS, (PARSE_MEMORY_BYTES, PARSE_MEMORY_BYTES))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 
@@ -145,14 +154,15 @@ def _probe_command(path: Path) -> list[str]:
     return [sys.executable, "-m", "app.services.pdf", str(path)]
 
 
-async def inspect_pdf_isolated(path: str | Path, timeout: float = PARSE_TIMEOUT_SECONDS) -> PdfInfo:
-    """``inspect_pdf`` in a resource-limited child process. Raises ``InvalidPdf`` on any failure or timeout.
+def _chunks_command(path: Path) -> list[str]:
+    return [sys.executable, "-m", "app.services.pdf", "--chunks", str(path)]
 
-    The child gets a minimal environment (no secrets) and is killed when ``timeout`` expires.
-    """
+
+async def _run_child(cmd: list[str], timeout: float, max_bytes: int) -> dict[str, Any]:
+    """Run ``cmd`` with a minimal environment (no secrets), kill it on timeout, return its JSON output."""
     env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "PYTHONPATH": str(_PROJECT_ROOT), "LANG": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"}
     proc = await asyncio.create_subprocess_exec(
-        *_probe_command(Path(path)),
+        *cmd,
         stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
@@ -170,7 +180,7 @@ async def inspect_pdf_isolated(path: str | Path, timeout: float = PARSE_TIMEOUT_
             proc.kill()
             await proc.wait()
         raise
-    if proc.returncode != 0 or len(out) > _MAX_RESULT_BYTES:
+    if proc.returncode != 0 or len(out) > max_bytes:
         raise InvalidPdf("unreadable PDF")
     try:
         data = json.loads(out)
@@ -178,14 +188,40 @@ async def inspect_pdf_isolated(path: str | Path, timeout: float = PARSE_TIMEOUT_
         raise InvalidPdf("unreadable PDF") from None
     if "error" in data:
         raise InvalidPdf(str(data["error"])[:200])
+    return data
+
+
+async def inspect_pdf_isolated(path: str | Path, timeout: float = PARSE_TIMEOUT_SECONDS) -> PdfInfo:
+    """``inspect_pdf`` in a resource-limited child process. Raises ``InvalidPdf`` on any failure or timeout.
+
+    The child gets a minimal environment (no secrets) and is killed when ``timeout`` expires.
+    """
+    data = await _run_child(_probe_command(Path(path)), timeout, _MAX_RESULT_BYTES)
     return PdfInfo(**data["info"])
 
 
+async def extract_chunks_isolated(path: str | Path, timeout: float = CHUNK_TIMEOUT_SECONDS) -> "ExtractedChunks":
+    """Page text with coordinates, split into chunks, extracted in the same kind of child process."""
+    from app.services.chunking import Chunk, ExtractedChunks  # noqa: PLC0415
+
+    data = (await _run_child(_chunks_command(Path(path)), timeout, _MAX_CHUNK_RESULT_BYTES))["chunks"]
+    return ExtractedChunks(page_count=data["page_count"], chunks=[Chunk(**c) for c in data["chunks"]])
+
+
 def _main(argv: list[str]) -> int:
-    """Child entry point: print ``{"info": {...}}`` or ``{"error": "..."}`` as JSON on stdout."""
-    _limit_self()
+    """Child entry point: print ``{"info": {...}}`` or ``{"error": "..."}`` as JSON on stdout.
+
+    ``--chunks PATH`` prints ``{"chunks": {"page_count": n, "chunks": [...]}}`` instead.
+    """
+    chunks = argv[:1] == ["--chunks"]
+    _limit_self(CHUNK_CPU_SECONDS if chunks else PARSE_CPU_SECONDS)
     try:
-        result: dict[str, object] = {"info": asdict(inspect_pdf(argv[0]))}
+        if chunks:
+            from app.services.chunking import extract_chunks  # noqa: PLC0415
+
+            result: dict[str, object] = {"chunks": asdict(extract_chunks(argv[1]))}
+        else:
+            result = {"info": asdict(inspect_pdf(argv[0]))}
     except InvalidPdf as exc:
         result = {"error": str(exc)}
     except MemoryError:
