@@ -106,8 +106,8 @@ main() {
       local uid gid
       uid="$(id -u)"; gid="$(id -g)"
       # IDs below 1000 (root, system users) would clash with accounts in the images.
-      [ "$uid" -ge 1000 ] && set_env APP_UID "$uid"
-      [ "$gid" -ge 1000 ] && set_env APP_GID "$gid"
+      if [ "$uid" -ge 1000 ]; then set_env APP_UID "$uid"; fi
+      if [ "$gid" -ge 1000 ]; then set_env APP_GID "$gid"; fi
     fi
     ok "Created .env with generated secrets"
   fi
