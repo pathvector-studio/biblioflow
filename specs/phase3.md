@@ -120,7 +120,7 @@
 - embedder の RSS: 待機 約 0.9 GiB、dev の 794 チャンクを 4 論文並列で索引している間は最大 1.44 GiB（上限 3 GiB）。CPU は 4 コアを使い切る（約 400%）。
 - `reindex --all --embeddings-only --missing`: 15 論文・794 チャンクで約 3 分 10 秒（約 4.4 チャンク/秒、spec の見積もりどおり）。全チャンクに `embedding_model = bge-m3@5617a9f:int8`、全論文が `ready`。
 - 検索の応答: ハイブリッド 20 ms 前後（クエリ embedding 込み）。embedder を止めたときは 35 ms でキーワード結果と `X-Search-Degraded` が返る。
-- 類似度（コサイン）の分布（dev の 16 論文）: 関連するクエリの上位 1 件は 0.52〜0.66、無関係なクエリ（「chocolate cake recipe」「xkcd qwerty」）の上位 1 件でも 0.41〜0.43、上位 50 件目は 0.33〜0.39。`SEARCH_MIN_SIMILARITY` の既定は 0.0（絞らない）のままにしてある。絞るなら 0.45 前後が目安。
+- 類似度（コサイン）の分布（dev の 16 論文）: 関連するクエリの上位 1 件は 0.52〜0.66、無関係なクエリ（「chocolate cake recipe」「xkcd qwerty」）の上位 1 件でも 0.41〜0.43、上位 50 件目は 0.33〜0.39。これを見て `SEARCH_MIN_SIMILARITY` の既定を 0.45 にした（2026-11-06 ユーザー承認）。
 - 言い換え・他言語: 「model that processes tokens in parallel instead of step by step」や日本語「どうして再帰型ネットワークを使わないのか」が、キーワード検索では 0 件のまま、ハイブリッドでは該当する段落（p.2 の逐次計算の制約など）を返した。
 
 ### 方式
@@ -187,3 +187,5 @@ onnxruntime（MIT）、tokenizers（Apache-2.0）、numpy（BSD-3）、onnx（Ap
 1. 既定の精度は **int8**（`EMBEDDING_LOCAL_PRECISION=fp32` でも選べる）。
 2. `biblioflow-model-init` と `biblioflow-embedder` は**既定で起動する**（profile にしない）。
 3. Dependabot #44（mcp SDK 2.x）は、3a/3b の後で移行する。
+4. int8 の量子化のピーク（約 8.7 GiB、1 インスタンスにつき 1 回、約 10 秒）は受け入れて、文書に書く。メモリが足りない環境は fp32 にする（2026-11-06）。
+5. `SEARCH_MIN_SIMILARITY` の既定は 0.45（2026-11-06）。

@@ -242,7 +242,7 @@ Run the backup daily and verify the latest snapshot weekly. With cron (`crontab 
 
 When a PDF is imported, the worker extracts its text page by page (with pypdf, in a resource-limited child process) and stores passages together with their position on the page. A second job then computes one embedding per passage. This powers `GET /api/v1/search?q=...&mode=hybrid|keyword|semantic` and reading by page (`GET /api/v1/papers/{id}/chunks`).
 
-`hybrid` (the default) merges three ranked lists with reciprocal rank fusion: full-text words, substring matches (this is what finds Japanese text) and nearest embeddings. Each hit says which lists found it in `matched`. A paper is searchable by keyword as soon as its text is extracted; its `index_status` becomes `ready` when the embeddings are done too. If the embedding service is down or too slow (2 seconds for the query), the search still answers with the keyword results and sends the response header `X-Search-Degraded: semantic-unavailable`.
+`hybrid` (the default) merges three ranked lists with reciprocal rank fusion: full-text words, substring matches (this is what finds Japanese text) and nearest embeddings. Each hit says which lists found it in `matched`. A paper is searchable by keyword as soon as its text is extracted; its `index_status` becomes `ready` when the embeddings are done too. If the embedding service is down or too slow (2 seconds for the query), the search still answers with the keyword results and sends the response header `X-Search-Degraded: semantic-unavailable`. Nearest embeddings below a cosine similarity of `SEARCH_MIN_SIMILARITY` (default 0.45) are dropped, so an unrelated query is not padded with semantic matches; set it to 0 to keep them all.
 
 ### Embedding providers
 

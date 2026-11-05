@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     embedding_api_key: SecretStr | None = None
     embedding_model: str | None = None  # voyage / openai only; defaults: voyage-3.5, text-embedding-3-large
     embedding_query_timeout: float = Field(2.0, gt=0, le=30)
-    search_min_similarity: float = Field(0.0, ge=-1.0, le=1.0)
+    search_min_similarity: float = Field(0.45, ge=-1.0, le=1.0)
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod
