@@ -25,7 +25,9 @@ The installer ([`install.sh`](install.sh)) clones this repository to `~/bibliofl
 curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
 ```
 
-Options are environment variables: `BIBLIOFLOW_DIR` (directory), `BIBLIOFLOW_PORT` (default 3000), `BIBLIOFLOW_REF` (branch or tag; default: the latest release, `main` to try unreleased changes), `BIBLIOFLOW_NO_START=1` (prepare only). On Linux the containers run with your user and group IDs so they can write to `data/`. It stops if the port is taken or another BiblioFlow on the machine uses the same compose project name; to run a second one, see [A second instance on the same machine](#a-second-instance-on-the-same-machine).
+Options are environment variables: `BIBLIOFLOW_DIR` (directory), `BIBLIOFLOW_PORT` (default 3000), `BIBLIOFLOW_REF` (branch or tag; default: the latest release, `main` to try unreleased changes), `BIBLIOFLOW_NO_START=1` (prepare only), `BIBLIOFLOW_SEMANTIC_SEARCH=yes|no` (answers the question below without asking). On Linux the containers run with your user and group IDs so they can write to `data/`. It stops if the port is taken or another BiblioFlow on the machine uses the same compose project name; to run a second one, see [A second instance on the same machine](#a-second-instance-on-the-same-machine).
+
+The installer asks one question: whether to download the model for semantic search (bge-m3, int8, about 0.6 GB, from this repository's GitHub Release, MIT; it runs on your machine and your papers' text is never sent anywhere). The default is no. Answering yes writes `EMBEDDING_PROVIDER=local` to `.env`, which is the consent. The question is read from the terminal even under `curl | bash`; with no terminal the answer is no unless `BIBLIOFLOW_SEMANTIC_SEARCH=yes` is set. You can change it any time (see [Embedding providers](#embedding-providers)).
 
 Or by hand:
 
@@ -167,7 +169,7 @@ It refuses to run with local changes, takes a backup (`scripts/backup.sh`), chec
 
 The compose profiles to start (for example `cloudflare`) are read from `COMPOSE_PROFILES` in `.env`.
 
-The first deploy that includes semantic search downloads the embedding model (see [Search, embeddings and MCP](#search-embeddings-and-mcp)), and afterwards you queue the existing papers once: `docker compose exec biblioflow-api python -m app.cli reindex --all --embeddings-only --missing`.
+Semantic search is off unless `.env` says `EMBEDDING_PROVIDER=local` (see [Search, embeddings and MCP](#search-embeddings-and-mcp)); an `.env` that predates the setting gets the default, `none`. Where it is on, a deploy needs no manual re-indexing: the worker fills in missing embeddings by itself.
 
 ### Upgrading from Redis to Valkey (one time)
 
@@ -242,30 +244,34 @@ Run the backup daily and verify the latest snapshot weekly. With cron (`crontab 
 
 When a PDF is imported, the worker extracts its text page by page (with pypdf, in a resource-limited child process) and stores passages together with their position on the page. A second job then computes one embedding per passage. This powers `GET /api/v1/search?q=...&mode=hybrid|keyword|semantic` and reading by page (`GET /api/v1/papers/{id}/chunks`).
 
-`hybrid` (the default) merges three ranked lists with reciprocal rank fusion: full-text words, substring matches (this is what finds Japanese text) and nearest embeddings. Each hit says which lists found it in `matched`. A paper is searchable by keyword as soon as its text is extracted; its `index_status` becomes `ready` when the embeddings are done too. If the embedding service is down or too slow (2 seconds for the query), the search still answers with the keyword results and sends the response header `X-Search-Degraded: semantic-unavailable`. Nearest embeddings below a cosine similarity of `SEARCH_MIN_SIMILARITY` (default 0.45) are dropped, so an unrelated query is not padded with semantic matches; set it to 0 to keep them all.
+`hybrid` (the default) merges three ranked lists with reciprocal rank fusion: full-text words, substring matches (this is what finds Japanese text) and nearest embeddings. Each hit says which lists found it in `matched`. A paper is searchable by keyword as soon as its text is extracted, and its `index_status` becomes `ready` then; embeddings follow separately (`GET /api/v1/search/status` reports the provider, the model state and how many of your chunks have a vector). If semantic search is off, the model is not there yet, or the embedding service is down or too slow (2 seconds for the query), the search still answers with the keyword results and sends the response header `X-Search-Degraded: semantic-unavailable`. Nearest embeddings below a cosine similarity of `SEARCH_MIN_SIMILARITY` (default 0.45) are dropped, so an unrelated query is not padded with semantic matches; set it to 0 to keep them all.
 
 ### Embedding providers
 
-Set `EMBEDDING_PROVIDER` in `.env`:
+Set `EMBEDDING_PROVIDER` in `.env` (the default is `none`; choosing `local` is the consent to download the model) and run `docker compose up -d`:
 
 | Provider | What it does |
 |---|---|
-| `local` (default) | [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) on ONNX Runtime (CPU) in the `biblioflow-embedder` container. Nothing leaves your machine. |
+| `local` | [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) on ONNX Runtime (CPU) in the `biblioflow-embedder` container. Nothing leaves your machine. |
 | `voyage` | Voyage AI `voyage-3.5` (1024 dimensions). Needs `EMBEDDING_API_KEY`. |
 | `openai` | OpenAI `text-embedding-3-large` (1024 dimensions), or any OpenAI-compatible server through `EMBEDDING_BASE_URL` and `EMBEDDING_MODEL` (Ollama, vLLM, TEI). On a Mac, Ollama runs bge-m3 on the GPU, which is much faster than Docker. |
-| `none` | No embeddings. Search uses keywords and substrings only. For small machines. |
+| `none` (default) | No embeddings, and nothing is downloaded. Search uses keywords and substrings only. For small machines, or until you decide to turn semantic search on. |
 
 **Privacy:** with `voyage` or `openai` the text of every passage of every paper you import, and every search query, is sent to that service. Use `local` (or an OpenAI-compatible server you run yourself) for unpublished or confidential papers. With `local` the `biblioflow-embedder` container has no internet access, no database access and none of your secrets.
 
-The vectors are tagged with the model that made them (`paper_chunks.embedding_model`), and search compares only vectors of the current model. After you switch the provider, search is keyword-only until you re-embed (see below).
+The vectors are tagged with the model that made them (`paper_chunks.embedding_model`), and search compares only vectors of the current model. After you switch the provider, search is keyword-only until the worker has re-embedded (see below).
 
 ### The local model
 
-On the first `docker compose up`, the one-shot `biblioflow-model-init` container downloads the pinned bge-m3 ONNX files from Hugging Face (about 2.3 GB, checked against sha256 values in the source), quantizes them to int8 (about 0.6 GB) and stores them in the `models` volume. The quantization needs about 9 GiB of free RAM for roughly ten seconds, once (`MODEL_INIT_MEM_LIMIT`, default 10g); on a machine or Docker VM with less, set `EMBEDDING_LOCAL_PRECISION=fp32`, which skips it. It does nothing on later starts, and it is not backed up because it can be downloaded again. Plan for about 3 GB of disk, 2 GB of RAM for the embedder (`EMBEDDER_MEM_LIMIT`, default 3g) and up to 4 CPUs (`EMBEDDER_CPUS`). Measured on an 8-CPU machine inside Docker: about 4 passages per second with int8 (an average paper takes 15 to 30 seconds; 1,000 papers take several hours the first time), 10 ms per search query. `EMBEDDING_LOCAL_PRECISION=fp32` is about three times slower and needs `EMBEDDER_MEM_LIMIT=4g`; the int8 vectors agree with fp32 on about 90% of nearest neighbours.
+With `EMBEDDING_PROVIDER=local`, the one-shot `biblioflow-model-init` container downloads the int8 model (`model_int8.onnx`, 569 MB, and `tokenizer.json`) from this repository's GitHub Release [`model-bge-m3-int8-5617a9f-1`](https://github.com/pathvector-studio/biblioflow/releases/tag/model-bge-m3-int8-5617a9f-1), checks the size and sha256 pinned in the source, stores them in the `models` volume and, last, writes a `READY` marker. Nothing is converted on your machine: a CI workflow (`.github/workflows/model-artifact.yml`) quantizes the official `BAAI/bge-m3` once and attests the result; `scripts/build-model-artifact.py` reproduces it byte for byte. `EMBEDDING_LOCAL_PRECISION=fp32` instead downloads the four official files from Hugging Face (about 2.3 GB; set `EMBEDDER_MEM_LIMIT=4g`).
 
-### After upgrading, or after switching the provider
+Nothing waits for the download. `docker compose up -d --wait` returns in seconds; the `biblioflow-embedder` container starts without a model, reports `absent` on its health endpoint, and checks every 10 seconds for `READY`. It then re-verifies the files' sha256 (the volume is shared, so a marker alone is not trusted), loads the model in the background (`loading`, then `ready`) and answers `503 model not ready` until then. Meanwhile search works with keywords only. About every 10 minutes the worker queues `embed_paper` for papers that have chunks without a vector from the current model, once the embedder is ready, so existing papers are indexed without any command. The `models` volume is not backed up because it can be downloaded again.
 
-Papers imported earlier have no embeddings. Queue them once (it is safe to repeat; `--missing` skips papers that are up to date):
+Measured (Docker on an 8-CPU machine): the download and verification take about 15 seconds on a fast connection with model-init at under 30 MiB of memory (limit `MODEL_INIT_MEM_LIMIT`, default 512m; the old local quantization needed about 9 GiB), and the embedder is ready about 15 seconds after the file is complete. The loaded embedder uses about 1 GiB (`EMBEDDER_MEM_LIMIT`, default 3g) and up to 4 CPUs (`EMBEDDER_CPUS`). Plan for about 1 GB of disk for int8 (3 GB for fp32). About 4 passages per second with int8 (an average paper takes 15 to 30 seconds; 1,000 papers take several hours the first time), 10 ms per search query. fp32 is about three times slower; the int8 vectors agree with fp32 on about 90% of nearest neighbours.
+
+### After switching the provider
+
+Vectors are tagged with the model that made them, so after a switch the worker re-embeds everything on its own (keyword-only search in the meantime). You no longer have to run anything. To queue it immediately instead of waiting up to 10 minutes (safe to repeat; `--missing` skips papers that are up to date):
 
 ```bash
 docker compose exec biblioflow-api python -m app.cli reindex --all --embeddings-only --missing
