@@ -27,6 +27,9 @@ Semantic search runs BAAI/bge-m3 on ONNX Runtime. The model is **not** part of t
 `biblioflow-model-init` downloads the files from https://huggingface.co/BAAI/bge-m3 (pinned revision, sha256-verified)
 into a Docker volume on first start, and quantizes them to int8 there. bge-m3 is MIT-licensed.
 
+The repository's GitHub Releases named `model-bge-m3-int8-*` redistribute an int8 quantization of the bge-m3 weights
+and its tokenizer, together with bge-m3's MIT `LICENSE` (Copyright (c) BAAI) as a release asset.
+
 | Component | Where | License |
 |---|---|---|
 | BAAI/bge-m3 (model weights and tokenizer, downloaded at run time) | `models` volume | MIT |
