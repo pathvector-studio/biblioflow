@@ -25,7 +25,7 @@ The installer ([`install.sh`](install.sh)) clones this repository to `~/bibliofl
 curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
 ```
 
-Options are environment variables: `BIBLIOFLOW_DIR` (directory), `BIBLIOFLOW_PORT` (default 3000), `BIBLIOFLOW_REF` (branch or tag), `BIBLIOFLOW_NO_START=1` (prepare only). On Linux the containers run with your user and group IDs so they can write to `data/`. It stops if the port is taken or another BiblioFlow on the machine uses the same compose project name; to run a second one, see [A second instance on the same machine](#a-second-instance-on-the-same-machine).
+Options are environment variables: `BIBLIOFLOW_DIR` (directory), `BIBLIOFLOW_PORT` (default 3000), `BIBLIOFLOW_REF` (branch or tag; default: the latest release, `main` to try unreleased changes), `BIBLIOFLOW_NO_START=1` (prepare only). On Linux the containers run with your user and group IDs so they can write to `data/`. It stops if the port is taken or another BiblioFlow on the machine uses the same compose project name; to run a second one, see [A second instance on the same machine](#a-second-instance-on-the-same-machine).
 
 Or by hand:
 

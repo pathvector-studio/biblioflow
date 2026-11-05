@@ -109,6 +109,11 @@ jobs:
           grep -qx "APP_UID=$(id -u)" .env
           grep -qx 'CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000' .env
           docker compose config -q
+      - name: Default ref is the latest release tag
+        run: |
+          for t in v0.9.0 v0.10.0 v1.0.0-rc1 vnext; do git tag "$t"; done
+          BIBLIOFLOW_DIR="$RUNNER_TEMP/bf-tag" BIBLIOFLOW_REPO="$PWD" BIBLIOFLOW_NO_START=1 bash install.sh | tee "$RUNNER_TEMP/out.txt"
+          grep -qF '(v0.10.0)' "$RUNNER_TEMP/out.txt"
 
   compose:
     runs-on: ubuntu-latest

@@ -8,7 +8,7 @@
 # Environment overrides:
 #   BIBLIOFLOW_DIR       install directory   (default: ~/biblioflow)
 #   BIBLIOFLOW_REPO      git URL             (default: https://github.com/pathvector-studio/biblioflow.git)
-#   BIBLIOFLOW_REF       branch or tag       (default: main)
+#   BIBLIOFLOW_REF       branch or tag       (default: the latest release tag vX.Y.Z, or main if there is none)
 #   BIBLIOFLOW_PORT      port on 127.0.0.1   (default: 3000; only used when .env is created)
 #   BIBLIOFLOW_NO_START  set to 1 to prepare files only, without starting containers
 set -euo pipefail
@@ -17,7 +17,7 @@ set -euo pipefail
 main() {
   local dir="${BIBLIOFLOW_DIR:-$HOME/biblioflow}"
   local repo="${BIBLIOFLOW_REPO:-https://github.com/pathvector-studio/biblioflow.git}"
-  local ref="${BIBLIOFLOW_REF:-main}"
+  local ref="${BIBLIOFLOW_REF:-}"
 
   if [ -t 1 ]; then
     BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[31m'; GRN=$'\033[32m'; YLW=$'\033[33m'; RST=$'\033[0m'
@@ -35,6 +35,12 @@ main() {
     else
       od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
     fi
+  }
+
+  # Highest vX.Y.Z tag of the repo (pre-releases such as v1.0.0-rc1 are skipped), or nothing.
+  latest_tag() {
+    git ls-remote --tags --refs --sort=-v:refname "$repo" 'refs/tags/v*' \
+      | awk '{ sub("^refs/tags/", "", $2) } $2 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $2; exit }'
   }
 
   # Replace KEY=... in .env (portable across GNU and BSD sed). Values must not contain '|'.
@@ -69,6 +75,10 @@ main() {
   ok "docker $(docker version --format '{{.Server.Version}}' 2>/dev/null || echo '?'), compose $(docker compose version --short 2>/dev/null || echo 'v2')"
 
   # 2. Source
+  if [ -z "$ref" ]; then
+    ref="$(latest_tag)" || die "Cannot reach ${repo}. Check your network and retry."
+    ref="${ref:-main}"
+  fi
   if [ -d "$dir/.git" ]; then
     info "Updating existing checkout in ${dir}"
     if [ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]; then
