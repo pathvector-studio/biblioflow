@@ -48,3 +48,11 @@ class NoteAppendIn(BaseModel):
 class NoteAppendOut(BaseModel):
     paper_id: uuid.UUID
     notes_length: int
+
+
+class SearchStatus(BaseModel):
+    provider: str  # none | local | voyage | openai
+    model_state: str  # disabled | absent | loading | ready | unreachable
+    chunks_total: int  # chunks of the papers the caller can see
+    chunks_embedded: int  # of those, with a vector from the current model
+    degraded: bool  # true: hybrid search currently answers with keyword matches only

@@ -18,11 +18,14 @@ x-backend-env: &backend-env
   DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@biblioflow-db:5432/${POSTGRES_DB:?}
   TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@biblioflow-db:5432/biblioflow_test
   REDIS_URL: redis://:${REDIS_PASSWORD:?}@biblioflow-redis:6379/0
+  # The same value the embedder and model-init get, so a shell override reaches every container alike.
+  EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-none}
+  EMBEDDING_LOCAL_PRECISION: ${EMBEDDING_LOCAL_PRECISION:-int8}
 
 # Embedding settings: the only configuration the model-init and embedder containers get (no env_file: they must
 # not see the database password, the JWT key or any API key).
 x-embedding-env: &embedding-env
-  EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+  EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-none}
   EMBEDDING_LOCAL_PRECISION: ${EMBEDDING_LOCAL_PRECISION:-int8}
   MODELS_DIR: /models
 
@@ -118,8 +121,10 @@ services:
       retries: 5
       start_period: 15s
 
-  # Downloads the pinned embedding model once (sha256-verified, int8-quantized) into the `models` volume, then
-  # exits. Needs the internet, so it sits on the edge network; it does nothing unless EMBEDDING_PROVIDER=local.
+  # Downloads the pinned embedding model once (about 0.6 GB for int8, from the project's GitHub Release; sha256-
+  # verified, nothing is converted) into the `models` volume, writes the READY marker last, then exits. Needs the
+  # internet, so it sits on the edge network. Nothing is downloaded unless EMBEDDING_PROVIDER=local (the default
+  # is none: that setting is the consent). Nothing waits for it: `up --wait` does not.
   biblioflow-model-init:
     build: *backend-build
     container_name: ${BF_INSTANCE:-biblioflow}-model-init
@@ -130,8 +135,10 @@ services:
       - models:/models
     networks:
       - biblioflow-edge
-    # int8 quantization peaks at about 8.7 GiB (measured) for ~10 s, once; fp32 needs almost nothing.
-    mem_limit: ${MODEL_INIT_MEM_LIMIT:-10g}
+    # It only streams files to disk and hashes them; there is no conversion any more. It stays running (idle)
+    # after the download, retrying on failure: `up --wait` treats an exited service as an error, even with
+    # status 0. No healthcheck, so `--wait` does not wait for the download.
+    mem_limit: ${MODEL_INIT_MEM_LIMIT:-512m}
     read_only: true
     tmpfs:
       - /tmp
@@ -139,7 +146,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    restart: "no"
+    restart: unless-stopped
 
   # The one resident embedding model. Internal network only (it cannot reach the internet), no secrets, models
   # mounted read-only. The API (search queries) and the worker (indexing) call it over HTTP.
@@ -159,9 +166,8 @@ services:
       - biblioflow-internal
     mem_limit: ${EMBEDDER_MEM_LIMIT:-3g}
     cpus: ${EMBEDDER_CPUS:-4}
-    depends_on:
-      biblioflow-model-init:
-        condition: service_completed_successfully
+    # No depends_on on model-init: the embedder starts and is healthy without a model, polls for READY, and loads
+    # the model in the background (/healthz: model absent|loading|ready|disabled; /embed answers 503 until then).
     read_only: true
     tmpfs:
       - /tmp
@@ -174,7 +180,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-      start_period: 60s
+      start_period: 20s
     restart: unless-stopped
 
   biblioflow-frontend:

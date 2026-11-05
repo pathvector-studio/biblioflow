@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, ClipboardCopy, FileText, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ClipboardCopy, FileText, Info, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, describeError } from "@/lib/api";
 import { copyText } from "@/lib/clipboard";
 import { formatAuthors } from "@/lib/format";
 import { fmt, useI18n } from "@/lib/i18n";
-import { useTags } from "@/lib/queries";
-import { useWorkspace } from "@/lib/session";
+import { useSearchStatus, useTags } from "@/lib/queries";
+import { useMe, useWorkspace } from "@/lib/session";
 import { PAPER_STATUSES, type PaperDetail, type PaperLight, type PaperStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ import {
 import { CollectionsSidebar } from "@/components/library/collections-sidebar";
 
 const PAGE_SIZE = 50;
+const SEMANTIC_NOTICE_KEY = "bf_semantic_notice_dismissed";
 
 export function LibraryView() {
   const { t } = useI18n();
@@ -72,6 +73,27 @@ export function LibraryView() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<PaperLight | null>(null);
   const tags = useTags(current.id);
+  const me = useMe();
+  const isAdmin = me.data?.user.is_admin === true;
+  const searchStatus = useSearchStatus(isAdmin);
+  const [noticeDismissed, setNoticeDismissed] = useState(true);
+  useEffect(() => {
+    try {
+      setNoticeDismissed(localStorage.getItem(SEMANTIC_NOTICE_KEY) === "1");
+    } catch {
+      setNoticeDismissed(false);
+    }
+  }, []);
+  function dismissNotice() {
+    setNoticeDismissed(true);
+    try {
+      localStorage.setItem(SEMANTIC_NOTICE_KEY, "1");
+    } catch {
+      // 保存できなくてもこの表示は閉じる
+    }
+  }
+  // 管理者にだけ、意味検索が無効（EMBEDDING_PROVIDER=none）のときの案内を出す
+  const showSemanticNotice = isAdmin && searchStatus.data?.model_state === "disabled" && !noticeDismissed;
   const onSelectCollection = useCallback((id: string | null) => setParams({ collection: id }), [setParams]);
 
   const papers = useQuery({
@@ -171,6 +193,19 @@ export function LibraryView() {
             </button>
           ))}
         </div>
+
+        {showSemanticNotice && (
+          <div role="note" className="flex items-start gap-2 rounded-md border bg-muted/40 p-3 text-sm">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="font-medium">{t.library.semanticOffTitle}</p>
+              <p className="text-muted-foreground">{t.library.semanticOffBody}</p>
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={dismissNotice}>
+              {t.library.semanticOffDismiss}
+            </Button>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <Input

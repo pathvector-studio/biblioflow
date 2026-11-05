@@ -18,11 +18,21 @@ MAX_TOKENS = 512
 INT8_FILE = "model_int8.onnx"
 
 
+# The int8 model is not quantized on the user's machine: CI quantizes the pinned fp32 model once and publishes the
+# result as a GitHub Release (workflow `model-artifact.yml`, script `scripts/build-model-artifact.py`). The bytes
+# are the same as `onnxruntime.quantization.quantize_dynamic(..., QInt8)` produced locally, so the model id below
+# did not change and no vector had to be recomputed.
+RELEASE_TAG = "model-bge-m3-int8-5617a9f-1"
+RELEASE_URL = f"https://github.com/pathvector-studio/biblioflow/releases/download/{RELEASE_TAG}"
+READY_FILE = "READY"
+
+
 @dataclass(frozen=True)
 class ModelFile:
-    path: str  # relative to the repository root and to the model directory
+    path: str  # relative to the model's root directory (`models/bge-m3/<rev12>/`)
     size: int
     sha256: str
+    remote: str | None = None  # the file name in the download location when it differs from ``path``
 
 
 # `Constant_7_attr__value` is a non-LFS blob (git oid 3cdc05e5f550d8bd136f28efcea0ad5e6b4169c8); the
@@ -39,6 +49,26 @@ FILES: tuple[ModelFile, ...] = (
 )
 
 
+INT8_FILES: tuple[ModelFile, ...] = (
+    ModelFile(
+        "onnx/model_int8.onnx", 568765638, "830e6134ead4638c9ead5131e8d857790f535830ff04bcde10266a3023ba6748",
+        remote="model_int8.onnx",
+    ),
+    ModelFile(
+        "onnx/tokenizer.json", 17082821, "6710678b12670bc442b99edc952c4d996ae309a7020c1fa0096dd245c2faf790",
+        remote="tokenizer.json",
+    ),
+)
+
+
+def files_for(precision: str) -> tuple[ModelFile, ...]:
+    return INT8_FILES if precision == "int8" else FILES
+
+
+def source_url(precision: str) -> str:
+    return RELEASE_URL if precision == "int8" else BASE_URL
+
+
 def model_id(precision: str) -> str:
     """Value stored in ``paper_chunks.embedding_model`` for vectors produced locally."""
     return f"bge-m3@{REVISION[:7]}:{precision}"
@@ -50,6 +80,11 @@ def model_dir(models_dir: Path) -> Path:
 
 def model_file(models_dir: Path, precision: str) -> Path:
     return model_dir(models_dir) / ("model.onnx" if precision == "fp32" else INT8_FILE)
+
+
+def ready_file(models_dir: Path) -> Path:
+    """Written by model-init after it has verified every file; the embedder never loads without it."""
+    return model_dir(models_dir) / READY_FILE
 
 
 def env_models_dir() -> Path:
@@ -64,4 +99,4 @@ def env_precision() -> str:
 
 
 def env_provider() -> str:
-    return os.environ.get("EMBEDDING_PROVIDER", "local").strip().lower() or "local"
+    return os.environ.get("EMBEDDING_PROVIDER", "none").strip().lower() or "none"

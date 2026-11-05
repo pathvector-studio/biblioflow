@@ -12,6 +12,15 @@ export interface User {
   id: string;
   email: string;
   display_name: string;
+  is_admin: boolean;
+}
+
+export interface SearchStatus {
+  provider: "none" | "local" | "voyage" | "openai";
+  model_state: "disabled" | "absent" | "loading" | "ready" | "unreachable";
+  chunks_total: number;
+  chunks_embedded: number;
+  degraded: boolean;
 }
 
 export interface MeResponse {

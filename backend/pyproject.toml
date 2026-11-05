@@ -25,13 +25,13 @@ dependencies = [
     "onnxruntime>=1.20",
     "tokenizers>=0.20",
     "numpy>=2",
-    "onnx>=1.17",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",
+    "onnx>=1.17",  # builds the tiny test graph; the runtime only needs onnxruntime
 ]
 
 [tool.uv]

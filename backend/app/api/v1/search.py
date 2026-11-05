@@ -8,7 +8,7 @@ import uuid
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import Select, func, select, text as sql_text
+from sqlalchemy import Select, false, func, select, text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import Principal, accessible_workspace_ids, get_paper_for_user, get_workspace_for_user, require_scopes
@@ -21,7 +21,7 @@ from app.db.sql import LIKE_ESCAPE, escape_like
 from app.models.chunk import PaperChunk
 from app.models.paper import Paper
 from app.models.workspace import WorkspaceRole
-from app.schemas.chunk import SearchHit
+from app.schemas.chunk import SearchHit, SearchStatus
 from app.services import embedding
 from app.services.embedding import EmbeddingError
 
@@ -58,6 +58,39 @@ def rrf(rankings: dict[str, list[uuid.UUID]]) -> dict[uuid.UUID, tuple[float, li
             score, names = fused.get(chunk_id, (0.0, []))
             fused[chunk_id] = (score + 1.0 / (RRF_K + rank), [*names, name])
     return fused
+
+
+@router.get("/status", response_model=SearchStatus)
+async def search_status(
+    principal: Principal = Depends(require_scopes(SCOPE_READ_PAPERS)),
+    db: AsyncSession = Depends(get_db),
+) -> SearchStatus:
+    """Is semantic search on, and how far along is the index? The counts cover only the workspaces the caller is
+    a member of. Any signed-in user (or read token) may ask; nothing here is about other people's papers."""
+    await enforce_rate_limit(get_redis(), "search-status", (str(principal.user.id),), SEARCH_RATE_LIMIT)
+    embedder = embedding.get_embedder()
+    state = await embedding.model_state(embedder)
+    mine = Paper.workspace_id.in_(accessible_workspace_ids(principal.user.id))
+    embedded = (
+        PaperChunk.embedding.is_not(None) & (PaperChunk.embedding_model == embedder.model_id)
+        if embedder is not None
+        else false()
+    )
+    total, done = (
+        await db.execute(
+            select(func.count(), func.count().filter(embedded))
+            .select_from(PaperChunk)
+            .join(Paper, Paper.id == PaperChunk.paper_id)
+            .where(mine)
+        )
+    ).one()
+    return SearchStatus(
+        provider=get_settings().embedding_provider,
+        model_state=state,
+        chunks_total=total,
+        chunks_embedded=done,
+        degraded=state != "ready",
+    )
 
 
 @router.get("", response_model=list[SearchHit])
