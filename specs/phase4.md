@@ -85,7 +85,7 @@
 - **論文削除と共有 PDF**: Phase 2 で同じ内容の PDF を複数ワークスペースで共有しているため、DB 上の参照がなくなったときだけファイルを消す。
 - **パスワード変更とセッション**: 変更時、今のセッション以外は失効させたいが、既存の仕組みは jti 単位の denylist しかない。ユーザー単位の「この時刻より前のセッションは無効」を持つかは実装時に決める（DB に列を足す場合はマイグレーション `0003_*`）。
 - **ファイル名**: スキルの `specs/NNN-name.md` 形式ではなく、このリポジトリの慣例（`specs/phaseN.md`）に合わせた。
-- **確認環境**: ローカルの `.env` は `BIND_ADDRESS=0.0.0.0`、`FRONTEND_PORT=3080`（3000 は Grafana が使用中）、`ENABLE_DOCS=true`、CORS に LAN の URL を追加済み。テスト用ユーザー `e2e@biblioflow.example.com` に 5 件の論文が入っている。
+- **確認環境**: ローカルの `.env` は `BIND_ADDRESS=0.0.0.0`、`FRONTEND_PORT=3080`（3000 は別のサービスが使用中）、`ENABLE_DOCS=true`、CORS に LAN の URL を追加済み。テスト用ユーザー `e2e@biblioflow.example.com` に 5 件の論文が入っている。
 
 ## 承認時に決めたこと（2026-11-03）
 - **npm 依存**: shadcn/ui 一式（`@radix-ui/*` 必要分、`class-variance-authority`, `clsx`, `tailwind-merge`, `tailwindcss-animate`, `lucide-react`, `sonner`）、`@tanstack/react-query`、`react-pdf-highlighter-extended` + `pdfjs-dist`（React 19 で動かなければ `react-pdf-highlighter` か pdfjs-dist 直書き）、`react-markdown` + `remark-gfm` + `rehype-sanitize`、`eslint` + `eslint-config-next`。i18n はライブラリなし（自前辞書。`en` を `ja` の型で縛り未翻訳キーを typecheck で検出）。

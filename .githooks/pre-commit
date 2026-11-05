@@ -1,0 +1,3 @@
+#!/bin/sh
+# Enabled with: git config core.hooksPath .githooks
+exec python3 scripts/check-private-info.py --staged --author
