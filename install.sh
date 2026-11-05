@@ -11,6 +11,9 @@
 #   BIBLIOFLOW_REF       branch or tag       (default: the latest release tag vX.Y.Z, or main if there is none)
 #   BIBLIOFLOW_PORT      port on 127.0.0.1   (default: 3000; only used when .env is created)
 #   BIBLIOFLOW_NO_START  set to 1 to prepare files only, without starting containers
+#   BIBLIOFLOW_SEMANTIC_SEARCH
+#                        yes / no: answer the semantic-search question (below) without asking. Without a
+#                        terminal and without this variable the answer is no. Only used when .env is created.
 set -euo pipefail
 
 # Wrapped in main so a truncated download never runs half a script.
@@ -58,6 +61,41 @@ main() {
   }
 
   get_env() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | tr -d '"' || true; }
+
+  # Semantic search needs a local model (bge-m3, int8, about 0.6 GB) downloaded from this project's GitHub Release.
+  # Saying yes sets EMBEDDING_PROVIDER=local in .env, which is the consent; the default is none (nothing is
+  # downloaded). The question is read from /dev/tty so it also works under `curl | bash`; with no terminal only an
+  # explicit BIBLIOFLOW_SEMANTIC_SEARCH=yes turns it on.
+  choose_semantic_search() {
+    local answer="${BIBLIOFLOW_SEMANTIC_SEARCH:-}" reply=""
+    case "$answer" in
+      [Yy]|[Yy][Ee][Ss]) answer=yes ;;
+      [Nn]|[Nn][Oo]) answer=no ;;
+      *)
+        answer=no
+        if [ -r /dev/tty ] && (: </dev/tty) 2>/dev/null; then
+          printf '\n%sSemantic search (optional)%s\n' "$BOLD" "$RST"
+          printf '  What:      the bge-m3 model (int8, about 0.6 GB), so a search finds passages by meaning, not only by words\n'
+          printf '  From:      this project'"'"'s GitHub Release (github.com/pathvector-studio/biblioflow), checked against a pinned sha256\n'
+          printf '  License:   MIT (the model'"'"'s own license)\n'
+          printf '  Privacy:   the model runs on this machine; your papers'"'"' text is never sent anywhere\n'
+          printf '  Cost:      about 2 GB of RAM and 3 GB of disk; the download runs in the background, search works without it meanwhile\n'
+          printf '  Later:     change EMBEDDING_PROVIDER in .env and run: docker compose up -d. EMBEDDING_LOCAL_PRECISION=fp32\n'
+          printf '             downloads the full model instead (about 2.3 GB, from Hugging Face)\n'
+          printf 'Download it? [y/N] '
+          read -r reply </dev/tty || reply=""
+          case "$reply" in [Yy]|[Yy][Ee][Ss]) answer=yes ;; esac
+        fi
+        ;;
+    esac
+    if [ "$answer" = yes ]; then
+      set_env EMBEDDING_PROVIDER local
+      ok "Semantic search: on (EMBEDDING_PROVIDER=local; the model downloads in the background)"
+    else
+      set_env EMBEDDING_PROVIDER none
+      ok "Semantic search: off (keyword search only). To enable it later, set EMBEDDING_PROVIDER=local in .env and run: docker compose up -d"
+    fi
+  }
 
   port_in_use() { (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
 
@@ -121,6 +159,7 @@ main() {
       if [ "$uid" -ge 1000 ]; then set_env APP_UID "$uid"; fi
       if [ "$gid" -ge 1000 ]; then set_env APP_GID "$gid"; fi
     fi
+    choose_semantic_search
     ok "Created .env with generated secrets"
   fi
   if grep -q '=change-me-' .env; then
@@ -174,7 +213,10 @@ main() {
   printf 'Create your first user (asks for a password):\n'
   printf '  cd %s && docker compose exec biblioflow-api python -m app.cli create-user --email you@example.com --admin\n\n' "$dir"
   printf 'Remote access (Cloudflare Tunnel, Tailscale) and backups: https://github.com/pathvector-studio/biblioflow#readme\n'
-  printf '%sAI chat and semantic search are on the roadmap; today an MCP client can search your library (see the README).%s\n' "$DIM" "$RST"
+  if [ "$(get_env EMBEDDING_PROVIDER)" = "local" ]; then
+    printf '%sThe search model downloads in the background (about 0.6 GB); semantic search switches on by itself when it is done.%s\n' "$DIM" "$RST"
+  fi
+  printf '%sAI chat is on the roadmap; today an MCP client can search your library (see the README).%s\n' "$DIM" "$RST"
   printf '%sEnjoying it? https://biblioflow.pathvector.dev/#sponsor ☕%s\n\n' "$DIM" "$RST"
 }
 

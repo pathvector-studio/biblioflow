@@ -109,6 +109,20 @@ jobs:
           grep -qx "APP_UID=$(id -u)" .env
           grep -qx 'CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000' .env
           docker compose config -q
+      - name: Semantic-search question without a terminal
+        run: |
+          # No tty (CI): the answer is no unless BIBLIOFLOW_SEMANTIC_SEARCH=yes says otherwise.
+          run_installer() {
+            rm -rf "$RUNNER_TEMP/bf-ss"
+            env "$@" BIBLIOFLOW_DIR="$RUNNER_TEMP/bf-ss" BIBLIOFLOW_REPO="$PWD" BIBLIOFLOW_REF=ci-installer BIBLIOFLOW_NO_START=1 bash install.sh </dev/null
+          }
+          run_installer BIBLIOFLOW_SEMANTIC_SEARCH=
+          grep -qx 'EMBEDDING_PROVIDER=none' "$RUNNER_TEMP/bf-ss/.env"
+          run_installer BIBLIOFLOW_SEMANTIC_SEARCH=no
+          grep -qx 'EMBEDDING_PROVIDER=none' "$RUNNER_TEMP/bf-ss/.env"
+          run_installer BIBLIOFLOW_SEMANTIC_SEARCH=yes
+          grep -qx 'EMBEDDING_PROVIDER=local' "$RUNNER_TEMP/bf-ss/.env"
+          docker compose --project-directory "$RUNNER_TEMP/bf-ss" config -q
       - name: Default ref is the latest release tag
         run: |
           for t in v0.9.0 v0.10.0 v1.0.0-rc1 vnext; do git tag "$t"; done
@@ -122,8 +136,8 @@ jobs:
       - name: Prepare .env
         run: |
           cp .env.example .env
-          # The smoke test must not download the 2 GB model.
-          sed -i 's|^EMBEDDING_PROVIDER=.*|EMBEDDING_PROVIDER=none|' .env
+          # EMBEDDING_PROVIDER stays at its default, none: the smoke test downloads no model.
+          grep -qx 'EMBEDDING_PROVIDER=none' .env
           for k in POSTGRES_PASSWORD REDIS_PASSWORD JWT_SECRET; do
             sed -i "s|^$k=.*|$k=$(openssl rand -hex 32)|" .env
           done
@@ -172,8 +186,12 @@ jobs:
           for s in biblioflow-api biblioflow-worker biblioflow-embedder biblioflow-frontend biblioflow-gateway; do
             uid=$(docker compose exec -T $s id -u); echo "$s uid=$uid"; test "$uid" != "0"
           done
-      - name: Verify the embedder is isolated
+      - name: Verify the embedder is isolated and, by default, off
         run: |
+          # No consent, no model: model-init downloaded nothing and the embedder says so.
+          test "$(docker compose exec -T biblioflow-embedder python -c "import json,urllib.request; print(json.load(urllib.request.urlopen('http://127.0.0.1:8001/healthz'))['model'])")" = disabled
+          docker compose logs biblioflow-model-init | grep -q 'nothing is downloaded'
+          test "$(docker compose exec -T biblioflow-embedder sh -c 'ls /models | wc -l')" = 0
           test "$(docker inspect -f '{{json .NetworkSettings.Networks}}' biblioflow-embedder | jq -r 'keys | join(",")')" = biblioflow-internal
           test -z "$(docker compose exec -T biblioflow-embedder env | grep -E '^(POSTGRES|REDIS|JWT|DATABASE|LLM|EMBEDDING_API)' || true)"
           test -z "$(docker compose port biblioflow-embedder 8001 2>/dev/null | grep -v ':0$')"
