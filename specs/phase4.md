@@ -60,7 +60,7 @@
 - 英語・日本語以外の言語
 
 ## 受け入れ基準
-すべて LAN 内の別 PC のブラウザから `http://192.168.1.10:3080`（または `http://dev-host.local:3080`）で行う。
+すべて LAN 内の別 PC のブラウザから LAN のアドレス（ポート 3080）で行う。
 1. `cd frontend && npm run lint && npm run typecheck && npm run build` が通る（`lint` / `typecheck` スクリプトは今回追加する）。CI（backend pytest skip 0、frontend build、compose スモーク）が green。
 2. 未ログインで `/library` を開く → ログイン画面 → テスト用ユーザーでログイン → `/library` に戻る（R2, R6）。
 3. 言語を英語に切り替えてリロード → 英語のまま。日本語に戻す（R1）。
@@ -108,6 +108,6 @@
 - ライブラリの `MouseSelection` は `enableAreaSelection` をマウント時に閉じ込めるため、範囲選択モードは ref で読む（`pdf-pane.tsx`）。
 - 注釈の編集・削除ボタンは PDF 上でも一覧でも「editor 以上かつ作成者本人 or owner」のときだけ出す（バックエンドも同じ規則。作成者が viewer に降格したら変更不可）。
 - `npm run lint` は `next lint`（`.eslintrc.json`）。flat config への移行は追加依存が要るので見送り。
-- 受け入れ基準の確認は別 PC の代わりに LAN アドレス（`http://192.168.1.10:3080`）を headless Chromium で開いて行った。テスト用に `qa-owner@` / `qa-viewer@biblioflow.example.com` と共有ワークスペース「QA Lab」（qa-viewer は viewer）をローカル DB に作成。
+- 受け入れ基準の確認は別 PC の代わりに LAN のアドレスを headless Chromium で開いて行った。テスト用に `qa-owner@` / `qa-viewer@biblioflow.example.com` と共有ワークスペース「QA Lab」（qa-viewer は viewer）をローカル DB に作成。
 - R9 の「1,000 件で 1 秒以内」は件数を用意しての計測はしていない（数件で検索〜表示が即時であることのみ確認）。
 - パスワード変更時の失効判定は秒単位のため、変更と同じ秒に発行された他セッションは残る（既知の制約）。

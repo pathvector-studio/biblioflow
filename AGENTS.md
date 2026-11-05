@@ -160,7 +160,7 @@ docker compose run --rm --no-deps -v "$PWD/backend/app:/app/app:ro" -v "$PWD/bac
   -v "$PWD/backend/alembic:/app/alembic:ro" -e ENABLE_DOCS=false biblioflow-api pytest -q -p no:cacheprovider   # 現状 289 passed（ローカル .env の ENABLE_DOCS=true だと test_docs_disabled が落ちるので上書きする）
 gh auth status                          # 切れていれば `gh auth login`
 ```
-- ローカル環境の注意: ホストの 3000 番は Grafana が全インターフェースで使っているため、ローカル `.env` は **`FRONTEND_PORT=3080`、`BIND_ADDRESS=0.0.0.0`（LAN 公開）**、`ENABLE_DOCS=true`。アクセス先は `http://127.0.0.1:3080` / LAN からは `http://192.168.1.10:3080` または `http://dev-host.local:3080`。`CORS_ALLOWED_ORIGINS` にこれらを登録済み（ないとブラウザからの書き込みが CSRF で 403）。
+- ローカル環境の注意: ホストの 3000 番は Grafana が全インターフェースで使っているため、ローカル `.env` は **`FRONTEND_PORT=3080`、`BIND_ADDRESS=0.0.0.0`（LAN 公開）**、`ENABLE_DOCS=true`。アクセス先は `http://127.0.0.1:3080` と LAN のアドレス（`.env` の `CORS_ALLOWED_ORIGINS` を参照）。ブラウザで開く URL はすべて `CORS_ALLOWED_ORIGINS` に登録する（ないとブラウザからの書き込みが CSRF で 403）。
 - テスト用ユーザー: `e2e@biblioflow.example.com`（パスワードはユーザーに伝達済み。リポジトリには書かない）。論文 5 件入り。5432 番は別プロジェクト（kabu-db）が使用しており、BiblioFlow の DB はホストに公開していない。
 - テストイメージは `INSTALL_DEV=true docker compose build biblioflow-api` でビルドする。
 - CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend build、compose スモークテスト）。

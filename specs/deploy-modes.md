@@ -79,7 +79,7 @@ BiblioFlow はユーザーによって公開の仕方が異なる。
    - `X-Forwarded-Proto: https` のときだけ Cookie に Secure が付く
    - メール単位のレートリミット
    - CSRF の既存テストが通る
-2. `docker compose up -d --build` で 6 サービスが healthy。`http://192.168.1.10:3080` でログイン・アップロード・PDF 表示ができる（Playwright で前回の t1 / t2 / t8 を再実行）。
+2. `docker compose up -d --build` で 6 サービスが healthy。LAN のアドレス（ポート 3080）でログイン・アップロード・PDF 表示ができる（Playwright で前回の t1 / t2 / t8 を再実行）。
 3. なりすましの確認: ゲートウェイに `X-Forwarded-For` を毎回変えて誤パスワードでログインを 31 回送ると、429 になる（今は通ってしまう）。
 4. `:8081` がホストからも LAN からも届かないこと（`curl` が接続拒否になる）。
 5. 50MB 近い PDF をアップロードしても 30 秒で切れないこと（帯域を絞った curl で確認）。
