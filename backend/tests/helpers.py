@@ -48,9 +48,17 @@ def make_meta(identifier="2405.12345", title="Scalable BGP Routing in Clos Fabri
 class FakePool:
     def __init__(self) -> None:
         self.jobs: list[tuple] = []
+        self.job_ids: set[str] = set()
 
     async def enqueue_job(self, name, *args, **kw):
+        """Like Arq: a job id that is already queued is refused (returns None)."""
+        job_id = kw.get("_job_id")
+        if job_id is not None:
+            if job_id in self.job_ids:
+                return None
+            self.job_ids.add(job_id)
         self.jobs.append((name, *args))
+        return object()
 
 
 def pdf_files(root) -> list:

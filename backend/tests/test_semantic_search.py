@@ -60,18 +60,18 @@ async def upload(a):
     return r.json()["id"]
 
 
-async def test_process_paper_queues_embedding_and_stays_processing(login, resolver, storage, enqueued, fake):
+async def test_process_paper_is_ready_with_the_chunks_and_queues_embedding(login, resolver, storage, enqueued, fake):
     _, a = await login("a@example.com")
     pid = await upload(a)
     enqueued.jobs.clear()
     assert await process_paper({}, pid) == "ok"
     assert enqueued.jobs == [("embed_paper", pid)]
-    assert await status(pid) == IndexStatus.processing
+    assert await status(pid) == IndexStatus.ready  # embeddings are tracked apart (/search/status)
     # keyword search already works
     assert (await a.get(f"{API}/search", params={"q": "zebra", "mode": "keyword"})).json()
 
 
-async def test_process_paper_fails_the_status_when_the_job_cannot_be_queued(login, resolver, storage, enqueued, fake):
+async def test_process_paper_stays_ready_when_the_job_cannot_be_queued(login, resolver, storage, enqueued, fake):
     _, a = await login("a@example.com")
     pid = await upload(a)
 
@@ -80,7 +80,7 @@ async def test_process_paper_fails_the_status_when_the_job_cannot_be_queued(logi
 
     enqueued.enqueue_job = broken
     assert await process_paper({}, pid) == "ok"
-    assert await status(pid) == IndexStatus.failed
+    assert await status(pid) == IndexStatus.ready  # the backfill cron embeds it later
     assert len(await chunk_rows(pid)) == 2  # chunks stay: keyword search keeps working
 
 
@@ -139,9 +139,9 @@ async def test_embed_paper_retries_then_fails_but_keeps_chunks(login, resolver, 
         with pytest.raises(Retry) as r:
             await embed_paper({"job_try": attempt}, pid)
         assert r.value.defer_score > 0
-        assert await status(pid) == IndexStatus.processing
+        assert await status(pid) == IndexStatus.ready
     assert await embed_paper({"job_try": EMBED_MAX_TRIES}, pid) == "failed"
-    assert await status(pid) == IndexStatus.failed
+    assert await status(pid) == IndexStatus.ready  # the text index is fine; only vectors are missing
     assert len(await chunk_rows(pid)) == 2
     assert not any(has for _, has, _ in await chunk_rows(pid))
 
@@ -175,7 +175,7 @@ async def test_embed_paper_detects_chunks_replaced_meanwhile(login, resolver, st
     monkeypatch.setattr(embedding, "get_embedder", lambda: Racy(MODEL))
     with pytest.raises(Retry):
         await embed_paper({}, pid)
-    assert await status(pid) == IndexStatus.processing  # not wrongly ready
+    assert await status(pid) != IndexStatus.failed  # untouched
     monkeypatch.setattr(embedding, "get_embedder", lambda: FakeEmbedder(MODEL))
     assert await embed_paper({}, pid) == "ok" and all(h for _, h, _ in await chunk_rows(pid))
 

@@ -58,10 +58,10 @@ async def test_local_client_request_and_validation():
     bad = LocalEmbedder("http://e", "int8", transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"vectors": [[1.0]]})))
     with pytest.raises(EmbeddingError, match="wrong size"):
         await bad.embed(["a"], "query")
-    down = LocalEmbedder("http://e", "int8", transport=httpx.MockTransport(lambda r: httpx.Response(503, text="secret paper text")))
+    down = LocalEmbedder("http://e", "int8", transport=httpx.MockTransport(lambda r: httpx.Response(500, text="secret paper text")))
     with pytest.raises(EmbeddingError) as exc:
         await down.embed(["a"], "query")
-    assert "503" in str(exc.value) and "secret" not in str(exc.value)
+    assert "500" in str(exc.value) and "secret" not in str(exc.value)
 
     def boom(request):
         raise httpx.ConnectError("no route")
@@ -162,7 +162,7 @@ def test_engine_truncates_at_max_tokens(tmp_path):
 
 def test_server_embed_and_limits(tiny):
     with TestClient(create_app(tiny, "m@1:int8")) as c:
-        assert c.get("/healthz").json() == {"status": "ok", "model": "m@1:int8"}
+        assert c.get("/healthz").json() == {"status": "ok", "model": "ready", "model_id": "m@1:int8"}
         r = c.post("/embed", json={"texts": ["a b", "c"], "kind": "query"})
         assert r.status_code == 200 and r.json()["model"] == "m@1:int8"
         vectors = np.array(r.json()["vectors"])
@@ -181,8 +181,84 @@ def test_server_embed_and_limits(tiny):
 def test_server_without_local_provider_answers_503(monkeypatch):
     monkeypatch.setenv("EMBEDDING_PROVIDER", "voyage")
     with TestClient(create_app()) as c:
-        assert c.get("/healthz").json() == {"status": "ok", "model": None}
+        assert c.get("/healthz").json() == {"status": "ok", "model": "disabled", "model_id": None}
+        r = c.post("/embed", json={"texts": ["a"]})
+        assert r.status_code == 503 and r.json()["detail"] == "model not ready"
+
+
+def test_server_default_provider_is_none(monkeypatch):
+    monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
+    assert spec.env_provider() == "none"
+    with TestClient(create_app()) as c:
+        assert c.get("/healthz").json()["model"] == "disabled"
+
+
+def wait_for(predicate, timeout=5.0):
+    import time
+
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if predicate():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def test_server_starts_without_a_model_then_loads_it_when_it_appears(tiny, monkeypatch):
+    """No model-init yet: the server is up, healthy, answers 503; once the loader finds a model it serves."""
+    monkeypatch.setenv("EMBEDDER_POLL_SECONDS", "0.05")
+    available = []
+
+    def loader(on_loading):
+        if not available:
+            return None
+        on_loading()
+        return tiny, "m@1:int8"
+
+    with TestClient(create_app(loader=loader)) as c:
+        assert c.get("/healthz").json() == {"status": "ok", "model": "absent", "model_id": None}
         assert c.post("/embed", json={"texts": ["a"]}).status_code == 503
+        available.append(1)
+        assert wait_for(lambda: c.get("/healthz").json()["model"] == "ready")
+        assert c.get("/healthz").json()["model_id"] == "m@1:int8"
+        assert c.post("/embed", json={"texts": ["a b"]}).status_code == 200
+
+
+def test_server_keeps_polling_after_a_failed_load(tiny, monkeypatch):
+    monkeypatch.setenv("EMBEDDER_POLL_SECONDS", "0.05")
+    calls = []
+
+    def loader(on_loading):
+        calls.append(1)
+        if len(calls) < 3:
+            raise RuntimeError("corrupt file")
+        return tiny, "m"
+
+    with TestClient(create_app(loader=loader)) as c:
+        assert wait_for(lambda: c.get("/healthz").json()["model"] == "ready")
+    assert len(calls) == 3
+
+
+def test_load_local_model_needs_a_matching_ready_marker_and_valid_files(tmp_path, monkeypatch):
+    from app.embedder.server import load_local_model
+
+    blobs, files = fake_files(tmp_path)
+    monkeypatch.setenv("MODELS_DIR", str(tmp_path))
+    monkeypatch.setenv("EMBEDDING_LOCAL_PRECISION", "int8")
+    monkeypatch.setattr(spec, "INT8_FILES", files)
+    loading = []
+    assert load_local_model(lambda: loading.append(1)) is None and not loading  # no marker
+    root = tmp_path / "bge-m3" / spec.REVISION[:12]
+    for f in files:
+        (root / f.path).parent.mkdir(parents=True, exist_ok=True)
+        (root / f.path).write_bytes(blobs[f.path])
+    assert load_local_model() is None  # files but no marker: model-init has not finished
+    fetch.write_ready(tmp_path, "bge-m3@other:fp32")
+    assert load_local_model() is None  # the marker is for another model
+    fetch.write_ready(tmp_path, spec.model_id("int8"))
+    (root / files[0].path).write_bytes(b"tampered")
+    assert load_local_model(lambda: loading.append(1)) is None  # the marker is not trusted over the checksum
+    assert loading == [1]
 
 
 def test_server_does_not_import_app_config():
@@ -195,17 +271,38 @@ def test_server_does_not_import_app_config():
 
 # ---------------------------------------------------------------- model download
 def fake_files(tmp_path):
-    blobs = {"onnx/model.onnx": b"graph", "onnx/model.onnx_data": b"weights" * 100, "onnx/tokenizer.json": b"{}"}
+    """Both layouts: fp32 files come with their path under the repository, int8 ones from the release."""
+    blobs = {
+        "onnx/model.onnx": b"graph", "onnx/model.onnx_data": b"weights" * 100, "onnx/tokenizer.json": b"{}",
+        "onnx/model_int8.onnx": b"int8-bytes",
+    }
     files = tuple(
-        spec.ModelFile(path, len(data), hashlib.sha256(data).hexdigest()) for path, data in blobs.items()
+        spec.ModelFile(
+            path, len(data), hashlib.sha256(data).hexdigest(),
+            remote="model_int8.onnx" if path.endswith("int8.onnx") else None,
+        )
+        for path, data in blobs.items()
     )
     return blobs, files
 
 
-def serving(blobs, requests):
+def int8_only(files):
+    """The release has the two files flat, under their bare names."""
+    out = []
+    for f in files:
+        if f.path in ("onnx/model_int8.onnx", "onnx/tokenizer.json"):
+            out.append(spec.ModelFile(f.path, f.size, f.sha256, remote=f.path.rsplit("/", 1)[1]))
+    return tuple(sorted(out, key=lambda f: f.remote != "model_int8.onnx"))
+
+
+def fp32_only(files):
+    return tuple(f for f in files if not f.path.endswith("int8.onnx"))
+
+
+def serving(blobs, requests, prefix=f"{spec.REVISION}/"):
     def handler(request: httpx.Request) -> httpx.Response:
-        requests.append(request.url.path)
-        key = request.url.path.split(f"{spec.REVISION}/", 1)[1]
+        requests.append(str(request.url))
+        key = request.url.path.split(prefix, 1)[1] if prefix in request.url.path else "onnx/" + request.url.path.rsplit("/", 1)[1]
         return httpx.Response(200, content=blobs[key]) if key in blobs else httpx.Response(404)
 
     return httpx.MockTransport(handler)
@@ -220,20 +317,77 @@ def test_pinned_spec_is_well_formed():
     assert all(len(f.sha256) == 64 and f.size > 0 for f in spec.FILES)
 
 
+def test_pinned_int8_release():
+    assert spec.RELEASE_TAG == "model-bge-m3-int8-5617a9f-1"
+    assert spec.RELEASE_URL == (
+        "https://github.com/pathvector-studio/biblioflow/releases/download/model-bge-m3-int8-5617a9f-1"
+    )
+    by_path = {f.path: f for f in spec.INT8_FILES}
+    assert set(by_path) == {"onnx/model_int8.onnx", "onnx/tokenizer.json"}
+    assert (by_path["onnx/model_int8.onnx"].size, by_path["onnx/model_int8.onnx"].sha256) == (
+        568765638, "830e6134ead4638c9ead5131e8d857790f535830ff04bcde10266a3023ba6748",
+    )
+    # the tokenizer is the very file fp32 uses, so the two precisions share it on disk
+    fp32_tok = next(f for f in spec.FILES if f.path == "onnx/tokenizer.json")
+    assert (by_path["onnx/tokenizer.json"].size, by_path["onnx/tokenizer.json"].sha256) == (fp32_tok.size, fp32_tok.sha256)
+    assert spec.model_id("int8") == "bge-m3@5617a9f:int8"  # unchanged: no re-embedding
+    assert spec.files_for("int8") is spec.INT8_FILES and spec.files_for("fp32") is spec.FILES
+    assert spec.source_url("int8") == spec.RELEASE_URL and spec.source_url("fp32") == spec.BASE_URL
+
+
+def test_fetch_int8_downloads_only_two_files_from_the_release_and_never_quantizes(tmp_path):
+    blobs, files = fake_files(tmp_path)
+    requests: list[str] = []
+    base = "https://example.test/releases/download/tag"
+    with httpx.Client(transport=serving(blobs, requests)) as client:
+        target = fetch.ensure_model(tmp_path, "int8", client, int8_only(files), base)
+        assert target == spec.model_dir(tmp_path) / "model_int8.onnx" and target.read_bytes() == b"int8-bytes"
+        assert requests == [f"{base}/model_int8.onnx", f"{base}/tokenizer.json"]
+        assert not hasattr(fetch, "quantize_int8")
+        # READY is last, holds the model id, and a second run downloads nothing
+        assert spec.ready_file(tmp_path).read_text().strip() == "bge-m3@5617a9f:int8"
+        fetch.ensure_model(tmp_path, "int8", client, int8_only(files), base)
+        assert len(requests) == 2
+    assert not list(tmp_path.rglob("*.part"))
+
+
+def test_fetch_accepts_files_already_in_the_volume_without_downloading(tmp_path):
+    blobs, files = fake_files(tmp_path)
+    for f in int8_only(files):
+        dest = tmp_path / "bge-m3" / spec.REVISION[:12] / f.path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(blobs[f.path])
+    requests: list[str] = []
+    with httpx.Client(transport=serving(blobs, requests)) as client:
+        fetch.ensure_model(tmp_path, "int8", client, int8_only(files), "https://example.test/r")
+    assert requests == [] and fetch.read_ready(tmp_path) == "bge-m3@5617a9f:int8"
+
+
 def test_fetch_downloads_verifies_and_is_idempotent(tmp_path):
     blobs, files = fake_files(tmp_path)
+    files = fp32_only(files)
     requests: list[str] = []
     with httpx.Client(transport=serving(blobs, requests)) as client:
         target = fetch.ensure_model(tmp_path, "fp32", client, files)
         assert target == spec.model_dir(tmp_path) / "model.onnx" and target.read_bytes() == b"graph"
-        assert len(requests) == 3 and requests[0].startswith("/BAAI/bge-m3/resolve/")
+        assert len(requests) == 3 and requests[0].startswith("https://huggingface.co/BAAI/bge-m3/resolve/")
+        assert fetch.read_ready(tmp_path) == "bge-m3@5617a9f:fp32"
         fetch.ensure_model(tmp_path, "fp32", client, files)
         assert len(requests) == 3  # nothing to do the second time
         assert not list(tmp_path.rglob("*.part"))
-        # a damaged file is fetched again
+        # a damaged file is fetched again, and the marker does not vouch for it meanwhile
         (spec.model_dir(tmp_path) / "tokenizer.json").write_bytes(b"xx")
         fetch.ensure_model(tmp_path, "fp32", client, files)
         assert len(requests) == 4 and (spec.model_dir(tmp_path) / "tokenizer.json").read_bytes() == b"{}"
+
+
+def test_ready_marker_for_another_precision_is_withdrawn_and_failures_leave_none(tmp_path):
+    blobs, files = fake_files(tmp_path)
+    fetch.write_ready(tmp_path, "bge-m3@5617a9f:fp32")
+    blobs["onnx/model_int8.onnx"] = b"wrong!!!!!"  # right size, wrong hash
+    with httpx.Client(transport=serving(blobs, [])) as client, pytest.raises(fetch.VerificationError):
+        fetch.ensure_model(tmp_path, "int8", client, int8_only(files), "https://example.test/r")
+    assert fetch.read_ready(tmp_path) is None
 
 
 @pytest.mark.parametrize("tamper", ["content", "longer", "shorter"])
@@ -243,52 +397,45 @@ def test_fetch_rejects_wrong_bytes(tmp_path, tamper):
         "content": b"W" * 700, "longer": b"weights" * 100 + b"!", "shorter": b"weights" * 99
     }[tamper]
     with httpx.Client(transport=serving(blobs, [])) as client, pytest.raises(fetch.VerificationError):
-        fetch.ensure_model(tmp_path, "fp32", client, files)
+        fetch.ensure_model(tmp_path, "fp32", client, fp32_only(files))
     assert not list(tmp_path.rglob("*.part"))
     assert not (spec.model_dir(tmp_path) / "model.onnx_data").exists()
+    assert fetch.read_ready(tmp_path) is None
 
 
 def test_fetch_http_error_leaves_nothing(tmp_path):
     blobs, files = fake_files(tmp_path)
     del blobs["onnx/tokenizer.json"]
     with httpx.Client(transport=serving(blobs, [])) as client, pytest.raises(httpx.HTTPStatusError):
-        fetch.ensure_model(tmp_path, "fp32", client, files)
+        fetch.ensure_model(tmp_path, "fp32", client, fp32_only(files))
     assert not list(tmp_path.rglob("*.part"))
+    assert fetch.read_ready(tmp_path) is None
 
 
-def test_fetch_quantizes_for_int8(tmp_path, monkeypatch):
+def test_fetch_follows_https_redirects_but_refuses_a_downgrade(tmp_path):
     blobs, files = fake_files(tmp_path)
-    calls = []
+    files = int8_only(files)
 
-    def fake_quantize(src: Path, dest: Path) -> None:
-        calls.append((src.name, dest.name))
-        dest.write_bytes(b"int8")
+    def redirecting(target_scheme):
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.host == "github.example":
+                name = request.url.path.rsplit("/", 1)[1]
+                return httpx.Response(302, headers={"location": f"{target_scheme}://objects.example/{name}?x=1"})
+            return httpx.Response(200, content=blobs["onnx/" + request.url.path.rsplit("/", 1)[1]])
 
-    monkeypatch.setattr(fetch, "quantize_int8", fake_quantize)
-    with httpx.Client(transport=serving(blobs, [])) as client:
-        target = fetch.ensure_model(tmp_path, "int8", client, files)
-        fetch.ensure_model(tmp_path, "int8", client, files)
-    assert target.name == "model_int8.onnx" and target.read_bytes() == b"int8"
-    assert calls == [("model.onnx", "model_int8.onnx")]  # once
+        return httpx.MockTransport(handler)
 
-
-def test_quantize_int8_on_a_real_graph(tmp_path):
-    w = np.random.default_rng(0).standard_normal((16, 16)).astype(np.float32)
-    graph = helper.make_graph(
-        [helper.make_node("MatMul", ["x", "w"], ["y"])], "g",
-        [helper.make_tensor_value_info("x", TensorProto.FLOAT, ["b", 16])],
-        [helper.make_tensor_value_info("y", TensorProto.FLOAT, ["b", 16])],
-        [numpy_helper.from_array(w, "w")],
-    )
-    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 13)])
-    model.ir_version = 8
-    src, dest = tmp_path / "model.onnx", tmp_path / "model_int8.onnx"
-    onnx.save(model, src)
-    fetch.quantize_int8(src, dest)
-    assert dest.is_file() and not list(tmp_path.glob("*.part"))
+    with httpx.Client(transport=redirecting("https"), follow_redirects=True, event_hooks={"response": [fetch.https_only]}) as client:
+        fetch.ensure_model(tmp_path, "int8", client, files, "https://github.example/dl")
+    other = tmp_path / "other"
+    with httpx.Client(transport=redirecting("http"), follow_redirects=True, event_hooks={"response": [fetch.https_only]}) as client:
+        with pytest.raises(fetch.VerificationError, match="non-https"):
+            fetch.ensure_model(other, "int8", client, files, "https://github.example/dl")
+    assert fetch.read_ready(other) is None
+    assert fetch.new_client().follow_redirects is True
 
 
-def test_main_is_a_noop_unless_local(monkeypatch, tmp_path):
+def test_main_is_a_noop_unless_local(monkeypatch, tmp_path, caplog):
     monkeypatch.setenv("MODELS_DIR", str(tmp_path))
     for provider in ("none", "voyage", "openai"):
         monkeypatch.setenv("EMBEDDING_PROVIDER", provider)
@@ -297,3 +444,16 @@ def test_main_is_a_noop_unless_local(monkeypatch, tmp_path):
     monkeypatch.setenv("EMBEDDING_PROVIDER", "local")
     monkeypatch.setenv("EMBEDDING_LOCAL_PRECISION", "fp16")
     assert fetch.main() == 1
+
+
+def test_main_with_none_says_what_enabling_would_download(monkeypatch, tmp_path, caplog):
+    import logging
+
+    monkeypatch.setenv("MODELS_DIR", str(tmp_path))
+    monkeypatch.delenv("EMBEDDING_PROVIDER", raising=False)
+    with caplog.at_level(logging.INFO, logger="biblioflow.model-init"):
+        assert fetch.main() == 0
+    text = caplog.text
+    assert "nothing is downloaded" in text and "EMBEDDING_PROVIDER=local" in text
+    assert "0.6 GB" in text and "GitHub Release" in text and "MIT" in text and "never leaves" in text
+    assert list(tmp_path.iterdir()) == []

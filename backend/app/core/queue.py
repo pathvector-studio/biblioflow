@@ -48,11 +48,17 @@ async def enqueue_process_paper(paper_id: uuid.UUID | str, pool: Any | None = No
         return False
 
 
+def embed_job_id(paper_id: uuid.UUID | str) -> str:
+    return f"embed:{paper_id}"
+
+
 async def enqueue_embed_paper(paper_id: uuid.UUID | str, pool: Any | None = None) -> bool:
-    """Enqueue ``embed_paper``; never raises (returns False so the caller can mark the paper)."""
+    """Enqueue ``embed_paper``; never raises (returns False on a Redis error). The job id is deterministic and
+    ``embed_paper`` keeps no result, so a paper is queued at most once at a time; asking again while it is queued
+    or running is a harmless no-op (returns True)."""
     try:
         pool = pool if pool is not None else await get_arq_pool()
-        await pool.enqueue_job("embed_paper", str(paper_id))
+        await pool.enqueue_job("embed_paper", str(paper_id), _job_id=embed_job_id(paper_id))
         return True
     except Exception:  # noqa: BLE001
         logger.warning("failed to enqueue embed_paper for %s", paper_id, exc_info=True)

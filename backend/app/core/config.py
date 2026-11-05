@@ -46,8 +46,8 @@ class Settings(BaseSettings):
     llm_api_base: str | None = None
     vision_model: str | None = None
 
-    # Embeddings (semantic search). `local` = the biblioflow-embedder container (bge-m3 on ONNX Runtime).
-    embedding_provider: Literal["local", "voyage", "openai", "none"] = "local"
+    # Embeddings (semantic search). Off by default (`none`): turning on `local` is the consent to download the model. `local` = the biblioflow-embedder container (bge-m3 on ONNX Runtime).
+    embedding_provider: Literal["local", "voyage", "openai", "none"] = "none"
     embedding_local_precision: Literal["int8", "fp32"] = "int8"
     embedder_url: str = "http://biblioflow-embedder:8001"
     embedding_base_url: str | None = None  # openai: any OpenAI-compatible server (Ollama, vLLM, TEI, ...)

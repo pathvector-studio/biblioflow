@@ -11,6 +11,11 @@ class EmbeddingError(Exception):
     """The provider is unreachable, too slow, or answered something unusable. The message is safe to log."""
 
 
+class ModelNotReady(EmbeddingError):
+    """The local embedder is running but has no model loaded yet (it is being downloaded, or not enabled).
+    Not a failure: callers wait instead of counting a retry."""
+
+
 class Embedder(Protocol):
     model_id: str
 

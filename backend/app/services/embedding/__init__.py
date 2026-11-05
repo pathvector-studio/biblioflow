@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from app.core.config import Settings, get_settings
-from app.services.embedding.base import MAX_TEXT_CHARS, Embedder, EmbeddingError, Kind
+from app.services.embedding.base import MAX_TEXT_CHARS, Embedder, EmbeddingError, Kind, ModelNotReady
 from app.services.embedding.fake import FakeEmbedder
 from app.services.embedding.providers import LocalEmbedder, OpenAIEmbedder, VoyageEmbedder
 
@@ -18,9 +18,11 @@ __all__ = [
     "EmbeddingError",
     "FakeEmbedder",
     "Kind",
+    "ModelNotReady",
     "build_embedder",
     "current_model_id",
     "get_embedder",
+    "model_state",
 ]
 
 
@@ -47,3 +49,14 @@ def get_embedder() -> Embedder | None:
 def current_model_id() -> str | None:
     embedder = get_embedder()
     return embedder.model_id if embedder else None
+
+
+async def model_state(embedder: Embedder | None) -> str:
+    """``disabled`` (no provider), ``absent`` / ``loading`` / ``ready`` / ``unreachable`` for the local embedder
+    (asked on its ``/healthz``, short timeout). An external provider (voyage, openai) is assumed ready: asking
+    it would cost a billable call."""
+    if embedder is None:
+        return "disabled"
+    if isinstance(embedder, LocalEmbedder):
+        return await embedder.state()
+    return "ready"

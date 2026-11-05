@@ -8,10 +8,11 @@ import logging
 import httpx
 
 from app.embedder import spec
-from app.services.embedding.base import EmbeddingError, Kind, check_vectors, clip
+from app.services.embedding.base import EmbeddingError, ModelNotReady, Kind, check_vectors, clip
 
 logger = logging.getLogger("biblioflow.embedding")
 DOCUMENT_TIMEOUT = 120.0
+STATE_TIMEOUT = 1.0
 VOYAGE_URL = "https://api.voyageai.com/v1"
 OPENAI_URL = "https://api.openai.com/v1"
 
@@ -24,6 +25,7 @@ async def _post(
     timeout: float,
     what: str,
     transport: httpx.AsyncBaseTransport | None = None,
+    not_ready_on_503: bool = False,
 ) -> object:
     try:
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, transport=transport) as client:
@@ -32,6 +34,8 @@ async def _post(
         raise EmbeddingError(f"{what}: timed out") from None
     except httpx.HTTPError as exc:
         raise EmbeddingError(f"{what}: {type(exc).__name__}") from None
+    if response.status_code == 503 and not_ready_on_503:
+        raise ModelNotReady(f"{what}: model not ready")
     if response.status_code != 200:
         # The body of an error can echo the request (the text of a paper), so it is not logged or raised.
         raise EmbeddingError(f"{what}: HTTP {response.status_code}")
@@ -57,10 +61,22 @@ class LocalEmbedder:
             timeout=timeout or DOCUMENT_TIMEOUT,
             what="embedder",
             transport=self.transport,
+            not_ready_on_503=True,
         )
         if not isinstance(body, dict):
-                    raise EmbeddingError("embedder: unexpected answer")
+            raise EmbeddingError("embedder: unexpected answer")
         return check_vectors(body.get("vectors"), len(texts))
+
+    async def state(self, timeout: float = STATE_TIMEOUT) -> str:
+        """``absent`` / ``loading`` / ``ready`` / ``disabled`` as the embedder reports it on ``/healthz``;
+        ``unreachable`` when it does not answer in time."""
+        try:
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, transport=self.transport) as client:
+                response = await client.get(f"{self.url}/healthz")
+            state = response.json().get("model") if response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError, AttributeError):
+            return "unreachable"
+        return state if state in ("absent", "loading", "ready", "disabled") else "unreachable"
 
 
 def _bearer(key: str) -> dict[str, str]:

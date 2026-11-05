@@ -21,14 +21,14 @@ from sqlalchemy import bindparam, delete, func, insert, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import get_settings
-from app.core.queue import enqueue_embed_paper
+from app.core.queue import embed_job_id, enqueue_embed_paper
 from app.db.session import get_sessionmaker
 from app.models.chunk import PaperChunk
 from app.models.paper import IndexStatus, Paper
 from app.models.workspace import Workspace
 from app.schemas.metadata import MetadataResolver
 from app.services import embedding
-from app.services.embedding import EmbeddingError
+from app.services.embedding import EmbeddingError, ModelNotReady
 from app.services.ingest import IngestError, ingest_pdf, safe_original_name
 from app.services.metadata import get_resolver
 from app.services.pdf import InvalidPdf, extract_chunks_isolated
@@ -54,8 +54,9 @@ _SAFE_COMPONENT = re.compile(r"[^A-Za-z0-9._-]+")
 async def process_paper(ctx: dict[str, Any], paper_id: str) -> str:
     """Verify the stored file and extract its text chunks (with page coordinates).
 
-    Keyword search works as soon as the chunks are committed. With an embedding provider the paper stays
-    ``processing`` and ``embed_paper`` is queued; without one (``EMBEDDING_PROVIDER=none``) it is ``ready``."""
+    The paper is ``ready`` as soon as the chunks are committed: keyword search works from then on. Embedding is
+    tracked separately (see ``/search/status``): with a provider ``embed_paper`` is queued, and the backfill cron
+    picks the paper up later if that did not happen or the model was not there yet."""
     sessionmaker = get_sessionmaker()
     settings = get_settings()
     async with sessionmaker() as db:
@@ -91,11 +92,10 @@ async def process_paper(ctx: dict[str, Any], paper_id: str) -> str:
         for start in range(0, len(rows), 500):
             await db.execute(insert(PaperChunk), rows[start : start + 500])
         embeds = embedding.get_embedder() is not None and bool(rows)
-        paper.index_status = IndexStatus.processing if embeds else IndexStatus.ready
+        paper.index_status = IndexStatus.ready
         await db.commit()
         if embeds and not await enqueue_embed_paper(paper.id, ctx.get("redis")):
-            paper.index_status = IndexStatus.failed  # the chunks stay searchable by keyword; `reindex` retries
-            await db.commit()
+            logger.warning("could not queue embed_paper for %s; the backfill cron will", paper_id)
         return "ok"
 
 
@@ -106,11 +106,13 @@ EMBED_TIMEOUT = 30 * 60
 
 
 async def embed_paper(ctx: dict[str, Any], paper_id: str) -> str:
-    """Embed the chunks of one paper that have no vector from the current model, then mark it ``ready``.
+    """Embed the chunks of one paper that have no vector from the current model.
 
-    All vectors are written in one transaction at the end. A provider error is retried with a growing delay
-    (``EMBED_MAX_TRIES`` attempts in all); after the last one the paper is ``failed`` but its chunks stay
-    searchable by keyword."""
+    ``index_status`` is about the text index and is not touched here (a paper that still says ``processing``
+    from before that change is promoted to ``ready``). All vectors are written in one transaction at the end.
+    Returns ``"waiting"`` without using up a retry when the local embedder has no model yet (the backfill cron
+    tries again). A provider error is retried with a growing delay (``EMBED_MAX_TRIES`` attempts in all); the
+    chunks stay searchable by keyword whatever happens."""
     sessionmaker = get_sessionmaker()
     embedder = embedding.get_embedder()
     try_no = int(ctx.get("job_try", 1))
@@ -119,8 +121,7 @@ async def embed_paper(ctx: dict[str, Any], paper_id: str) -> str:
         if paper is None or not paper.has_pdf:
             return "skipped"
         if embedder is None:
-            paper.index_status = IndexStatus.ready
-            await db.commit()
+            await _promote(db, paper)
             return "ok"
         stale = or_(PaperChunk.embedding.is_(None), PaperChunk.embedding_model.is_distinct_from(embedder.model_id))
         rows = (
@@ -128,9 +129,6 @@ async def embed_paper(ctx: dict[str, Any], paper_id: str) -> str:
                 select(PaperChunk.id, PaperChunk.text).where(PaperChunk.paper_id == paper.id, stale).order_by(PaperChunk.chunk_index)
             )
         ).all()
-        if rows:
-            paper.index_status = IndexStatus.processing
-            await db.commit()
         try:
             vectors: list[list[float]] = []
             for start in range(0, len(rows), EMBED_BATCH):
@@ -147,19 +145,73 @@ async def embed_paper(ctx: dict[str, Any], paper_id: str) -> str:
                 ).scalar_one()
                 if missing:  # the chunks were replaced (process_paper ran again) while we were embedding
                     raise EmbeddingError(f"{missing} chunk(s) changed during embedding")
-            paper.index_status = IndexStatus.ready
-            await db.commit()
+            await _promote(db, paper)
             return "ok"
+        except ModelNotReady:
+            await db.rollback()
+            logger.info("embed_paper %s: the embedding model is not ready yet; the backfill cron will retry", paper_id)
+            return "waiting"
         except EmbeddingError as exc:
             await db.rollback()
             logger.warning("embed_paper %s: attempt %d/%d failed: %s", paper_id, try_no, EMBED_MAX_TRIES, exc)
             if try_no < EMBED_MAX_TRIES:
                 raise Retry(defer=30 * try_no) from None
-            paper = await db.get(Paper, uuid.UUID(paper_id))
-            if paper is not None:
-                paper.index_status = IndexStatus.failed
-                await db.commit()
             return "failed"
+
+
+async def _promote(db: AsyncSession, paper: Paper) -> None:
+    if paper.index_status == IndexStatus.processing:
+        paper.index_status = IndexStatus.ready
+    await db.commit()
+
+
+# ------------------------------------------------------------------ backfill
+BACKFILL_BATCH = 50
+
+
+async def backfill_embeddings_core(*, sessionmaker: async_sessionmaker[AsyncSession], pool: Any, embedder: Any, state: str) -> int:
+    """Queue ``embed_paper`` for papers that have chunks without a vector from the current model.
+
+    Does nothing unless the embedder is ``ready``. At most ``BACKFILL_BATCH`` papers per call; the job id is
+    deterministic, so a paper that is already queued or running is not queued twice. Returns how many were
+    queued. This is what fills in vectors after the model has been downloaded, after a model change, and for
+    papers whose ``embed_paper`` gave up. It is system-wide on purpose: workspace permissions apply to who can
+    *read* results, not to which papers get indexed."""
+    async with sessionmaker() as db:
+        # Papers left "processing" by the version that waited for embeddings: the text index is complete.
+        await db.execute(
+            update(Paper)
+            .where(Paper.index_status == IndexStatus.processing, select(PaperChunk.id).where(PaperChunk.paper_id == Paper.id).exists())
+            .values(index_status=IndexStatus.ready)
+        )
+        await db.commit()
+        if embedder is None or state != "ready":
+            return 0
+        stale = or_(PaperChunk.embedding.is_(None), PaperChunk.embedding_model.is_distinct_from(embedder.model_id))
+        ids = (
+            await db.execute(
+                select(Paper.id)
+                .where(Paper.has_pdf, select(PaperChunk.id).where(PaperChunk.paper_id == Paper.id, stale).exists())
+                .order_by(Paper.created_at, Paper.id)
+                .limit(BACKFILL_BATCH)
+            )
+        ).scalars().all()
+    queued = 0
+    for pid in ids:
+        if await pool.enqueue_job("embed_paper", str(pid), _job_id=embed_job_id(pid)) is not None:
+            queued += 1
+    return queued
+
+
+async def backfill_embeddings(ctx: dict[str, Any]) -> int:
+    embedder = embedding.get_embedder()
+    state = await embedding.model_state(embedder)
+    queued = await backfill_embeddings_core(
+        sessionmaker=get_sessionmaker(), pool=ctx["redis"], embedder=embedder, state=state
+    )
+    if queued:
+        logger.info("backfill: queued embed_paper for %d paper(s)", queued)
+    return queued
 
 
 # ------------------------------------------------------------------ watch folder
