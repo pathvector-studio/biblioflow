@@ -26,7 +26,7 @@ updates:
     schedule:
       interval: weekly
 
-  # Images pinned in docker-compose.yml (caddy, cloudflared, tailscale, pgvector, redis)
+  # Images pinned in docker-compose.yml (caddy, cloudflared, tailscale, pgvector, valkey)
   - package-ecosystem: docker-compose
     directory: /
     schedule:

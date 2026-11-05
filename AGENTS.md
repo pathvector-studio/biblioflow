@@ -122,7 +122,7 @@
 | 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | 未着手（Phase 3 の後） | 右ペインに AI タブを追加する |
 
 ### 6.2 確定済みの設計判断（再検討しない）
-- 認証: **FastAPI 自前 JWT**（Cookie `bf_session`、HttpOnly/SameSite=Lax、ログアウトで Redis の jti denylist に登録）。NextAuth は使わない。
+- 認証: **FastAPI 自前 JWT**（Cookie `bf_session`、HttpOnly/SameSite=Lax、ログアウトで Redis（Valkey）の jti denylist に登録）。NextAuth は使わない。
 - タスクキュー: **Arq**（`backend/app/workers/settings.py`、Phase1 で用意したのは `ping` タスクのみ）
 - Embedding: **1024 次元固定**（`vector(1024)`、`EMBEDDING_DIM` は 1024 以外だと起動エラー）
 - ツール: **uv + Alembic**（`backend/alembic/versions/0001_initial.py` は手書き。`tests/test_migration.py` がモデルとの差分を検出する）
@@ -148,6 +148,7 @@
 - Tailscale: `biblioflow-tailscale`（`profiles: ["tailscale"]`、`tailscale/tailscale` sidecar、userspace、`deploy/tailscale-serve.json` で `https://${TS_CERT_DOMAIN}` → `http://biblioflow-gateway:8082`）。`TS_AUTHKEY` は `:?` にしない。
 - ワークスペースのメンバー: 追加は**招待の承諾制**（`workspace_invitations`、メールに紐付け、期限 14 日）。`POST /workspaces/{id}/members` は、アカウントの有無にかかわらず同じ 202 を返す（存在確認に使わせない）。招待した本人が設定画面か `POST /invitations/{id}/accept` で承諾する。権限変更・削除・脱退あり。最後の owner は守る（409）。ワークスペースの作成・メンバー管理・招待は session 限定（PAT は 403）。設計は `specs/workspace-members.md`。
 - 本番: 専用の clone を `scripts/deploy.sh [ref]` だけで更新する（ローカル変更があれば拒否 → バックアップ → ref を detached で checkout → build → `up -d --wait` → ゲートウェイ経由で readyz。ロールバックは前のコミットを deploy する）。同じマシンに 2 つ目のインスタンスを置くときは `.env` に `BF_INSTANCE`（コンテナ名・ネットワーク名の接頭辞、`biblioflow-*` のまま）と `COMPOSE_PROJECT_NAME`、別の `FRONTEND_PORT` を設定する。起動する profile は `COMPOSE_PROFILES`。compose に `container_name` やネットワークの `name` を足すときは `${BF_INSTANCE:-biblioflow}-` を付ける。
+- ライセンス: リポジトリは MIT で、寄付・有償サポート・ホスティング版での収益化を想定する。本番依存に GPL / AGPL / SSPL / BUSL / Elastic / Commons Clause / 非商用のライセンスを入れない（CI の `scripts/check-licenses.py` が拒否する。LGPL は動的リンクで改変しない場合だけ可）。PyMuPDF（AGPL）、`litellm[proxy]` / `litellm-enterprise`（商用ライセンス）は使わない（LiteLLM は SDK 本体だけ）。Redis 7.4 以降は RSALv2 / SSPLv1（8 で AGPLv3 も追加）なので、キューは **Valkey**（BSD-3）を使う。サービス名 `biblioflow-redis` と `REDIS_URL` はそのまま。帰属表示が要るものは `THIRD_PARTY_NOTICES.md` に書く。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
 
 ### 6.3 環境の再開手順

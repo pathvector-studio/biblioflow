@@ -1,4 +1,4 @@
-# Known-vulnerability check for production dependencies. Runs on every PR / push to main
+# Known-vulnerability and license check for production dependencies. Runs on every PR / push to main
 # and weekly, so advisories published after a merge are noticed without a code change.
 name: Audit
 
@@ -26,6 +26,8 @@ jobs:
           node-version: 22
       # Reads package-lock.json only; dev-only findings (eslint etc.) never ship in the image.
       - run: npm audit --omit=dev --audit-level=high
+      - name: Licenses of production dependencies (THIRD_PARTY_NOTICES.md)
+        run: python3 ../scripts/check-licenses.py npm package-lock.json
 
   audit-backend:
     runs-on: ubuntu-latest
@@ -41,3 +43,7 @@ jobs:
         run: |
           uv export --frozen --no-dev --no-hashes --no-emit-project -q > requirements.txt
           uvx pip-audit@2.10.1 -r requirements.txt --no-deps --disable-pip --progress-spinner off
+      - name: Licenses of production dependencies (THIRD_PARTY_NOTICES.md)
+        run: |
+          uv sync --frozen --no-dev --no-install-project -q
+          uv run --no-sync python ../scripts/check-licenses.py python

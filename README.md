@@ -152,6 +152,17 @@ It refuses to run with local changes, takes a backup (`scripts/backup.sh`), chec
 
 The compose profiles to start (for example `cloudflare`) are read from `COMPOSE_PROFILES` in `.env`.
 
+### Upgrading from Redis to Valkey (one time)
+
+The job queue and session store moved from Redis to [Valkey](https://valkey.io) (BSD-3). Redis 7.4+ is RSALv2/SSPLv1. Valkey cannot read Redis 7.4 data files, so it starts with a new volume. After the deploy, copy over the revoked sessions (logged-out cookies), or they are accepted again until they expire:
+
+```bash
+scripts/deploy.sh
+scripts/migrate-redis-to-valkey.sh   # prints how to delete the old volume afterwards
+```
+
+Rate-limit counters, pending jobs and lookup caches are not copied. They are rebuilt on their own.
+
 ### A second instance on the same machine
 
 To run production next to a development checkout, give the production clone its own names and port in its `.env`:
@@ -231,4 +242,4 @@ If BiblioFlow is useful to you, you can support its development through [GitHub 
 
 ## License
 
-MIT
+MIT. Third-party components in the images and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
