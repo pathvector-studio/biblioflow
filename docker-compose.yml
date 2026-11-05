@@ -19,6 +19,13 @@ x-backend-env: &backend-env
   TEST_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@biblioflow-db:5432/biblioflow_test
   REDIS_URL: redis://:${REDIS_PASSWORD:?}@biblioflow-redis:6379/0
 
+# Embedding settings: the only configuration the model-init and embedder containers get (no env_file: they must
+# not see the database password, the JWT key or any API key).
+x-embedding-env: &embedding-env
+  EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+  EMBEDDING_LOCAL_PRECISION: ${EMBEDDING_LOCAL_PRECISION:-int8}
+  MODELS_DIR: /models
+
 x-backend-common: &backend-common
   env_file: .env
   environment: *backend-env
@@ -110,6 +117,65 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  # Downloads the pinned embedding model once (sha256-verified, int8-quantized) into the `models` volume, then
+  # exits. Needs the internet, so it sits on the edge network; it does nothing unless EMBEDDING_PROVIDER=local.
+  biblioflow-model-init:
+    build: *backend-build
+    container_name: ${BF_INSTANCE:-biblioflow}-model-init
+    logging: *logging
+    command: ["python", "-m", "app.embedder.fetch"]
+    environment: *embedding-env
+    volumes:
+      - models:/models
+    networks:
+      - biblioflow-edge
+    # int8 quantization peaks at about 8.7 GiB (measured) for ~10 s, once; fp32 needs almost nothing.
+    mem_limit: ${MODEL_INIT_MEM_LIMIT:-10g}
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+
+  # The one resident embedding model. Internal network only (it cannot reach the internet), no secrets, models
+  # mounted read-only. The API (search queries) and the worker (indexing) call it over HTTP.
+  biblioflow-embedder:
+    build: *backend-build
+    container_name: ${BF_INSTANCE:-biblioflow}-embedder
+    logging: *logging
+    command: ["uvicorn", "app.embedder.server:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      <<: *embedding-env
+      EMBEDDER_THREADS: ${EMBEDDER_THREADS:-4}
+    expose:
+      - "8001"
+    volumes:
+      - models:/models:ro
+    networks:
+      - biblioflow-internal
+    mem_limit: ${EMBEDDER_MEM_LIMIT:-3g}
+    cpus: ${EMBEDDER_CPUS:-4}
+    depends_on:
+      biblioflow-model-init:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    restart: unless-stopped
 
   biblioflow-frontend:
     build:
@@ -259,4 +325,5 @@ networks:
 volumes:
   pgdata:
   valkeydata:
+  models:
   tailscale-state:

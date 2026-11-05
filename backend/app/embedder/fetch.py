@@ -100,13 +100,17 @@ def ensure_model(
             client.close()
     target = spec.model_file(models_dir, precision)
     if precision == "int8" and not (target.is_file() and target.stat().st_size > 0):
-        logger.info("quantizing to int8")
+        logger.info(
+            "quantizing to int8: needs about 9 GiB of RAM for ~10 s, once "
+            "(if this container is killed, set EMBEDDING_LOCAL_PRECISION=fp32 to skip it)"
+        )
         quantize_int8(spec.model_dir(models_dir) / "model.onnx", target)
     return target
 
 
 def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # its INFO lines carry the CDN's signed redirect URLs
     provider = spec.env_provider()
     if provider != "local":
         logger.info("EMBEDDING_PROVIDER=%s: no local model needed", provider)
