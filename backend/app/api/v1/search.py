@@ -86,8 +86,11 @@ async def search(
         ws, _ = await get_workspace_for_user(db, workspace_id, principal, WorkspaceRole.viewer)
         allowed.append(Paper.workspace_id == ws.id)
 
-    def candidates(stmt: Select, order: list, n: int) -> Select:
-        return stmt.join(Paper, Paper.id == PaperChunk.paper_id).where(*allowed).order_by(*order, PaperChunk.id).limit(n)
+    def candidates(stmt: Select, order: list, n: int, tiebreak: bool = True) -> Select:
+        # The vector list must be ordered by distance alone: a second sort key stops Postgres from using the
+        # HNSW index (it falls back to scanning and sorting every chunk). Ties are broken in Python instead.
+        order = [*order, PaperChunk.id] if tiebreak else order
+        return stmt.join(Paper, Paper.id == PaperChunk.paper_id).where(*allowed).order_by(*order).limit(n)
 
     n = max(MIN_CANDIDATES, limit * 3)
     semantic: list[uuid.UUID] | None = None
@@ -147,6 +150,7 @@ async def _semantic_candidates(db: AsyncSession, q: str, candidates, n: int) -> 
         ),
         [distance],
         n,
+        tiebreak=False,
     )
     rows = (await db.execute(stmt)).all()
     floor = settings.search_min_similarity
