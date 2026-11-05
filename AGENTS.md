@@ -113,10 +113,10 @@
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
 |---|---|---|
-| 1. インフラ・DBスキーマ・セキュリティ基盤 | ✅ 完了（CI green） | PR #1 `feat/phase1-foundation`（https://github.com/pathvector-studio/biblioflow/pull/1）。設計詳細は `specs/phase1.md` |
-| 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（https://github.com/pathvector-studio/biblioflow/pull/2）。設計詳細は `specs/phase2.md` |
+| 1. インフラ・DBスキーマ・セキュリティ基盤 | ✅ 完了（CI green） | PR #1 `feat/phase1-foundation`（旧リポジトリ）。設計詳細は `specs/phase1.md` |
+| 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（旧リポジトリ）。設計詳細は `specs/phase2.md` |
 | 4. Frontend Web UI（AI 以外） | ✅ 完了 | `specs/phase4.md` |
-| 公開形態（LAN / Tailscale / Cloudflare Tunnel） | ✅ 完了 | PR #4・#6。設計詳細は `specs/deploy-modes.md`。Cloudflare Tunnel + Access は実環境で検証済み（2026-11-04） |
+| 公開形態（LAN / Tailscale / Cloudflare Tunnel） | ✅ 完了 | PR #4・#6（旧リポジトリ）。設計詳細は `specs/deploy-modes.md`。Cloudflare Tunnel + Access は実環境で検証済み（2026-11-04） |
 | 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ**（計画承認済み） | `specs/phase3.md`。MCP（キーワード検索）→ embedding → チャットの順 |
 | ロードマップ（ブラウザ拡張・エクスポート/インポート・Zotero との機能差） | 計画 | `specs/roadmap.md`。ブラウザ拡張とエクスポート/インポートは Phase 3 と並行 |
 | 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | 未着手（Phase 3 の後） | 右ペインに AI タブを追加する |
@@ -167,7 +167,8 @@ gh auth status                          # 切れていれば `gh auth login`
 - テスト用ユーザー: `e2e@biblioflow.example.com`（パスワードはユーザーに伝達済み。リポジトリには書かない）。論文 5 件入り。5432 番は別プロジェクト（kabu-db）が使用しており、BiblioFlow の DB はホストに公開していない。
 - テストイメージは `INSTALL_DEV=true docker compose build biblioflow-api` でビルドする。
 - CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend lint / typecheck / build、compose スモークテスト〔ゲートウェイ経由、公開ポートがゲートウェイだけであることも検査〕）。
-- マージ手順: `main` はルールセット（ID 26451030）で保護されている。直接 push・force push・削除は禁止、PR には承認 1 件（コードオーナー）が必要。Organization Admin は「PR のみ」バイパスできるので、CI green を確認してから `gh pr merge <N> --squash --admin` でマージする。
+- リポジトリは 2026-11-05 に作り直した（履歴から個人のメールアドレスと開発機のホスト名・LAN アドレスを除くため）。それ以前の PR #1〜#49 の議論は private の `pathvector-studio/biblioflow-archive` にあり、コミットメッセージの `(#N)` はその番号を指す。新しいリポジトリでは secret scanning と push protection を有効にしてある。コミットのメールは GitHub の noreply アドレスを使う。
+- マージ手順: `main` はルールセット（ID 26612371）で保護されている。直接 push・force push・削除は禁止、PR には承認 1 件（コードオーナー）が必要。Organization Admin は「PR のみ」バイパスできるので、CI green を確認してから `gh pr merge <N> --squash --admin` でマージする。
 - ブランチの更新は rebase + force push ではなく、`git merge origin/main` で行う（Claude Code の auto mode では force push が拒否される）。PR を積み重ねた場合は、下の PR を squash merge した後に上の PR のベースを `main` に付け替え、`main` をマージして衝突を解消する。
 - 依存関係: `.github/dependabot.yml`（npm / uv / Dockerfile / compose のイメージ / Actions を毎週。minor・patch はエコシステムごとに 1 PR にまとめる）。リポジトリ設定で Dependabot alerts とセキュリティ更新を有効にしてある。`.github/workflows/audit.yml` は PR・main・毎週月曜に、本番依存の既知脆弱性を検査する（`npm audit --omit=dev --audit-level=high`、uv.lock から `pip-audit`）。Dependabot の PR も通常の PR と同じく、CI green を確認してから admin マージする。
 - 保留中のメジャー更新（2026-11-05、`dependabot.yml` の `ignore` に理由つきで記載）: **pdfjs-dist 5 以降**（`react-pdf-highlighter-extended` 8.x が pdfjs-dist ^4 に依存し、worker は API と同じ版でなければならない。5.6.83〜6.2.108 未満には GHSA-hq66-cqwq-w95j もある。ハイライタが 6.2.108 以降に対応したら外す）、**Python 3.13 以降のイメージ**（3.15 は onnxruntime と pyyaml の cp315 wheel がない。上げるときは `requires-python` と uv.lock も一緒に）。フロントは Next 16・TypeScript 6 で、lint は `eslint .`（flat config の `eslint.config.mjs`。`next lint` は廃止）。
