@@ -114,6 +114,15 @@
 
 目安: dev の 754 チャンクは int8 で約 3 分（fp32 で約 7 分）。1,000 本（約 6 万チャンク）の初回の索引は int8 で約 4 時間（fp32 で約 10 時間）。Docker Desktop（macOS）からは GPU（Metal）を使えない。
 
+### 実装時の実測（同じ開発機の Docker、`docker compose up` の既定設定）
+- `biblioflow-model-init`: 取得 約 80 秒（2.3 GB、sha256 検証込み。固定した 4 ファイルの sha256 は全部一致）＋ int8 量子化 約 10 秒。2 回目以降は何もしない（約 1 秒）。
+- **量子化のピークメモリは約 8.7 GiB**（cgroup の peak。RSS の最大 8.3 GiB）。`quantize_dynamic` が fp32 のモデルを丸ごと読み込み、形状推論のコピーと量子化後のコピーを同時に持つため。4 GiB の上限では OOM kill された。`use_external_data_format=True` で 8.3 GiB、MatMul だけの量子化でも 6.6 GiB までしか下がらなかった（後者は出力が 1.36 GB に増える）。init の `mem_limit` は `MODEL_INIT_MEM_LIMIT`（既定 10g）。メモリが足りない環境は `EMBEDDING_LOCAL_PRECISION=fp32`（量子化なし）にする。
+- embedder の RSS: 待機 約 0.9 GiB、dev の 794 チャンクを 4 論文並列で索引している間は最大 1.44 GiB（上限 3 GiB）。CPU は 4 コアを使い切る（約 400%）。
+- `reindex --all --embeddings-only --missing`: 15 論文・794 チャンクで約 3 分 10 秒（約 4.4 チャンク/秒、spec の見積もりどおり）。全チャンクに `embedding_model = bge-m3@5617a9f:int8`、全論文が `ready`。
+- 検索の応答: ハイブリッド 20 ms 前後（クエリ embedding 込み）。embedder を止めたときは 35 ms でキーワード結果と `X-Search-Degraded` が返る。
+- 類似度（コサイン）の分布（dev の 16 論文）: 関連するクエリの上位 1 件は 0.52〜0.66、無関係なクエリ（「chocolate cake recipe」「xkcd qwerty」）の上位 1 件でも 0.41〜0.43、上位 50 件目は 0.33〜0.39。`SEARCH_MIN_SIMILARITY` の既定は 0.0（絞らない）のままにしてある。絞るなら 0.45 前後が目安。
+- 言い換え・他言語: 「model that processes tokens in parallel instead of step by step」や日本語「どうして再帰型ネットワークを使わないのか」が、キーワード検索では 0 件のまま、ハイブリッドでは該当する段落（p.2 の逐次計算の制約など）を返した。
+
 ### 方式
 1. **推論ランタイム**: ONNX Runtime（MIT）+ `tokenizers`（Apache-2.0）+ numpy。torch と sentence-transformers は入れない。出力 `sentence_embedding` を L2 正規化して使う（bge-m3 の dense ベクトル。CLS プーリング）。
 2. **専用コンテナ `biblioflow-embedder`**（backend と同じイメージ、`uvicorn app.embedder.server:app`）が、モデルを 1 つだけ常駐させる。worker（チャンク）と API（検索クエリ）の両方がここに HTTP で頼む。

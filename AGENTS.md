@@ -108,7 +108,7 @@
 
 ## 6. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-05（Phase 3 の計画承認。全体の順番は `specs/roadmap.md`）
+> 最終更新: 2026-11-05（Phase 3a/3b 実装。全体の順番は `specs/roadmap.md`）
 
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
@@ -117,7 +117,7 @@
 | 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（旧リポジトリ）。設計詳細は `specs/phase2.md` |
 | 4. Frontend Web UI（AI 以外） | ✅ 完了 | `specs/phase4.md` |
 | 公開形態（LAN / Tailscale / Cloudflare Tunnel） | ✅ 完了 | PR #4・#6（旧リポジトリ）。設計詳細は `specs/deploy-modes.md`。Cloudflare Tunnel + Access は実環境で検証済み（2026-11-04） |
-| 3. PDF解析・RAG・マルチモーダル | ⏭ **次はここ**（計画承認済み） | `specs/phase3.md`。MCP（キーワード検索）→ embedding → チャットの順 |
+| 3. PDF解析・RAG・マルチモーダル | 🚧 3c（MCP・キーワード検索）と 3a/3b（embedding・ハイブリッド検索）は実装済み。**次は 3d（チャット・矩形選択の Vision 解説）** | `specs/phase3.md`。MCP → embedding → チャットの順 |
 | ロードマップ（ブラウザ拡張・エクスポート/インポート・Zotero との機能差） | 計画 | `specs/roadmap.md`。ブラウザ拡張とエクスポート/インポートは Phase 3 と並行 |
 | 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | 未着手（Phase 3 の後） | 右ペインに AI タブを追加する |
 
@@ -134,7 +134,7 @@
 - 取り込み時のメタデータ解決の順: 明示の識別子 → PDF 本文・PDF タイトル・ファイル名の arXiv / DOI / PII（1 ページ目かタイトル・ファイル名に解決結果のタイトルが出ることを確認する。引用文献の DOI を拾わないため）→ タイトル検索（4 語以上、正規化したタイトルの類似度 0.9 以上だけ採用）→ 内部 ID。ブラウザの「PDF に印刷」は本文が 1 文字ずつ空白区切りで抽出されるので、`compact_letter_spacing` で詰めてから識別子を探す。ScienceDirect のファイル名 `… - 1-s2.0-<PII>-main.pdf` から PII を取り、タイトルからはこの接尾辞を外す。
 - ストレージ: 同じパスのファイルはワークスペース間で 1 つを共有する（sha256 が同じなら再利用、違えば `_2`…）。PATCH でタイトル等を変えてもファイルはリネームしない。
 - 取り込みは upload / import-url / Watch Folder とも `app/services/ingest.py` の `ingest_pdf` に集約する。Watch Folder は `WATCH_DIR/{workspace_slug}/*.pdf`、失敗したら `_rejected/` に移す。
-- `process_paper`（Arq）は Phase 2 では整合性チェックと page_count の確定だけを行う。Phase 3 でチャンク分割と embedding をここに追加する。
+- `process_paper`（Arq）は整合性チェック・page_count の確定・チャンク保存を行い、embedding があれば `index_status=processing` のまま `embed_paper` を積む（`none` なら `ready`）。
 - import-url: **既定で無効**（`URL_IMPORT_ENABLED=false`、ユーザー判断 2026-11-03）。コードとテストは残してある。出版社サイト（ScienceDirect 等）はサーバーからの取得を 403 で拒否する。bot 対策の回避（UA 偽装等）はしない。その場合はブラウザで落とした PDF を upload / Watch Folder で取り込む（DOI が wishlist と一致すれば自動で紐付く）。
 - PDF の解析は必ず `app/services/pdf.py` の `inspect_pdf_isolated` を通す（子プロセスで実行し、壁時計 30 秒・CPU 30 秒・メモリ 1 GiB で制限、タイムアウトしたら kill。子には秘密を含まない最小限の環境変数だけを渡す）。Phase 3 のチャンク抽出も同じ方式で隔離する。
 - PDF ライブラリ: Phase 2 は pypdf（BSD）。PyMuPDF は AGPL でリポジトリの MIT と衝突するため、Phase 3 で採用するなら要検討。
@@ -149,6 +149,9 @@
 - ワークスペースのメンバー: 追加は**招待の承諾制**（`workspace_invitations`、メールに紐付け、期限 14 日）。`POST /workspaces/{id}/members` は、アカウントの有無にかかわらず同じ 202 を返す（存在確認に使わせない）。招待した本人が設定画面か `POST /invitations/{id}/accept` で承諾する。権限変更・削除・脱退あり。最後の owner は守る（409）。ワークスペースの作成・メンバー管理・招待は session 限定（PAT は 403）。設計は `specs/workspace-members.md`。
 - 本番: 専用の clone を `scripts/deploy.sh [ref]` だけで更新する（ローカル変更があれば拒否 → バックアップ → ref を detached で checkout → build → `up -d --wait` → ゲートウェイ経由で readyz。ロールバックは前のコミットを deploy する）。同じマシンに 2 つ目のインスタンスを置くときは `.env` に `BF_INSTANCE`（コンテナ名・ネットワーク名の接頭辞、`biblioflow-*` のまま）と `COMPOSE_PROJECT_NAME`、別の `FRONTEND_PORT` を設定する。起動する profile は `COMPOSE_PROFILES`。compose に `container_name` やネットワークの `name` を足すときは `${BF_INSTANCE:-biblioflow}-` を付ける。
 - 本文の索引と MCP（Phase 3c）: チャンク抽出は `app/services/chunking.py`（pypdf の `visitor_text`）で、必ず `extract_chunks_isolated`（子プロセス、壁時計・CPU 120 秒、メモリ 1 GiB、結果 32 MiB）を通す。bbox は PDF のポイント単位・原点左下（`y1` < `y2`）で、ページの `width`/`height` を各 bbox に持つ。検索は `GET /api/v1/search`（`tsv` + `text ILIKE`、`enforce_rate_limit` 60/分）。MCP サーバーは `mcp/`（独自の pyproject / uv.lock、`uv run --directory mcp pytest`）で、論文由来の文字列は必ず `<paper_context>` で囲む（`wrap.py`）。 1 文字ずつ描かれた行（ブラウザの「PDF に印刷」）は、pypdf が返す空白を捨て、Helvetica の字幅で推定した送り幅との差（0.08 em 超）で単語の区切りを決める（`_glyph_line_text`）。見出しは、番号付き・既知の見出し語（Abstract、References、参考文献など）は本文サイズでも採用し、それ以外は本文の 1.2 倍以上でカンマ 2 個未満の行だけ。References の後の番号付きの行は見出しにしない。
+- embedding（Phase 3a/3b）: `EMBEDDING_PROVIDER=local|voyage|openai|none`（既定 `local`、`app/services/embedding`、取得は必ず `embedding.get_embedder()` 経由。`none` は `None`）。どのモデルで作ったかを `paper_chunks.embedding_model`（`bge-m3@5617a9f:int8`、`voyage-3.5`、`openai:<model>`）に持ち、ベクトル検索は今の設定と同じモデルの行だけを使う（切り替えたら `reindex --all --embeddings-only --missing`）。`embed_paper`（Arq、timeout 30 分、3 回まで再試行、8 件ずつ、最後に 1 トランザクションで UPDATE、失敗してもチャンクは残る）。外部プロバイダーにはチャンクの本文が送られる（README に明記）。remote の宛先は管理者設定なので `safe_client` は通さない。
+- embedder の隔離: `biblioflow-embedder`（backend と同じイメージ、`app.embedder.server`）は `biblioflow-internal` **だけ**に接続し、`env_file` を持たず（渡すのは `EMBEDDING_*` のみ）、`models` ボリュームは読み取り専用、`read_only`・`no-new-privileges`・`mem_limit`/`cpus`。`app/embedder/` は `app.core.config` を import しない（テストで検査）。モデルは `biblioflow-model-init`（edge ネットワーク、1 回で終了）が `app/embedder/spec.py` に固定したリビジョンと sha256 で検証して取得し、int8 ならその場で量子化する（ピーク約 8.7 GiB。`MODEL_INIT_MEM_LIMIT` 既定 10g、足りない環境は `EMBEDDING_LOCAL_PRECISION=fp32`）。リビジョンを上げるときは `spec.py` のサイズと sha256 を全部更新する。CI の compose ジョブは `EMBEDDING_PROVIDER=none`（モデルを落とさない）。
+- ハイブリッド検索: `GET /api/v1/search?mode=hybrid|keyword|semantic`。候補は全文（`tsv`）・部分一致（`ILIKE` + `word_similarity`）・ベクトル（`<=>`）の 3 つで、**どれも** `accessible_workspace_ids` で絞る。合成は RRF（k=60）を Python で行い、応答は配列のまま（MCP が依存）で各要素に `matched`。embedder が落ちている・`EMBEDDING_QUERY_TIMEOUT`（2 秒）を超える・`none` のときは、ベクトルを抜いて応答ヘッダー `X-Search-Degraded: semantic-unavailable` を付ける。`SEARCH_MIN_SIMILARITY` はベクトル候補の下限。
 - ライセンス: リポジトリは MIT で、寄付・有償サポート・ホスティング版での収益化を想定する。本番依存に GPL / AGPL / SSPL / BUSL / Elastic / Commons Clause / 非商用のライセンスを入れない（CI の `scripts/check-licenses.py` が拒否する。LGPL は動的リンクで改変しない場合だけ可）。PyMuPDF（AGPL）、`litellm[proxy]` / `litellm-enterprise`（商用ライセンス）は使わない（LiteLLM は SDK 本体だけ）。Redis 7.4 以降は RSALv2 / SSPLv1（8 で AGPLv3 も追加）なので、キューは **Valkey**（BSD-3）を使う。サービス名 `biblioflow-redis` と `REDIS_URL` はそのまま。帰属表示が要るものは `THIRD_PARTY_NOTICES.md` に書く。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
 
@@ -160,7 +163,7 @@ docker compose up -d                    # .env は作成済み（gitignore 対�
 docker compose ps                       # 6サービス（db / redis / api / worker / frontend / gateway）が healthy であること
 INSTALL_DEV=true docker compose build biblioflow-api
 docker compose run --rm --no-deps -v "$PWD/backend/app:/app/app:ro" -v "$PWD/backend/tests:/app/tests:ro" \
-  -v "$PWD/backend/alembic:/app/alembic:ro" -e ENABLE_DOCS=false biblioflow-api pytest -q -p no:cacheprovider   # 現状 331 passed（ローカル .env の ENABLE_DOCS=true だと test_docs_disabled が落ちるので上書きする）
+  -v "$PWD/backend/alembic:/app/alembic:ro" -e ENABLE_DOCS=false biblioflow-api pytest -q -p no:cacheprovider   # 現状 388 passed（ローカル .env の ENABLE_DOCS=true だと test_docs_disabled が落ちるので上書きする）
 gh auth status                          # 切れていれば `gh auth login`
 ```
 - ローカル環境に固有のこと（`.env` のポートと公開範囲、開発用ホスト名、テスト用ユーザー、同じマシンのほかのサービス）は **`AGENTS.local.md`**（git に入らない）にある。作業を始めたら読むこと。ない場合はユーザーに聞く。ブラウザで開く URL はすべて `CORS_ALLOWED_ORIGINS` に登録する（ないとブラウザからの書き込みが CSRF で 403）。
@@ -184,5 +187,5 @@ gh auth status                          # 切れていれば `gh auth login`
 1. ~~`specs/phase3.md` に計画を書いてユーザーの承認を得る~~（2026-11-05 承認。決定事項は spec に記載）
 2. ~~PDF パーサを選定する~~（pypdf。PyMuPDF は AGPL なので使わない）
 3. ~~まず 3c: `mcp/` に `biblioflow-mcp` と、キーワード検索の `GET /api/v1/search`~~（2026-11-05 完了。実際の論文で検索・座標・Access 越しの MCP を確認済み）
-4. `workers/tasks.py` の `process_paper` を拡張し、チャンク + bbox + embedding（既定 bge-m3）を作って `index_status` を ready / failed に遷移させる
-5. LLM エンドポイントにも `RateLimiter` を使う。プロンプトは `<paper_context>` で区切る
+4. ~~`process_paper` の後に `embed_paper` で embedding（既定 bge-m3）を作り、`index_status` を ready / failed に遷移させる~~（3a/3b 実装済み。ハイブリッド検索と MCP の `mode` も）
+5. 3d（チャット・矩形選択の Vision 解説）: LLM エンドポイントにも `RateLimiter` を使う。プロンプトは `<paper_context>` で区切る
