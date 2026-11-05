@@ -99,4 +99,4 @@
 ### 受け入れ確認（親エージェント）
 - 開発環境で既存の論文を reindex して、日本語と英語で検索できること。
 - Playwright で、検索結果の bboxes が PDF 上の正しい行を指すことを確かめる。
-- Claude Code に MCP を登録し、dev-paper.pathvector.dev（Access + サービストークン）から検索と本文の取得ができること。
+- Claude Code に MCP を登録し、開発用のホスト（Access + サービストークン）から検索と本文の取得ができること。

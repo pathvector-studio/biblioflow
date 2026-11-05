@@ -78,6 +78,21 @@ jobs:
       - run: uv run ruff check .
       - run: uv run pytest -q
 
+  # No local-environment details (LAN addresses, hostnames, home paths, personal e-mails) in the public repository.
+  private-info:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Files
+        run: python3 scripts/check-private-info.py
+      - name: Commits in this pull request (e-mails and messages)
+        if: github.event_name == 'pull_request'
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/check-private-info.py --commits "$RANGE"
+
   compose:
     runs-on: ubuntu-latest
     steps:

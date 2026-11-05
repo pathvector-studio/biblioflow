@@ -10,3 +10,4 @@ __pycache__
 .pytest_cache
 backups/
 access-token.txt
+AGENTS.local.md
