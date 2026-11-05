@@ -4,15 +4,28 @@
 
 A self-hosted paper manager and AI research assistant that runs entirely on Docker Compose.
 
+Website: https://biblioflow.pathvector.dev
+
+> **Status: early preview (v0.1.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, full-text keyword search, MCP server) works today. The in-app AI features are not implemented yet; see [Roadmap](#roadmap).
+
 - Read, highlight and take Markdown notes on PDFs in the browser; share them in lab workspaces.
 - PDFs are stored as plain files you can open from the host (`{Year}/{Identifier}_{SlugTitle}.pdf`).
 - Metadata and BibTeX are filled in from arXiv, CrossRef and Semantic Scholar.
 - A lightweight metadata API with personal access tokens, for CLIs, scripts and MCP servers.
-- AI features (chat grounded in the paper, figure/equation explanations, semantic search across the library) are planned (Phase 3). Keyword search over the full text and an MCP server are available.
+- Keyword search over the full text of every paper, with page and position of each hit.
+- An MCP server, so an MCP client you already use (Claude Code and others) can search and read your library with its own model.
 
 The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`.
 
 ## Setup
+
+The installer clones this repository to `~/biblioflow`, writes `.env` with generated secrets and starts the stack (`BIBLIOFLOW_DIR` changes the directory):
+
+```bash
+curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
+```
+
+Or by hand:
 
 ```bash
 cp .env.example .env
@@ -256,6 +269,20 @@ docker compose run --rm biblioflow-api pytest
 - `data/library/`: stored PDFs, `{Year}/{Identifier}_{SlugTitle}.pdf` (readable directly from the host)
 - `data/watch/`: watch folder; PDFs dropped in `data/watch/<workspace-slug>/` are imported automatically
 - `db/init/`: database initialization SQL (runs on first start only)
+
+## Roadmap
+
+Not implemented yet, roughly in this order (details in `specs/phase3.md` and `specs/roadmap.md`):
+
+- **Semantic and hybrid search**: embeddings in pgvector (bge-m3 by default), combined with the keyword index, across the whole library.
+- **LLM providers**: OpenAI, Anthropic, Gemini or a local model (Ollama, vLLM) through LiteLLM, with your own API key. The `LLM_*` and `EMBEDDING_MODEL` settings in `.env.example` are placeholders until then.
+- **AI chat about a paper**, with citation badges such as `[p.4, Sec 3.2]` that jump to the page and position in the PDF.
+- **Figure and equation explanations**: drag-select an area of the PDF and ask a Vision LLM about it. (Area selection itself already works, as an annotation.)
+- **Comparing papers**: questions across several papers and comparison tables of methods.
+- **Browser extension** to save a paper and its PDF from publisher pages in one click.
+- **Export and import**: BibTeX / RIS / CSL JSON for collections and tags, automatic export, notes and annotations as Markdown, and migration from Zotero, Mendeley, BibTeX and RIS.
+
+Until the in-app AI lands, the [MCP server](#full-text-search-and-mcp) lets an MCP client search and read your library.
 
 ## Sponsoring
 
