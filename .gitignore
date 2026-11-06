@@ -1,4 +1,9 @@
 .env
+# Any other env file (secrets live in ~/.config/biblioflow, see LOCAL_DEV.md); the example is tracked.
+.env.*
+!.env.example
+*.env
+.envrc
 data/library/*
 data/watch/*
 !data/library/.gitkeep

@@ -15,7 +15,7 @@ Website: https://biblioflow.pathvector.dev
 - Hybrid search over the full text of every paper (keywords, substrings and meaning-based matching), with page and position of each hit.
 - An MCP server, so an MCP client you already use (Claude Code and others) can search and read your library with its own model.
 
-The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`.
+The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`. To work on BiblioFlow itself, start with [`LOCAL_DEV.md`](LOCAL_DEV.md) (what to prepare, where secrets live, tests).
 
 ## Setup
 
@@ -141,11 +141,15 @@ Add these permissions to the API token: `Account > Access: Apps and Policies > E
 
 ```bash
 scripts/cloudflare-access.sh papers.example.com me@example.com,you@example.com > access-token.txt
+scripts/check-access.sh papers.example.com    # every path, /api included, must stop at Access
 docker compose --profile cloudflare up -d     # apply Access before starting the tunnel: no unprotected window
+scripts/check-access.sh papers.example.com    # and again once the tunnel serves the host
 ```
 
+Move the service token from `access-token.txt` into your password manager and delete the file.
+
 - The whole host is protected, `/api` included, with two policies: the listed e-mail addresses (allow) and a service token (Service Auth).
-- The service token (`biblioflow-<hostname>`, valid for one year) is printed once on stdout as `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`. Keep it out of `.env`. If you lose it, `--rotate` issues a new secret (the old one stops working).
+- The service token (`biblioflow-<hostname>`, valid for one year) is printed once on stdout as `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`. Keep it out of `.env` (for example in a password manager). If you lose it, `--rotate` issues a new secret (the old one stops working).
 - The script is idempotent; re-run it to change the allowed addresses.
 - **Clients that use a personal access token (CLI, scripts, MCP) must also send the service token headers**, or Access redirects them to its login page (302):
 

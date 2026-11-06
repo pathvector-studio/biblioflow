@@ -2,8 +2,8 @@
 """Refuse local-environment details in what goes into the public repository.
 
 Checks file contents for LAN addresses, mDNS (.local) hostnames, home-directory
-paths, real e-mail addresses, tailnet names and dev hostnames, and checks commit
-author/committer e-mails. Local notes belong in AGENTS.local.md (gitignored).
+paths, real e-mail addresses, tailnet names, dev hostnames and values shaped like
+secrets (tokens, API keys, private keys), and checks commit author/committer e-mails. Local notes belong in AGENTS.local.md (gitignored).
 
   scripts/check-private-info.py                 # all tracked files (CI)
   scripts/check-private-info.py --staged        # staged files (pre-commit hook)
@@ -45,6 +45,17 @@ MDNS = re.compile(r"(?<![\w.-])([A-Za-z0-9][A-Za-z0-9-]*\.local)(?![\w.-])")
 HOME = re.compile(r"(?:/Users|/home)/([A-Za-z0-9][A-Za-z0-9._-]*)")
 TAILNET = re.compile(r"\b[a-z0-9-]+\.(?:tail[0-9a-f]+|[a-z0-9-]+)\.ts\.net\b")
 OWN_DOMAIN = re.compile(r"\b(?:[a-z0-9-]+\.)+pathvector\.dev\b")
+# Values shaped like secrets. Only the kind is reported, never the value. Examples use short dummies (bf_pat_xxxxxxxx).
+SECRETS = [
+    ("personal access token", re.compile(r"bf_pat_[A-Za-z0-9_-]{16,}")),
+    ("JWT or Cloudflare tunnel token", re.compile(r"\beyJ[A-Za-z0-9_-]{30,}")),
+    ("LLM API key", re.compile(r"\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{20,}")),
+    ("GitHub token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,})")),
+    ("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+    ("secret in an assignment", re.compile(
+        r"\b[A-Z0-9_]*(?:PASSWORD|SECRET|TOKEN|API_KEY|AUTHKEY)=['\"]?(?!change-me)[A-Za-z0-9+/_.-]{24,}")),
+]
 
 
 def git(*args: str) -> str:
@@ -78,6 +89,9 @@ def problems_in(text: str, path: str) -> list[str]:
         for m in OWN_DOMAIN.finditer(line):
             if m.group(0) not in PUBLIC_HOSTS:
                 out.append(f"{where}: dev hostname {m.group(0)} (use papers.example.com)")
+        for kind, pattern in SECRETS:
+            if pattern.search(line):
+                out.append(f"{where}: looks like a {kind} (keep real values in ~/.config/biblioflow, see LOCAL_DEV.md)")
     return out
 
 
@@ -142,7 +156,7 @@ def main() -> int:
         print(p, file=sys.stderr)
     if found:
         print("\nLocal-environment details must not go into the public repository; "
-              "keep them in AGENTS.local.md (gitignored).", file=sys.stderr)
+              "keep them in AGENTS.local.md and secrets in ~/.config/biblioflow (see LOCAL_DEV.md).", file=sys.stderr)
         return 1
     return 0
 

@@ -56,8 +56,10 @@ main() {
       cp .env "$tmp"
       printf '%s=%s\n' "$key" "$value" >> "$tmp"
     fi
-    chmod 600 "$tmp"
-    mv "$tmp" .env
+    # Write through: .env may be a symlink to a file outside the checkout (scripts/dev-setup.sh).
+    cat "$tmp" > .env
+    rm -f "$tmp"
+    chmod 600 .env
   }
 
   get_env() { grep -E "^$1=" .env | tail -n 1 | cut -d= -f2- | tr -d '"' || true; }

@@ -104,8 +104,10 @@ set_env() {
     { print }
     END { if (!done) print k "=" v }
   ' .env > "$tmp"
-  chmod 600 "$tmp"
-  mv "$tmp" .env
+  # Write through: .env may be a symlink to a file outside the checkout (scripts/dev-setup.sh).
+  cat "$tmp" > .env
+  rm -f "$tmp"
+  chmod 600 .env
 }
 
 set_env CLOUDFLARE_TUNNEL_TOKEN "$token"
