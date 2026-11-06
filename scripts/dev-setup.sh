@@ -41,7 +41,7 @@ done
 [[ "$name" =~ ^[A-Za-z0-9_-]+$ ]] || die "--name may contain letters, digits, - and _ only"
 
 cd "$(dirname "$0")/.."
-[ -f .env.example ] && [ -f docker-compose.yml ] || die "run this from a BiblioFlow checkout"
+if [ ! -f .env.example ] || [ ! -f docker-compose.yml ]; then die "run this from a BiblioFlow checkout"; fi
 
 config="${BIBLIOFLOW_CONFIG_DIR:-$HOME/.config/biblioflow}"
 env_file="$config/$name.env"

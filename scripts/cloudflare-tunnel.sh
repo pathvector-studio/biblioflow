@@ -93,7 +93,7 @@ fi
 
 # 5. .env
 token="$(cf GET "/accounts/${account_id}/cfd_tunnel/${tunnel_id}/token" | jq -r '.')"
-[ -n "$token" ] && [ "$token" != "null" ] || die "Could not fetch the tunnel token."
+if [ -z "$token" ] || [ "$token" = "null" ]; then die "Could not fetch the tunnel token."; fi
 
 set_env() {
   local key="$1" value="$2" tmp

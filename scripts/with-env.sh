@@ -11,13 +11,13 @@ set -euo pipefail
 
 die() { printf 'with-env: %s\n' "$*" >&2; exit 1; }
 
-[ $# -ge 3 ] && [ "$2" = "--" ] || die "usage: $0 <env-file> -- <command> [args...]"
+if [ $# -lt 3 ] || [ "$2" != "--" ]; then die "usage: $0 <env-file> -- <command> [args...]"; fi
 file="$1"
 shift 2
 [ -f "$file" ] || die "$file not found (create it with scripts/dev-setup.sh)"
 
 # Refuse a file that other users can read: it holds secrets.
-mode="$(stat -f '%Lp' "$file" 2>/dev/null || stat -c '%a' "$file")"
+mode="$(stat -c '%a' "$file" 2>/dev/null || stat -f '%Lp' "$file")"  # GNU first: GNU `stat -f` means --file-system
 case "$mode" in
   600 | 400) ;;
   *) die "$file has mode $mode; run: chmod 600 $file" ;;
