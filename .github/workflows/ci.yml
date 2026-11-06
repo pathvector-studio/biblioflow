@@ -113,14 +113,16 @@ jobs:
           grep -qx 'CORS_ALLOWED_ORIGINS=http://localhost:3080,http://192.168.1.10:3080' .env
           # No value is printed, and the links are ignored by git.
           for k in POSTGRES_PASSWORD REDIS_PASSWORD JWT_SECRET; do if grep -qF "$(sed -n "s/^$k=//p" .env)" <<<"$out"; then echo "$k printed"; exit 1; fi; done
-          git check-ignore -q .env AGENTS.local.md
+          git check-ignore -q .env
+          git check-ignore -q AGENTS.local.md
           test -z "$(git status --porcelain)"
           # A second run changes nothing; a writer that edits .env keeps the link.
           before="$(sha256sum < .env)"
           scripts/dev-setup.sh
           test "$(sha256sum < .env)" = "$before"
           tmp="$(mktemp .env.XXXXXX)"; sed 's/^FRONTEND_PORT=.*/FRONTEND_PORT=3090/' .env > "$tmp"; cat "$tmp" > .env; rm -f "$tmp"
-          test -L .env && grep -qx FRONTEND_PORT=3090 "$cfg/dev.env"
+          test -L .env
+          grep -qx FRONTEND_PORT=3090 "$cfg/dev.env"
           # with-env.sh refuses a readable file and passes the variables of a private one.
           printf 'BF_TEST=ok\n' > "$cfg/t.env"; chmod 644 "$cfg/t.env"
           if scripts/with-env.sh "$cfg/t.env" -- true; then echo "mode 644 accepted"; exit 1; fi
