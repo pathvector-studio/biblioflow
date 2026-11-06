@@ -157,8 +157,11 @@
 - インストールの同意: `install.sh` は `.env` を新規に作るときだけ、モデルの内容・取得元・大きさ・ライセンス・外に送らないこと・あとからの変え方を見せて `[y/N]` で聞き、`EMBEDDING_PROVIDER` を `local`／`none` で書く。`/dev/tty` から読み、TTY がなければ `BIBLIOFLOW_SEMANTIC_SEARCH=yes` のときだけ `local`。`none` のとき、ライブラリ画面は admin にだけ有効化の手順を出す（閉じられる）。
 - ライセンス: リポジトリは MIT で、寄付・有償サポート・ホスティング版での収益化を想定する。本番依存に GPL / AGPL / SSPL / BUSL / Elastic / Commons Clause / 非商用のライセンスを入れない（CI の `scripts/check-licenses.py` が拒否する。LGPL は動的リンクで改変しない場合だけ可）。PyMuPDF（AGPL）、`litellm[proxy]` / `litellm-enterprise`（商用ライセンス）は使わない（LiteLLM は SDK 本体だけ）。Redis 7.4 以降は RSALv2 / SSPLv1（8 で AGPLv3 も追加）なので、キューは **Valkey**（BSD-3）を使う。サービス名 `biblioflow-redis` と `REDIS_URL` はそのまま。帰属表示が要るものは `THIRD_PARTY_NOTICES.md` に書く。
 - 実装の進め方: 親エージェントが計画（`specs/phaseN.md`）を書き、実装は Sonnet の subagent に委譲し、親が検証する。
+- 秘密とローカル固有の情報（2026-11-06、ユーザー承認）: 実体はリポジトリの外の `~/.config/biblioflow/`（700）に置く。`dev.env`（`.env` の実体。チェックアウトの `.env` はここへの symlink）、`AGENTS.local.md`（同じく symlink）、`mcp.env`、`cloudflare.env`（どれも 600）。作るのは `scripts/dev-setup.sh`（冪等。既存の `.env` は移すだけで上書きしない）。DB・Valkey・JWT の秘密はマシンごとに生成し、作り直せない外部トークン（Cloudflare API、Access のサービストークン、PAT、LLM のキー）は 1Password に置いて `op://` 参照で書く。`scripts/with-env.sh <file> -- <cmd>` が `op run` か平文の読み込みで渡す。`.env` を書き換えるスクリプトは `mv` ではなく中身を書き戻す（symlink を保つ。`install.sh`・`cloudflare-tunnel.sh`）。開発用トンネルは Mac mini の 1 台だけで動かし、Access を先にかけて `scripts/check-access.sh <hostname>` で確かめる。手順は `LOCAL_DEV.md`。
+- **エージェントの秘密の扱い**: 秘密の実値は、コミット・PR・issue・ドキュメント・メモリ・会話の要約・scratchpad に書かない。`.env`／`dev.env`／`mcp.env`／`cloudflare.env` の中身は表示しない（`cat` や Read で全体を出さない）。調べるときは、キー名と「設定済み・空・`change-me` のまま」だけを出す。値を渡すときは compose か `scripts/with-env.sh` を使い、引数や `echo` に値を書かない。個人・ローカル固有の情報は `AGENTS.local.md` と Claude のメモリにだけ書く。新しい秘密を足すときは `.env.example` にダミー値で載せ、backend では `SecretStr` で受ける。`scripts/check-private-info.py` はトークンの形をした値も拒否する（種類だけを表示する）。
 
 ### 6.3 環境の再開手順
+初めてのマシンでは先に `scripts/dev-setup.sh`（何を用意するかは `LOCAL_DEV.md`）。
 ```bash
 cd ~/dev/biblioflow
 git fetch && git status                 # ブランチ確認（main を pull してから作業ブランチを切る）
@@ -169,7 +172,7 @@ docker compose run --rm --no-deps -v "$PWD/backend/app:/app/app:ro" -v "$PWD/bac
   -v "$PWD/backend/alembic:/app/alembic:ro" -e ENABLE_DOCS=false biblioflow-api pytest -q -p no:cacheprovider   # 現状 410 passed（ローカル .env の ENABLE_DOCS=true だと test_docs_disabled が落ちるので上書きする）
 gh auth status                          # 切れていれば `gh auth login`
 ```
-- ローカル環境に固有のこと（`.env` のポートと公開範囲、開発用ホスト名、テスト用ユーザー、同じマシンのほかのサービス）は **`AGENTS.local.md`**（git に入らない）にある。作業を始めたら読むこと。ない場合はユーザーに聞く。ブラウザで開く URL はすべて `CORS_ALLOWED_ORIGINS` に登録する（ないとブラウザからの書き込みが CSRF で 403）。
+- ローカル環境に固有のこと（`.env` のポートと公開範囲、開発用ホスト名、テスト用ユーザー、同じマシンのほかのサービス）は **`AGENTS.local.md`**（git に入らない。実体は `~/.config/biblioflow/AGENTS.local.md`）にある。作業を始めたら読むこと。ない場合はユーザーに聞く。ブラウザで開く URL はすべて `CORS_ALLOWED_ORIGINS` に登録する（ないとブラウザからの書き込みが CSRF で 403）。
 - テストイメージは `INSTALL_DEV=true docker compose build biblioflow-api` でビルドする。
 - CI: `.github/workflows/ci.yml`（backend は統合テストが skip されたら失敗扱い、frontend lint / typecheck / build、compose スモークテスト〔ゲートウェイ経由、公開ポートがゲートウェイだけであることも検査〕）。
 - **公開リポジトリに書かないもの**（ファイル・コミットメッセージ・PR 本文・issue のすべて）: LAN の IP、`*.local` のホスト名、`/Users/...` などのホームのパス、個人のメールアドレス、tailnet 名、開発用ホスト名、同じマシンのほかのプロジェクトやサービスの名前。例には `192.168.1.10`、`papers.example.com`、`you@example.com`、`<host>.<tailnet>.ts.net` を使い、手元の情報は `AGENTS.local.md` に書く。`scripts/check-private-info.py` が CI（全ファイル + PR のコミットのメールとメッセージ）と git フック（`git config core.hooksPath .githooks`。clone したら最初に設定する）で検査する。例外を足すときは、そのスクリプトの許可リストに理由をつけて足す。

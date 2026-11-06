@@ -93,7 +93,7 @@ fi
 
 # 5. .env
 token="$(cf GET "/accounts/${account_id}/cfd_tunnel/${tunnel_id}/token" | jq -r '.')"
-[ -n "$token" ] && [ "$token" != "null" ] || die "Could not fetch the tunnel token."
+if [ -z "$token" ] || [ "$token" = "null" ]; then die "Could not fetch the tunnel token."; fi
 
 set_env() {
   local key="$1" value="$2" tmp
@@ -104,8 +104,10 @@ set_env() {
     { print }
     END { if (!done) print k "=" v }
   ' .env > "$tmp"
-  chmod 600 "$tmp"
-  mv "$tmp" .env
+  # Write through: .env may be a symlink to a file outside the checkout (scripts/dev-setup.sh).
+  cat "$tmp" > .env
+  rm -f "$tmp"
+  chmod 600 .env
 }
 
 set_env CLOUDFLARE_TUNNEL_TOKEN "$token"

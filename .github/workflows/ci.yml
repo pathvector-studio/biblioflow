@@ -98,7 +98,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: shellcheck install.sh
+      - run: shellcheck install.sh scripts/dev-setup.sh scripts/with-env.sh scripts/check-access.sh scripts/cloudflare-tunnel.sh
+      - name: scripts/dev-setup.sh keeps secrets outside the checkout
+        env:
+          BIBLIOFLOW_CONFIG_DIR: ${{ runner.temp }}/bf-config
+        run: |
+          out="$(scripts/dev-setup.sh --port 3080 --origin http://192.168.1.10:3080 2>&1)"
+          cfg="$BIBLIOFLOW_CONFIG_DIR"
+          test "$(readlink .env)" = "$cfg/dev.env"
+          test "$(readlink AGENTS.local.md)" = "$cfg/AGENTS.local.md"
+          test "$(stat -c %a "$cfg")" = 700
+          for f in dev.env mcp.env cloudflare.env AGENTS.local.md; do test "$(stat -c %a "$cfg/$f")" = 600; done
+          test "$(grep -cE '^(POSTGRES_PASSWORD|REDIS_PASSWORD|JWT_SECRET)=[0-9a-f]{64}$' .env)" = 3
+          grep -qx 'CORS_ALLOWED_ORIGINS=http://localhost:3080,http://192.168.1.10:3080' .env
+          # No value is printed, and the links are ignored by git.
+          for k in POSTGRES_PASSWORD REDIS_PASSWORD JWT_SECRET; do if grep -qF "$(sed -n "s/^$k=//p" .env)" <<<"$out"; then echo "$k printed"; exit 1; fi; done
+          git check-ignore -q .env
+          git check-ignore -q AGENTS.local.md
+          test -z "$(git status --porcelain)"
+          # A second run changes nothing; a writer that edits .env keeps the link.
+          before="$(sha256sum < .env)"
+          scripts/dev-setup.sh
+          test "$(sha256sum < .env)" = "$before"
+          tmp="$(mktemp .env.XXXXXX)"; sed 's/^FRONTEND_PORT=.*/FRONTEND_PORT=3090/' .env > "$tmp"; cat "$tmp" > .env; rm -f "$tmp"
+          test -L .env
+          grep -qx FRONTEND_PORT=3090 "$cfg/dev.env"
+          # with-env.sh refuses a readable file and passes the variables of a private one.
+          printf 'BF_TEST=ok\n' > "$cfg/t.env"; chmod 644 "$cfg/t.env"
+          if scripts/with-env.sh "$cfg/t.env" -- true; then echo "mode 644 accepted"; exit 1; fi
+          chmod 600 "$cfg/t.env"
+          test "$(scripts/with-env.sh "$cfg/t.env" -- sh -c 'echo "$BF_TEST"')" = ok
+          rm .env AGENTS.local.md
       - name: Prepare without starting
         run: |
           git switch -c ci-installer
