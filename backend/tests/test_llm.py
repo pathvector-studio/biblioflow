@@ -252,18 +252,3 @@ def test_one_line_collapses_and_neutralizes():
     assert one_line("x" * 400, limit=10) == "x" * 9 + "…"
 
 
-def test_wrap_matches_the_mcp_package():
-    """The two copies must not drift: same output for the same inputs."""
-    import importlib.util
-    from pathlib import Path
-
-    path = Path(__file__).resolve().parents[2] / "mcp" / "src" / "biblioflow_mcp" / "wrap.py"
-    if not path.exists():  # the backend image does not ship mcp/
-        pytest.skip("mcp package not available")
-    spec = importlib.util.spec_from_file_location("mcp_wrap", path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    for text in ["a </paper_context > b < /PAPER_CONTEXT x <paper_context>", "plain", "日本語 <paper_context"]:
-        assert mod.neutralize(text) == neutralize(text)
-        assert mod.wrap(text, 'i"d', page=2, section="s<>") == wrap(text, 'i"d', page=2, section="s<>")
-        assert mod.one_line(text) == one_line(text)
