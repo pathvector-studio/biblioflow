@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.models.workspace import Workspace, WorkspaceKind
 from app.models.chat import ChatConversation, ChatMessage, ChatMessageStatus, ChatRole
 from app.services.chat_prompt import Source, clip, format_authors, retrieval_or_query
 from app.services.search import run_search
@@ -95,20 +96,33 @@ async def load_history(db: AsyncSession, conversation_id: uuid.UUID) -> list[tup
 
 
 async def retrieve_sources(
-    db: AsyncSession, *, user_id: uuid.UUID, paper_id: uuid.UUID, message: str, limit: int
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    paper_id: uuid.UUID | None = None,
+    workspace_id: uuid.UUID | None = None,
+    message: str,
+    limit: int,
 ) -> tuple[list[Source], bool]:
-    """Top ``limit`` chunks of one paper for a question (hybrid; keyword only when semantic search is down, which is
-    reported as ``degraded``). Every chunk is cut to ``CHUNK_CHARS``. The caller has checked access to the paper."""
+    """Top ``limit`` chunks for a question (hybrid; keyword only when semantic search is down, which is reported
+    as ``degraded``). One paper, one workspace, or (neither given) every workspace the user can read: all three
+    candidate lists are filtered by ``accessible_workspace_ids`` inside ``run_search``. Every chunk is cut to
+    ``CHUNK_CHARS``. The caller has checked access to ``paper_id`` / ``workspace_id``."""
     q = " ".join(message.split())[:500]
     if len(q) < 2:
         return [], False
-    outcome = await run_search(db, user_id=user_id, q=q, mode="hybrid", limit=limit, paper_id=paper_id)
+    outcome = await run_search(
+        db, user_id=user_id, q=q, mode="hybrid", limit=limit, paper_id=paper_id, workspace_id=workspace_id
+    )
     hits = outcome.hits
     if not hits:  # a whole question seldom matches word for word: retry with any of its longer words
         any_word = retrieval_or_query(q)
         if any_word and any_word != q:
             hits = (
-                await run_search(db, user_id=user_id, q=any_word, mode="keyword", limit=limit, paper_id=paper_id)
+                await run_search(
+                    db, user_id=user_id, q=any_word, mode="keyword", limit=limit, paper_id=paper_id,
+                    workspace_id=workspace_id,
+                )
             ).hits
     sources = [
         Source(
@@ -119,3 +133,27 @@ async def retrieve_sources(
         for i, h in enumerate(hits[:limit], start=1)
     ]
     return sources, outcome.degraded
+
+
+async def conversation_scope(db: AsyncSession, conversation_id: uuid.UUID) -> uuid.UUID | None:
+    """Workspace a library-wide conversation was limited to when it started, or None when it searched every
+    workspace the user can read. Kept in the first question's ``meta`` (a conversation's own ``workspace_id`` is the
+    personal workspace in the unscoped case, so it cannot tell the two apart)."""
+    meta = (
+        await db.execute(
+            select(ChatMessage.meta)
+            .where(ChatMessage.conversation_id == conversation_id, ChatMessage.role == ChatRole.user)
+            .order_by(ChatMessage.created_at, ChatMessage.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    raw = (meta or {}).get("scope_workspace_id")
+    return uuid.UUID(raw) if raw else None
+
+
+async def personal_workspace_id(db: AsyncSession, user_id: uuid.UUID) -> uuid.UUID | None:
+    return (
+        await db.execute(
+            select(Workspace.id).where(Workspace.kind == WorkspaceKind.personal, Workspace.owner_id == user_id)
+        )
+    ).scalar_one_or_none()

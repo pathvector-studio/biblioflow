@@ -12,7 +12,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import Principal, accessible_workspace_ids, get_paper_for_user, get_principal, require_scopes
+from app.api.deps import (
+    Principal,
+    accessible_workspace_ids,
+    get_paper_for_user,
+    get_principal,
+    get_workspace_for_user,
+    require_scopes,
+)
 from app.api.v1.auth import client_ip
 from app.core.config import get_settings
 from app.core.errors import RateLimitExceeded, not_found
@@ -155,21 +162,24 @@ async def chat(
     principal: Principal = Depends(require_scopes(SCOPE_USE_AI)),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
-    """Ask one paper a question. Answers as ``text/event-stream``: ``meta``, ``delta``*, then ``done`` (or ``error``
+    """Ask one paper (``paper_id``) or the whole library (no ``paper_id``; ``workspace_id`` limits it to one workspace
+    you belong to) a question. Answers as ``text/event-stream``: ``meta``, ``delta``*, then ``done`` (or ``error``
     when the model fails after the start). Failures before the start are ordinary HTTP errors."""
     settings = get_settings()
     client = llm.get_client()
     if client is None:
         raise HTTPException(status_code=503, detail="llm_disabled")
-    if body.paper_id is None:
-        raise HTTPException(status_code=422, detail="paper_id is required (library-wide chat is not available yet)")
-
     redis = get_redis()
     user_id = principal.user.id
     await enforce_rate_limit(redis, "chat", (str(user_id),), CHAT_RATE_LIMIT)
     await enforce_rate_limit(redis, "chat-ip", (client_ip(request),), CHAT_IP_RATE_LIMIT)
 
-    paper = await get_paper_for_user(db, body.paper_id, principal)
+    paper = None
+    scope_ws: uuid.UUID | None = None  # library-wide chat: the one workspace searched (None = every readable one)
+    if body.paper_id is not None:
+        paper = await get_paper_for_user(db, body.paper_id, principal)
+    elif body.workspace_id is not None:
+        scope_ws = (await get_workspace_for_user(db, body.workspace_id, principal))[0].id  # no access: 404
     conversation: ChatConversation | None = None
     if body.conversation_id is not None:
         conversation = (
@@ -177,8 +187,27 @@ async def chat(
         ).scalar_one_or_none()
         if conversation is None:
             raise not_found()
-        if conversation.paper_id != paper.id:
+        if paper is not None and conversation.paper_id != paper.id:
             raise HTTPException(status_code=422, detail="conversation belongs to another paper")
+        if paper is None:
+            if conversation.paper_id is not None:
+                raise HTTPException(status_code=422, detail="conversation belongs to a paper")
+            started_in = await chat_service.conversation_scope(db, conversation.id)
+            if body.workspace_id is not None and body.workspace_id != started_in:
+                raise HTTPException(status_code=422, detail="conversation was started with another workspace")
+            if started_in is not None and scope_ws is None:  # re-check: leaving the workspace makes this a 404
+                scope_ws = (await get_workspace_for_user(db, started_in, principal))[0].id
+    if paper is not None:
+        conv_workspace = paper.workspace_id
+    elif conversation is not None:
+        conv_workspace = conversation.workspace_id
+    elif scope_ws is not None:
+        conv_workspace = scope_ws
+    else:  # unscoped library-wide chat is stored under the user's personal workspace (always readable by them)
+        personal = await chat_service.personal_workspace_id(db, user_id)
+        if personal is None:
+            raise not_found()
+        conv_workspace = personal
 
     # Daily budget: requests are counted by a fixed window (a day), tokens after each answer.
     day = await RateLimiter(
@@ -193,11 +222,12 @@ async def chat(
     try:  # from here on the slot belongs to the stream; any early exit gives it back
         history = await chat_service.load_history(db, conversation.id) if conversation else []
         sources, degraded = await chat_service.retrieve_sources(
-            db, user_id=user_id, paper_id=paper.id, message=body.message, limit=settings.llm_max_context_chunks
+            db, user_id=user_id, paper_id=paper.id if paper else None, workspace_id=scope_ws,
+            message=body.message, limit=settings.llm_max_context_chunks,
         )
         prompt_chars = 0
         if sources:
-            messages = build_messages(body.message, sources, history)
+            messages = build_messages(body.message, sources, history, cross=paper is None)
             prompt_chars = sum(len(str(m["content"])) for m in messages)
             events = client.stream(messages, max_tokens=settings.llm_max_output_tokens)
             try:  # read the first event now, so a model that is down is a 502 and nothing is saved
@@ -211,13 +241,17 @@ async def chat(
                 raise HTTPException(status_code=502, detail="llm_unavailable") from None
         if conversation is None:
             conversation = await chat_service.create_conversation(
-                db, user_id=user_id, workspace_id=paper.workspace_id, paper_id=paper.id, first_message=body.message
+                db, user_id=user_id, workspace_id=conv_workspace, paper_id=paper.id if paper else None,
+                first_message=body.message,
             )
-        await chat_service.append_message(db, conversation, role=ChatRole.user, content=body.message)
+        await chat_service.append_message(
+            db, conversation, role=ChatRole.user, content=body.message,
+            meta=None if paper else {"scope_workspace_id": str(scope_ws) if scope_ws else None},
+        )
         await db.commit()
         run = ChatRun(
-            conversation_id=conversation.id, message_id=uuid.uuid4(), user_id=user_id, paper_id=paper.id,
-            sources=sources, degraded=degraded, model=client.model_id if sources else None,
+            conversation_id=conversation.id, message_id=uuid.uuid4(), user_id=user_id,
+            paper_id=paper.id if paper else None, sources=sources, degraded=degraded, model=client.model_id if sources else None,
             prompt_chars=prompt_chars, events=events, first=first,
         )
     except BaseException:

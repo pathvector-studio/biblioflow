@@ -11,6 +11,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - AI chat settings (`LLM_PROVIDER`, default `none` = off; `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, daily limits) and `GET /api/v1/chat/status`. Nothing is sent to a model until you choose a provider; the chat itself comes in a later release.
 - Stored AI conversations: `GET /api/v1/chat/conversations`, `GET /api/v1/chat/conversations/{id}` and `DELETE`. Only the author can read a conversation; it is deleted after `CHAT_RETENTION_DAYS` (default 90, `0` keeps it forever).
 - `POST /api/v1/chat`: ask one paper a question and get a streamed answer (server-sent events) with citations that point at the page and position in the PDF. API tokens need the new `use:ai` scope; there are per-minute, per-day and concurrency limits.
+- `POST /api/v1/chat` without `paper_id` asks the whole library (hybrid search over every workspace you belong to, or one with `workspace_id`); citations carry the paper they come from. Library-wide conversations are listed with the others (`paper_id` is null).
 
 ## [0.2.0] - 2026-11-07
 
