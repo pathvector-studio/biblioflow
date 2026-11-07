@@ -108,7 +108,7 @@
 
 ## 6. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-05（Phase 3a/3b 実装。全体の順番は `specs/roadmap.md`）
+> 最終更新: 2026-11-07（Phase 3d のバックエンド実装。全体の順番は `specs/roadmap.md`）
 
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
@@ -117,9 +117,9 @@
 | 2. 軽量メタデータAPI & 取り込み | ✅ 完了（CI green） | PR #2 `feat/phase2-ingest`（旧リポジトリ）。設計詳細は `specs/phase2.md` |
 | 4. Frontend Web UI（AI 以外） | ✅ 完了 | `specs/phase4.md` |
 | 公開形態（LAN / Tailscale / Cloudflare Tunnel） | ✅ 完了 | PR #4・#6（旧リポジトリ）。設計詳細は `specs/deploy-modes.md`。Cloudflare Tunnel + Access は実環境で検証済み（2026-11-04） |
-| 3. PDF解析・RAG・マルチモーダル | 🚧 3c（MCP・キーワード検索）と 3a/3b（embedding・ハイブリッド検索）は実装済み。**次は 3d（チャット・矩形選択の Vision 解説）** | `specs/phase3.md`。MCP → embedding → チャットの順 |
+| 3. PDF解析・RAG・マルチモーダル | ✅ 3c（MCP・キーワード検索）、3a/3b（embedding・ハイブリッド検索）、3d（チャット・矩形選択の Vision 解説の API）を実装済み。実プロバイダーでの確認（手動）は未実施 | `specs/phase3.md`、`specs/phase3d.md` |
 | ロードマップ（ブラウザ拡張・エクスポート/インポート・Zotero との機能差） | 計画 | `specs/roadmap.md`。ブラウザ拡張とエクスポート/インポートは Phase 3 と並行 |
-| 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | 未着手（Phase 3 の後） | 右ペインに AI タブを追加する |
+| 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | **次に着手**（API は 3d で完成） | 右ペインに AI タブを追加する |
 
 ### 6.2 確定済みの設計判断（再検討しない）
 - 認証: **FastAPI 自前 JWT**（Cookie `bf_session`、HttpOnly/SameSite=Lax、ログアウトで Redis（Valkey）の jti denylist に登録）。NextAuth は使わない。
@@ -152,6 +152,7 @@
 - embedding（Phase 3a/3b）: `EMBEDDING_PROVIDER=local|voyage|openai|none`（既定 **`none`**。`local` にすること自体がモデル取得への同意。`app/services/embedding`、取得は必ず `embedding.get_embedder()` 経由。`none` は `None`）。どのモデルで作ったかを `paper_chunks.embedding_model`（`bge-m3@5617a9f:int8`、`voyage-3.5`、`openai:<model>`）に持ち、ベクトル検索は今の設定と同じモデルの行だけを使う（切り替えても worker の cron が埋め直す。`reindex --embeddings-only --missing` は即時にやりたいときの手動手段）。`embed_paper`（Arq、timeout 30 分、`keep_result=0`、job id は決定的な `embed:<paper_id>`、3 回まで再試行、8 件ずつ、最後に 1 トランザクションで UPDATE、`index_status` は触らない〔古い `processing` を `ready` にするだけ〕）。embedder が `model not ready`（503）のときは再試行を使い切らず `waiting` で終わる。外部プロバイダーにはチャンクの本文が送られる（README に明記）。remote の宛先は管理者設定なので `safe_client` は通さない。
 - embedder の隔離: `biblioflow-embedder`（backend と同じイメージ、`app.embedder.server`）は `biblioflow-internal` **だけ**に接続し、`env_file` を持たず（渡すのは `EMBEDDING_*` のみ）、`models` ボリュームは読み取り専用、`read_only`・`no-new-privileges`・`mem_limit`/`cpus`。`app/embedder/` は `app.core.config` を import しない（テストで検査）。モデルは `biblioflow-model-init`（edge ネットワーク、`local` のときだけ取得。終わった後も待機し続け、失敗したら 60 秒〜1 時間の間隔で再試行する。exit すると `up --wait` が exit 0 でも失敗扱いにするため）が `app/embedder/spec.py` に固定したサイズと sha256 で検証して取得する。int8 はこのリポジトリの Release `model-bge-m3-int8-5617a9f-1` から `model_int8.onnx` と `tokenizer.json` だけ（https のリダイレクトのみ許可。手元での量子化は廃止したので `onnx` は本番依存から外れ、メモリのピークは約 30 MiB、`MODEL_INIT_MEM_LIMIT` 既定 512m）、fp32 は今までどおり Hugging Face の 4 ファイル。全ファイルを検証してから最後に `READY`（モデル ID を中に書く。tmp から atomic に rename）を書く。embedder は `depends_on` を持たず、`READY` を 10 秒ごとに見て、見つけたら sha256 を再検証（共有ボリュームなのでマーカーだけを信用しない。int8 で約 1〜2 秒）してからバックグラウンドで読み込む。`/healthz` は常に 200 で `model: disabled|absent|loading|ready`、`/embed` は読み込みまで 503 `model not ready`。`up --wait` はモデルを待たない。リビジョンを上げるときは `spec.py` のサイズと sha256 と Release を更新する（`embedding_model` の識別子はバイト列が同じ間は変えない）。CI の compose ジョブは既定の `none` のまま起動し、embedder が `disabled` を返し何も落としていないことを検査する。
 - ハイブリッド検索: `GET /api/v1/search?mode=hybrid|keyword|semantic`。候補は全文（`tsv`）・部分一致（`ILIKE` + `word_similarity`）・ベクトル（`<=>`）の 3 つで、**どれも** `accessible_workspace_ids` で絞る。合成は RRF（k=60）を Python で行い、応答は配列のまま（MCP が依存）で各要素に `matched`。embedder が落ちている・`EMBEDDING_QUERY_TIMEOUT`（2 秒）を超える・`none` のときは、ベクトルを抜いて応答ヘッダー `X-Search-Degraded: semantic-unavailable` を付ける。`GET /api/v1/search/status`（ログインしていれば誰でも。自分が見られるワークスペースのチャンク数、provider、`model_state`＝`disabled|absent|loading|ready|unreachable`、`degraded`。embedder の `/healthz` を 1 秒の timeout で聞く）。`SEARCH_MIN_SIMILARITY` はベクトル候補の下限（既定 0.45。bge-m3 では無関係なクエリでも上位が 0.41〜0.43 になるため）。
+- チャット（Phase 3d）: LLM は `app/services/llm`（LiteLLM SDK だけ、`llm.get_client()`、`none` なら `None` で 503 `llm_disabled`）。`POST /chat`（`paper_id` あり＝単一論文、なし＝横断。横断の範囲は最初の質問の `meta.scope_workspace_id`）と `POST /papers/{id}/explain-region` は SSE（`meta`→`delta`*→`done`|`error`）。PAT は `use:ai` が要る。引用はモデルに `[n]` だけを書かせ、サーバーが範囲外を消してラベルを DB の値から作る。論文由来の文字列は必ず `wrap()` の `<paper_context>` に入れ、system に入れない。画像は `app/services/images.py`（Pillow、PNG/JPEG、1.5 MiB・25 Mpx、2048 px に縮小して PNG に再エンコード）を通し、保存もログもしない。会話は本人だけが読め、`CHAT_RETENTION_DAYS`（90）で削除。上限は 10/分・IP 30/分・explain 5/分・同時 2・1 日 200 回と 20 万トークン。Caddy の `/api/*` は `flush_interval -1`。
 - モデル配布物: 量子化済み bge-m3（int8）は手動ワークフロー `.github/workflows/model-artifact.yml`（`workflow_dispatch`、入力 `release_suffix`）が `scripts/build-model-artifact.py` で作り、Release `model-bge-m3-int8-<rev7>-<suffix>`（latest にしない）に `model_int8.onnx`・`tokenizer.json`・`LICENSE`・`SHA256SUMS`・`README.txt`・`REPRODUCIBILITY.txt` を置いて build provenance の証明を付ける。量子化は 2 回行って sha256 を記録する。設計は `specs/model-distribution.md`。
 - 埋め直しの cron: worker の `backfill_embeddings`（10 分ごと＋起動時、`unique`）は、embedder が `ready` で、今のモデルの vector がないチャンクを持つ論文（`has_pdf`、1 回 50 件まで）に `embed_paper` を積む。job id が決定的なので二重には積まれない。古い版が `processing` のままにした論文は `ready` に直す。ワークスペースの権限は使わない（インデックスはシステム全体の仕事。読む側は従来どおり権限で絞る）。
 - インストールの同意: `install.sh` は `.env` を新規に作るときだけ、モデルの内容・取得元・大きさ・ライセンス・外に送らないこと・あとからの変え方を見せて `[y/N]` で聞き、`EMBEDDING_PROVIDER` を `local`／`none` で書く。`/dev/tty` から読み、TTY がなければ `BIBLIOFLOW_SEMANTIC_SEARCH=yes` のときだけ `local`。`none` のとき、ライブラリ画面は admin にだけ有効化の手順を出す（閉じられる）。
@@ -197,4 +198,4 @@ gh auth status                          # 切れていれば `gh auth login`
 2. ~~PDF パーサを選定する~~（pypdf。PyMuPDF は AGPL なので使わない）
 3. ~~まず 3c: `mcp/` に `biblioflow-mcp` と、キーワード検索の `GET /api/v1/search`~~（2026-11-05 完了。実際の論文で検索・座標・Access 越しの MCP を確認済み）
 4. ~~`process_paper` の後に `embed_paper` で embedding（既定 bge-m3）を作り、`index_status` を ready / failed に遷移させる~~（3a/3b 実装済み。ハイブリッド検索と MCP の `mode` も）
-5. 3d（チャット・矩形選択の Vision 解説）: LLM エンドポイントにも `RateLimiter` を使う。プロンプトは `<paper_context>` で区切る
+5. ~~3d（チャット・矩形選択の Vision 解説）~~（2026-11-07 実装。#27〜#31 と仕上げの PR。設計は `specs/phase3d.md`）
