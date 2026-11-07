@@ -23,7 +23,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - New `.env` keys with defaults: `EMBEDDING_PROVIDER` (default `none`; set `local` to download the model, which is the consent), `EMBEDDING_LOCAL_PRECISION`, `EMBEDDING_QUERY_TIMEOUT`, `SEARCH_MIN_SIMILARITY`, `MODEL_INIT_MEM_LIMIT`, `EMBEDDER_MEM_LIMIT`. See `.env.example`.
 - Two new services, `biblioflow-embedder` and `biblioflow-model-init`. Migrations run when the API starts.
 - Updating from 0.1.0 keeps semantic search off (keyword search only). To turn it on, set `EMBEDDING_PROVIDER=local` in `.env` and run `docker compose up -d`; existing papers are embedded in the background.
-- How to update: [README, Updating](README.md#updating).
+- How to update: [README, Updating](https://github.com/pathvector-studio/biblioflow#updating).
 
 ## [0.1.0] - 2026-11-06
 
