@@ -6,7 +6,7 @@ A self-hosted paper manager and AI research assistant that runs entirely on Dock
 
 Website: https://biblioflow.pathvector.dev
 
-> **Status: early preview (v0.1.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, hybrid keyword + semantic search, MCP server) and semantic search work today. The in-app AI features are not implemented yet; see [Roadmap](#roadmap).
+> **Status: early preview (v0.1.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, hybrid keyword + semantic search, MCP server) and semantic search work today. The in-app AI features are not implemented yet; see [Roadmap](#roadmap). Changes per release are in [CHANGELOG.md](CHANGELOG.md); how releases are made is in [RELEASING.md](RELEASING.md).
 
 - Read, highlight and take Markdown notes on PDFs in the browser; share them in lab workspaces.
 - PDFs are stored as plain files you can open from the host (`{Year}/{Identifier}_{SlugTitle}.pdf`).
