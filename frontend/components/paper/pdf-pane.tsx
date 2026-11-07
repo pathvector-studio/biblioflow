@@ -17,7 +17,8 @@ import {
 import { BoxSelect, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { version as pdfjsVersion } from "pdfjs-dist";
 import { useI18n } from "@/lib/i18n";
-import type { Annotation, AnnotationDraft } from "@/lib/types";
+import { pdfBoxToScaled, unionScaled } from "@/lib/ai/geometry";
+import type { Annotation, AnnotationDraft, PdfBox } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,24 @@ import { ColorSwatches, DEFAULT_COLOR } from "@/components/paper/colors";
 const WORKER_SRC = `/pdf.worker.min.mjs?v=${pdfjsVersion}`;
 
 interface AnnotationHighlight extends Highlight {
-  annotation: Annotation;
+  /** AI の引用の一時ハイライトには注釈がない */
+  annotation?: Annotation;
+}
+
+/** AI の回答の引用。ページと、その範囲（PDF のポイント、原点左下）。nonce が変わるたびに移動する */
+export interface CitationRequest {
+  pageNumber: number;
+  bboxes: PdfBox[];
+  nonce: number;
+}
+
+const CITATION_ID = "bf-citation";
+const CITATION_MS = 6000;
+
+function citationHighlight(req: CitationRequest): AnnotationHighlight | null {
+  if (req.bboxes.length === 0) return null;
+  const rects = req.bboxes.map((b) => pdfBoxToScaled(b, req.pageNumber));
+  return { id: CITATION_ID, type: "text", position: { boundingRect: unionScaled(rects), rects } };
 }
 
 function isScaledPosition(p: unknown): p is ScaledPosition {
@@ -72,6 +90,10 @@ function HighlightContainer({
 }) {
   const { highlight, isScrolledTo, viewportToScaled } = useHighlightContainerContext<AnnotationHighlight>();
   const a = highlight.annotation;
+  if (!a) {
+    // 引用の一時ハイライト。注釈ではないので、ツールチップも編集もない
+    return <TextHighlight highlight={highlight} isScrolledTo={false} style={{ background: "rgba(250,204,21,0.5)" }} />;
+  }
   const color = a.color ?? DEFAULT_COLOR;
   // バックエンドと同じ規則: editor 以上で、作成者本人かワークスペース owner
   const canModify = canEdit && (a.user_id === myUserId || isOwner);
@@ -169,13 +191,14 @@ export interface PdfPaneProps {
   myUserId: string | undefined;
   isOwner: boolean;
   focusRequest: { id: string; nonce: number } | null;
+  citationRequest?: CitationRequest | null;
   onCreate: (d: AnnotationDraft) => void;
   onEdit: (a: Annotation) => void;
   onDelete: (a: Annotation) => void;
   onMove: (a: Annotation, p: ScaledPosition) => void;
 }
 
-export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focusRequest, onCreate, onEdit, onDelete, onMove }: PdfPaneProps) {
+export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focusRequest, citationRequest, onCreate, onEdit, onDelete, onMove }: PdfPaneProps) {
   const { t } = useI18n();
   const utilsRef = useRef<PdfHighlighterUtils | null>(null);
   const [scale, setScale] = useState<PdfScaleValue>("page-width");
@@ -191,7 +214,16 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
   const [error, setError] = useState<string | null>(null);
 
   const source = useMemo(() => ({ url: `/api/v1/papers/${paperId}/file`, withCredentials: true }), [paperId]);
-  const highlights = useMemo(() => toHighlights(annotations), [annotations]);
+  // 引用の一時ハイライトは、要求から導く。数秒たったら（nonce ごとに）消す
+  const [expiredNonce, setExpiredNonce] = useState<number | null>(null);
+  const citation = useMemo(
+    () => (citationRequest && citationRequest.nonce !== expiredNonce ? citationHighlight(citationRequest) : null),
+    [citationRequest, expiredNonce],
+  );
+  const highlights = useMemo(() => {
+    const list = toHighlights(annotations);
+    return citation ? [...list, citation] : list;
+  }, [annotations, citation]);
 
   // ビューアの準備ができたらページ変更イベントを購読する
   useEffect(() => {
@@ -225,6 +257,22 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
     const h = highlights.find((x) => x.id === focusRequest.id);
     if (h) utilsRef.current?.scrollToHighlight(h);
   }, [focusRequest, highlights]);
+
+  // 引用のクリック: そのページへ移り、範囲を数秒だけハイライトする（保存しない）
+  useEffect(() => {
+    if (!citationRequest) return;
+    const h = citationHighlight(citationRequest);
+    if (h) {
+      utilsRef.current?.scrollToHighlight(h);
+    } else {
+      const viewer = utilsRef.current?.getViewer();
+      if (viewer && viewer.pagesCount > 0) {
+        viewer.currentPageNumber = Math.min(Math.max(1, citationRequest.pageNumber), viewer.pagesCount);
+      }
+    }
+    const timer = setTimeout(() => setExpiredNonce(citationRequest.nonce), CITATION_MS);
+    return () => clearTimeout(timer);
+  }, [citationRequest]);
 
   function goToPage(n: number) {
     const viewer = utilsRef.current?.getViewer();
