@@ -40,7 +40,7 @@ class ConversationDetail(ConversationOut):
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
-    paper_id: uuid.UUID | None = None  # required for now: library-wide chat comes later
+    paper_id: uuid.UUID | None = None  # none = library-wide chat
     workspace_id: uuid.UUID | None = None  # library-wide chat only
     conversation_id: uuid.UUID | None = None
 

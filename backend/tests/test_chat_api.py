@@ -4,6 +4,7 @@ prompt injection, logs. Uses the real database and a scripted ``FakeLLM`` (needs
 import asyncio
 import json
 import logging
+import re
 import uuid
 
 import pytest
@@ -11,8 +12,10 @@ import pytest
 from app.core.redis import get_redis
 from app.db.session import get_sessionmaker
 from app.models import ChatRole
+from app.models.paper import Paper
+from app.workers.tasks import embed_paper
 from app.services import chat as chat_service
-from app.services import chat_stream, llm
+from app.services import chat_prompt, chat_stream, llm
 from app.services.chat_prompt import NO_RESULT_TEXT, SYSTEM_PROMPT, Source
 from app.services.chat_stream import ChatRun, acquire_slot, stream_chat
 from app.services.llm import FakeLLM, LLMError
@@ -208,12 +211,6 @@ async def test_disabled_is_503(login, resolver):
     assert r.status_code == 503 and r.json()["detail"] == "llm_disabled"
 
 
-async def test_paper_id_is_required_for_now(login, resolver, fake):
-    _, c = await login("a@example.com")
-    r = await c.post(URL, json={"message": QUESTION})
-    assert r.status_code == 422 and fake.calls == []
-
-
 @pytest.mark.parametrize("message", ["", "   ", "x" * 4001])
 async def test_message_validation(login, resolver, fake, message):
     _, c = await login("a@example.com")
@@ -277,6 +274,174 @@ async def test_shared_workspace_member_chats_in_their_own_conversation(login, re
     assert cid_a != cid_b
     assert (await b.get(f"{API}/chat/conversations/{cid_a}")).status_code == 404
     assert (await ask(b, paper, conversation_id=cid_a)).status_code == 404
+
+
+# ---------------------------------------------------------------- library-wide chat
+async def ask_all(c, message=QUESTION, **kw):
+    return await c.post(URL, json={"message": message, **kw})
+
+
+async def two_workspaces(login):
+    """a is in a personal and a shared workspace (b owns the latter); c is nobody's member."""
+    from tests.helpers import join_workspace
+
+    _, a = await login("a@example.com")
+    _, b = await login("b@example.com")
+    _, c = await login("c@example.com")
+    ws = (await b.post(f"{API}/workspaces", json={"name": "Lab"})).json()["id"]
+    await join_workspace(b, a, ws, "a@example.com", "viewer")
+    return a, b, c, ws
+
+
+async def test_cross_chat_spans_workspaces_and_numbers_sources_across_papers(login, resolver, fake):
+    a, b, c, ws = await two_workspaces(login)
+    own = await make_paper(a, "Own paper", [(1, "1 Intro", "BGP routing in Clos fabrics.")])
+    shared = await make_paper(b, "Shared paper", [(2, "2 Method", "BGP routing with one ASN per rack.")], workspace_id=ws)
+    await make_paper(c, "Foreign paper", [(1, None, "BGP routing BGP routing BGP routing exactly.")])
+
+    r = await ask_all(a)
+    assert r.status_code == 200, r.text
+    events = parse_sse(r.text)
+    meta = events[0][1]
+    sources = meta["sources"]
+    assert [s["ref"] for s in sources] == [1, 2]
+    assert {s["paper_id"]: s["title"] for s in sources} == {own: "Own paper", shared: "Shared paper"}
+    done = events[-1][1]
+    assert done["citations"] and all(
+        ct["paper_id"] == sources[ct["ref"] - 1]["paper_id"] and ct["title"] == sources[ct["ref"] - 1]["title"]
+        for ct in done["citations"]
+    )
+
+    (call,) = fake.calls
+    final = call["messages"][-1]["content"]
+    assert call["messages"][0]["content"] == chat_prompt.SYSTEM_PROMPT_CROSS
+    assert final.count("<paper_context ") == 2
+    outside = re.sub(r"<paper_context [^>]*>.*?</paper_context>", "", final, flags=re.S)
+    assert "Own paper" not in outside and "Shared paper" not in outside  # titles only inside the wrapped blocks
+    blocks = re.findall(r"<paper_context [^>]*>.*?</paper_context>", final, flags=re.S)
+    assert any("Title: Own paper" in b_ for b_ in blocks) and any("Title: Shared paper" in b_ for b_ in blocks)
+
+    detail = await conversation(a, meta["conversation_id"])
+    assert detail["paper_id"] is None
+    listed = (await a.get(f"{API}/chat/conversations")).json()
+    assert [x["id"] for x in listed] == [meta["conversation_id"]]
+
+
+async def test_cross_chat_never_returns_papers_of_other_workspaces(login, resolver, monkeypatch, fake):
+    from app.services import embedding
+    from app.services.embedding import FakeEmbedder
+
+    embedder = FakeEmbedder("fake@test")
+    monkeypatch.setattr(embedding, "get_embedder", lambda: embedder)
+    a, b, c, ws = await two_workspaces(login)
+    mine = await make_paper(a, "Mine", [(1, None, "quokka habitat notes")])
+    secret = await make_paper(c, "Secret", [(1, None, "quokka habitat research quokka habitat")])
+    async with get_sessionmaker()() as db:
+        for pid in (mine, secret):
+            (await db.get(Paper, uuid.UUID(pid))).has_pdf = True
+        await db.commit()
+    for pid in (mine, secret):
+        assert await embed_paper({}, pid) == "ok"
+
+    # the foreign paper matches best by keyword, substring and vector, and still never shows up
+    for question in ("quokka habitat", "habitat of quokka research quokka", "quokka habitat research"):
+        meta = parse_sse((await ask_all(a, question)).text)[0][1]
+        assert meta["degraded"] is False  # the vector list ran as well
+        assert {s["paper_id"] for s in meta["sources"]} == {mine}
+    assert embedder.calls  # the query was embedded
+
+
+async def test_cross_chat_workspace_filter_and_foreign_workspace(login, resolver, fake):
+    a, b, c, ws = await two_workspaces(login)
+    own = await make_paper(a, "Own paper", [(1, None, "BGP routing in Clos fabrics.")])
+    shared = await make_paper(b, "Shared paper", [(2, None, "BGP routing with one ASN per rack.")], workspace_id=ws)
+
+    r = await ask_all(a, workspace_id=ws)
+    assert {s["paper_id"] for s in parse_sse(r.text)[0][1]["sources"]} == {shared}
+    cid = parse_sse(r.text)[0][1]["conversation_id"]
+    assert (await conversation(a, cid))["workspace_id"] == ws
+
+    # c is not a member of ws; an unknown id looks the same
+    for wid in (ws, str(uuid.uuid4())):
+        assert (await ask_all(c, workspace_id=wid)).status_code == 404
+    assert len(fake.calls) == 1
+
+    # unscoped: stored under the personal workspace, searches everything
+    meta = parse_sse((await ask_all(a)).text)[0][1]
+    assert {s["paper_id"] for s in meta["sources"]} == {own, shared}
+    assert (await conversation(a, meta["conversation_id"]))["workspace_id"] != ws
+
+
+async def test_cross_chat_is_degraded_without_an_embedder(login, resolver, fake, monkeypatch):
+    from app.services import embedding
+
+    _, a = await login("a@example.com")
+    await make_paper(a, "P", [(1, None, "BGP routing in Clos fabrics.")])
+
+    class Down:
+        model_id = "fake@test"
+
+        async def embed(self, texts, kind, timeout=None):
+            raise embedding.EmbeddingError("embedder: timed out")
+
+    for factory in (lambda: Down(), lambda: None):
+        monkeypatch.setattr(embedding, "get_embedder", factory)
+        r = await ask_all(a)
+        meta = parse_sse(r.text)[0][1]
+        assert r.status_code == 200 and meta["degraded"] is True and meta["sources"]
+
+
+async def test_cross_chat_without_results_is_the_fixed_reply(login, resolver, fake):
+    _, a = await login("a@example.com")
+    r = await ask_all(a, "nothing matches this xyzzy")
+    assert fake.calls == [] and parse_sse(r.text)[-1][1]["content"] == NO_RESULT_TEXT
+
+
+async def test_cross_conversations_follow_up_and_mixing_rules(login, resolver, fake, monkeypatch):
+    from app.api.v1 import chat as chat_api
+
+    monkeypatch.setattr(chat_api, "CHAT_RATE_LIMIT", 100)  # many refused calls below, each is counted
+    a, b, c, ws = await two_workspaces(login)
+    paper = await make_paper(a, "Own paper", [(1, None, "BGP routing in Clos fabrics.")])
+    await make_paper(b, "Shared paper", [(2, None, "BGP routing with one ASN per rack.")], workspace_id=ws)
+
+    unscoped = parse_sse((await ask_all(a)).text)[0][1]["conversation_id"]
+    scoped = parse_sse((await ask_all(a, workspace_id=ws)).text)[0][1]["conversation_id"]
+    paper_conv = parse_sse((await ask(a, paper)).text)[0][1]["conversation_id"]
+
+    # continuing: the same scope, or none (which inherits it), works
+    r = await ask_all(a, "BGP design", conversation_id=unscoped)
+    assert r.status_code == 200 and len((await conversation(a, unscoped))["messages"]) == 4
+    r = await ask_all(a, "BGP design", conversation_id=scoped)
+    titles = {s["title"] for s in parse_sse(r.text)[0][1]["sources"]}
+    assert titles == {"Shared paper"}  # inherited the scope
+    r = await ask_all(a, "BGP design", conversation_id=scoped, workspace_id=ws)
+    assert r.status_code == 200
+    calls = len(fake.calls)
+
+    # refused: paper <-> cross, and another workspace
+    personal = (await conversation(a, unscoped))["workspace_id"]
+    assert (await ask_all(a, conversation_id=paper_conv)).status_code == 422
+    assert (await ask(a, paper, conversation_id=unscoped)).status_code == 422
+    assert (await ask_all(a, conversation_id=scoped, workspace_id=str(uuid.uuid4()))).status_code == 404
+    assert (await ask_all(a, conversation_id=scoped, workspace_id=personal)).status_code == 422
+    assert (await ask_all(a, conversation_id=unscoped, workspace_id=ws)).status_code == 422
+    assert len(fake.calls) == calls
+    # nobody else can continue them
+    assert (await ask_all(b, conversation_id=unscoped)).status_code == 404
+
+
+async def test_leaving_the_workspace_closes_its_cross_conversation(login, resolver, fake):
+    a, b, c, ws = await two_workspaces(login)
+    await make_paper(b, "Shared paper", [(2, None, "BGP routing with one ASN per rack.")], workspace_id=ws)
+    cid = parse_sse((await ask_all(a, workspace_id=ws)).text)[0][1]["conversation_id"]
+    me = (await a.get(f"{API}/auth/me")).json()["user"]["id"]
+    assert (await a.delete(f"{API}/workspaces/{ws}/members/{me}")).status_code == 204
+    n = len(fake.calls)
+    assert (await ask_all(a, conversation_id=cid)).status_code == 404
+    assert (await ask_all(a, workspace_id=ws)).status_code == 404
+    assert (await a.get(f"{API}/chat/conversations/{cid}")).status_code == 404
+    assert len(fake.calls) == n
 
 
 # ---------------------------------------------------------------- PAT scope
