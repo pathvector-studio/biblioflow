@@ -25,10 +25,10 @@
 - [ ] R10: 道具の結果に入る論文の本文は、データであって命令ではないことを明示する（`<paper_context>` で区切る。§4.3）。
 
 ### 3d. アプリ内チャット（MCP の後）
-詳細は `specs/phase3d.md`（2026-11-07 実装。R13 の実プロバイダー確認: Ollama は 2026-11-07 に確認済み、Claude は未実施〔API キー待ち〕。OpenAI・Gemini は LiteLLM 任せで未検証とする）。
+詳細は `specs/phase3d.md`（2026-11-07 実装。R13 の実プロバイダー確認: Ollama は 2026-11-07 に確認済み、Claude は費用のため行わない〔ユーザー判断 2026-11-07〕。OpenAI・Gemini は LiteLLM 任せで未検証とする）。
 - [x] R11: LiteLLM 経由の `POST /api/v1/chat`（ストリーミング）。根拠のチャンクを `<paper_context>` で渡し、回答には `[p.4]` の形で引用を付けさせる。引用はチャンクの座標に対応づけて返す。
 - [x] R12: `POST /api/v1/papers/{id}/explain-region`: 矩形選択の画像を Vision 対応モデルに送って解説させる。
-- [ ] R13: プロバイダーは `LLM_PROVIDER` / `LLM_MODEL` / `LLM_API_KEY` で切り替える。最初に Claude で確認し、OpenAI・Gemini・Ollama は LiteLLM の対応範囲で順に確認する。
+- [x] R13: プロバイダーは `LLM_PROVIDER` / `LLM_MODEL` / `LLM_API_KEY` で切り替える。最初に Claude で確認し、OpenAI・Gemini・Ollama は LiteLLM の対応範囲で順に確認する。
 
 ## スコープ外
 - OCR（画像だけの PDF）。必要になったら別に計画する。
