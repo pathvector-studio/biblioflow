@@ -53,7 +53,7 @@ On the merged release commit:
 - [ ] **Secrets and personal details**: CI's `private-info` job passed on the push to main (all files and every commit's e-mails and messages, plus gitleaks on the whole history).
 - [ ] **CI green** on that commit: backend, frontend, mcp, compose, installer, version, audit (no high or critical in production dependencies), licenses.
 - [ ] **Fresh install** of the commit with a separate `.env` (`BF_INSTANCE`, `COMPOSE_PROJECT_NAME`, `FRONTEND_PORT`; never against the dev stack): `BIBLIOFLOW_REF=<commit>`, answer both yes and no to semantic search.
-- [ ] **Upgrade** from the previous tag: start the previous tag with some papers, deploy the new commit (`scripts/deploy.sh <commit>`), check that migrations ran and the papers, files and search still work; `scripts/restore.sh --check` on a backup taken by the old version.
+- [ ] **Upgrade** from the previous tag the way users do it: install the previous tag (`BIBLIOFLOW_REF=vX.Y.(Z-1)`, separate `.env` as above), add papers (with PDFs and a wishlist entry), `scripts/backup.sh`, then run the installer again with `BIBLIOFLOW_REF=<commit>`. Check that the session survives, migrations reached head, papers, PDFs (`/papers/{id}/file`) and search still work, and `scripts/restore.sh --check` restores the old backup. (An installer checkout is shallow and follows tags only, so `scripts/deploy.sh origin/main` does not work there.)
 - [ ] The changelog section reads correctly as release notes.
 - [ ] For an rc: say what testers should look at.
 

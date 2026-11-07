@@ -13,6 +13,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - `scripts/version.py`: `VERSION` is the one place the version is set; CI checks every copy and the release tag.
 
 ### Changed
+- README: how to update an installer install (backup, then run the installer again).
 - Secrets and local notes for development live outside the checkout (`scripts/dev-setup.sh`, `LOCAL_DEV.md`).
 - CI checks every commit on main for local-environment details and runs gitleaks on the whole history.
 
