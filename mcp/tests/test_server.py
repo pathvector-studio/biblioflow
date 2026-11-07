@@ -112,6 +112,7 @@ async def test_get_paper_wraps_abstract_bibtex_notes():
         "status": "unread",
         "has_pdf": True,
         "page_count": 9,
+        "file_sha256": "ab" * 32,
         "index_status": "ready",
         "abstract": EVIL,
         "bibtex": "@article{k}",
@@ -122,6 +123,10 @@ async def test_get_paper_wraps_abstract_bibtex_notes():
     assert seen[0].url.path == f"/api/v1/papers/{PID}"
     assert out.count("<paper_context ") == 3 and out.lower().count("</paper_context>") == 3
     assert 'source="notes"' in out and "my note" in out
+    assert f"file_sha256: {'ab' * 32}" in out
+    paper.pop("file_sha256")
+    server, _ = make(lambda r: js(paper))
+    assert "file_sha256: -\n" in await call(server, "get_paper", {"paper_id": PID})
 
 
 async def test_read_pages():
@@ -129,6 +134,7 @@ async def test_read_pages():
         "paper_id": PID,
         "index_status": "ready",
         "page_count": 9,
+        "file_sha256": "cd" * 32,
         "page_from": 2,
         "page_to": 3,
         "chunks": [
@@ -150,6 +156,7 @@ async def test_read_pages():
     assert seen[0].url.params["page_from"] == "2" and seen[0].url.params["page_to"] == "3"
     assert "region=(50,680)-(400,712)" in out and "612x792" in out
     assert out.lower().count("</paper_context>") == 1
+    assert out.startswith(f"sha256={'cd' * 32} pages 2-3 of 9;")
     with pytest.raises(ToolError, match="Page range"):
         await call(server, "read_pages", {"paper_id": PID, "start_page": 1, "end_page": 11})
     with pytest.raises(ToolError, match="Page range"):
@@ -159,7 +166,8 @@ async def test_read_pages():
 async def test_read_pages_not_indexed():
     d = {"paper_id": PID, "index_status": "pending", "page_count": None, "page_from": 1, "page_to": 1, "chunks": []}
     server, _ = make(lambda r: js(d))
-    assert "not indexed" in await call(server, "read_pages", {"paper_id": PID})
+    out = await call(server, "read_pages", {"paper_id": PID})
+    assert "not indexed" in out and out.startswith("sha256=- ")
 
 
 async def test_list_annotations():

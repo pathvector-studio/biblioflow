@@ -21,6 +21,7 @@ class ChunksOut(BaseModel):
     paper_id: uuid.UUID
     index_status: IndexStatus
     page_count: int | None
+    file_sha256: str | None = None
     page_from: int
     page_to: int
     chunks: list[ChunkOut]
