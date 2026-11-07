@@ -1,4 +1,4 @@
-"""Chat / vision models behind one interface. ``get_client()`` returns ``None`` for ``LLM_PROVIDER=none``.
+"""Chat / vision models behind one interface. ``get_client()`` returns ``None`` when chat is off.
 
 The API layer imports only this package (never LiteLLM). Call ``llm.get_client()`` through the module so tests
 can replace it with a ``FakeLLM``.
@@ -29,7 +29,8 @@ __all__ = [
 
 
 def build_client(settings: Settings) -> LLMClient | None:
-    if settings.llm_provider == "none":
+    """``None`` when chat is off: ``LLM_PROVIDER=none``, or a provider whose settings are incomplete."""
+    if settings.llm_provider == "none" or settings.llm_config_problem:
         return None
     return LiteLLMClient(settings)
 

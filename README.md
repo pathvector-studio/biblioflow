@@ -326,7 +326,7 @@ Set these in `.env` and run `docker compose up -d`:
 | `ollama` | `llama3.2` (a vision model such as `llama3.2-vision` for explanations) | `LLM_API_BASE`, e.g. `http://host.docker.internal:11434` |
 | `openai_compatible` | the server's model name (vLLM, LM Studio, ...) | `LLM_API_BASE`, and `LLM_API_KEY` if the server wants one |
 
-`VISION_MODEL` sets a separate model for explanations; when it is empty, `LLM_MODEL` is used if LiteLLM says it accepts images. Calls go through the [LiteLLM](https://github.com/BerriAI/litellm) SDK (not its proxy). LiteLLM's telemetry and callbacks are turned off, and provider errors are reduced to a fixed message so that a key or URL never ends up in a response or a log.
+If a provider is chosen but its model, key or `LLM_API_BASE` is missing, the API still starts, logs `AI chat is disabled: ...` and keeps chat off. `VISION_MODEL` sets a separate model for explanations; when it is empty, `LLM_MODEL` is used if LiteLLM says it accepts images. Calls go through the [LiteLLM](https://github.com/BerriAI/litellm) SDK (not its proxy). LiteLLM's telemetry and callbacks are turned off, and provider errors are reduced to a fixed message so that a key or URL never ends up in a response or a log.
 
 ### What is sent to the provider
 

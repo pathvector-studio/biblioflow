@@ -106,17 +106,25 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_llm(self) -> Settings:
-        if self.llm_provider == "none":
-            return self
-        if not (self.llm_model or "").strip():
-            raise ValueError(f"LLM_MODEL is required when LLM_PROVIDER={self.llm_provider}")
-        if self.llm_provider in ("ollama", "openai_compatible") and not (self.llm_api_base or "").strip():
-            raise ValueError(f"LLM_API_BASE is required when LLM_PROVIDER={self.llm_provider}")
-        if self.llm_provider in ("anthropic", "openai", "gemini") and self.llm_api_key is None:
-            raise ValueError(f"LLM_API_KEY is required when LLM_PROVIDER={self.llm_provider}")
-        if self.llm_first_token_timeout > self.llm_timeout:
+        # Missing model / key / base URL is not an error (see llm_config_problem): an old .env may still carry the
+        # former .env.example placeholder LLM_PROVIDER=openai without a key, and an upgrade must not stop the API.
+        if self.llm_provider != "none" and self.llm_first_token_timeout > self.llm_timeout:
             raise ValueError("LLM_FIRST_TOKEN_TIMEOUT must not exceed LLM_TIMEOUT")
         return self
+
+    @property
+    def llm_config_problem(self) -> str | None:
+        """Why chat stays off although a provider is chosen (names settings only, never values), or None."""
+        if self.llm_provider == "none":
+            return None
+        if not (self.llm_model or "").strip():
+            return f"LLM_MODEL is required when LLM_PROVIDER={self.llm_provider}"
+        if self.llm_provider in ("ollama", "openai_compatible") and not (self.llm_api_base or "").strip():
+            return f"LLM_API_BASE is required when LLM_PROVIDER={self.llm_provider}"
+        key = self.llm_api_key.get_secret_value().strip() if self.llm_api_key else ""
+        if self.llm_provider in ("anthropic", "openai", "gemini") and not key:
+            return f"LLM_API_KEY is required when LLM_PROVIDER={self.llm_provider}"
+        return None
 
     @property
     def max_upload_bytes(self) -> int:
