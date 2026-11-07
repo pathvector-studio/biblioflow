@@ -39,12 +39,19 @@ class Settings(BaseSettings):
     watch_poll_seconds: int = Field(10, ge=1, le=3600)
     url_import_enabled: bool = False
 
-    # Phase 3 (chat / vision: not wired yet)
-    llm_provider: str | None = None
+    # Chat / vision (Phase 3d). Off by default (`none`): chat and explain-region answer 503 `llm_disabled`.
+    # The model string handed to LiteLLM is built from the provider (see `app.services.llm`).
+    llm_provider: Literal["none", "anthropic", "openai", "gemini", "ollama", "openai_compatible"] = "none"
     llm_model: str | None = None
     llm_api_key: SecretStr | None = None
-    llm_api_base: str | None = None
-    vision_model: str | None = None
+    llm_api_base: str | None = None  # ollama / openai_compatible only; set by the admin, so not behind safe_client
+    vision_model: str | None = None  # empty: LLM_MODEL is assumed to accept images
+    llm_max_output_tokens: int = Field(1024, ge=1, le=32768)
+    llm_max_context_chunks: int = Field(8, ge=1, le=50)
+    llm_timeout: float = Field(60.0, gt=0, le=600)
+    llm_first_token_timeout: float = Field(30.0, gt=0, le=600)
+    llm_daily_requests_per_user: int = Field(200, ge=1)
+    llm_daily_tokens_per_user: int = Field(200_000, ge=1)
 
     # Embeddings (semantic search). Off by default (`none`): turning on `local` is the consent to download the model. `local` = the biblioflow-embedder container (bge-m3 on ONNX Runtime).
     embedding_provider: Literal["local", "voyage", "openai", "none"] = "none"
@@ -94,6 +101,20 @@ class Settings(BaseSettings):
     def _check_dim(self) -> Settings:
         if self.embedding_dim != EMBEDDING_DIMENSION:
             raise ValueError(f"EMBEDDING_DIM must be {EMBEDDING_DIMENSION} (schema is vector({EMBEDDING_DIMENSION}))")
+        return self
+
+    @model_validator(mode="after")
+    def _check_llm(self) -> Settings:
+        if self.llm_provider == "none":
+            return self
+        if not (self.llm_model or "").strip():
+            raise ValueError(f"LLM_MODEL is required when LLM_PROVIDER={self.llm_provider}")
+        if self.llm_provider in ("ollama", "openai_compatible") and not (self.llm_api_base or "").strip():
+            raise ValueError(f"LLM_API_BASE is required when LLM_PROVIDER={self.llm_provider}")
+        if self.llm_provider in ("anthropic", "openai", "gemini") and self.llm_api_key is None:
+            raise ValueError(f"LLM_API_KEY is required when LLM_PROVIDER={self.llm_provider}")
+        if self.llm_first_token_timeout > self.llm_timeout:
+            raise ValueError("LLM_FIRST_TOKEN_TIMEOUT must not exceed LLM_TIMEOUT")
         return self
 
     @property

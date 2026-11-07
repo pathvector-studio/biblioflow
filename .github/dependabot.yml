@@ -25,6 +25,11 @@ updates:
       backend-minor-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      # litellm 1.104 to 1.109 pin filelock<4, and filelock 3.x has open CVEs (fixed in 4.2.1), so
+      # pyproject keeps litellm <1.104. Lift this (and the pin) when a stable litellm allows filelock>=4.2.1.
+      - dependency-name: litellm
+        versions: [">=1.104"]
 
   - package-ecosystem: uv
     directory: /mcp

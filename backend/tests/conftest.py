@@ -29,6 +29,8 @@ os.environ["FILENAME_TEMPLATE"] = "{year}/{identifier}_{slug_title}.pdf"
 os.environ["SEARCH_MIN_SIMILARITY"] = "0.0"  # the fake embedder's similarities are arbitrary
 os.environ["EMBEDDING_PROVIDER"] = "none"  # tests that need vectors patch embedding.get_embedder
 
+os.environ["LLM_PROVIDER"] = "none"  # tests that need a model patch llm.get_client
+
 TABLES = (
     "paper_collections, collections, paper_tags, tags, annotations, paper_chunks, papers, "
     "workspace_invitations, workspace_members, workspaces, api_keys, users"
