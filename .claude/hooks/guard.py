@@ -28,8 +28,8 @@ ASK = [
 
 # Reading the secret files themselves (compose and with-env.sh pass values without printing them).
 DENY = [
-    (GIT + r"push\b[^|;&]*(--force|\s-f\b|\s\+\S)", "force push (main is protected; update branches with git merge)"),
-    (r"\b(cat|less|more|head|tail|bat|grep|rg|awk|sed|cp|base64|xxd|strings)\b[^|;&]*(\.env\b(?!\.example)|\.config/biblioflow)",
+    (GIT + r"push\b[^|;&\n]*(--force|\s-f\b|\s\+\S)", "force push (main is protected; update branches with git merge)"),
+    (r"\b(cat|less|more|head|tail|bat|grep|rg|awk|sed|cp|base64|xxd|strings)\b[^|;&\n]*(\.env\b(?!\.example)|\.config/biblioflow)",
      "reading a secret file (print key names only)"),
 ]
 
