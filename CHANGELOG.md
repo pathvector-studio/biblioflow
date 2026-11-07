@@ -6,6 +6,8 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-07
+
 ### Added
 - Hybrid search: local bge-m3 embeddings (opt-in) combined with keyword search (`GET /api/v1/search?mode=hybrid|keyword|semantic`, `GET /api/v1/search/status`); the MCP `search_library` tool takes `mode`.
 - The int8 bge-m3 model is downloaded prebuilt from this repository's GitHub Release, verified by size and sha256, in the background; search stays keyword-only until it is ready.
@@ -20,6 +22,8 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ### Upgrade notes
 - New `.env` keys with defaults: `EMBEDDING_PROVIDER` (default `none`; set `local` to download the model, which is the consent), `EMBEDDING_LOCAL_PRECISION`, `EMBEDDING_QUERY_TIMEOUT`, `SEARCH_MIN_SIMILARITY`, `MODEL_INIT_MEM_LIMIT`, `EMBEDDER_MEM_LIMIT`. See `.env.example`.
 - Two new services, `biblioflow-embedder` and `biblioflow-model-init`. Migrations run when the API starts.
+- Updating from 0.1.0 keeps semantic search off (keyword search only). To turn it on, set `EMBEDDING_PROVIDER=local` in `.env` and run `docker compose up -d`; existing papers are embedded in the background.
+- How to update: [README, Updating](https://github.com/pathvector-studio/biblioflow#updating).
 
 ## [0.1.0] - 2026-11-06
 
@@ -37,5 +41,6 @@ First public preview.
 ### Security
 - Untrusted PDFs are parsed in a resource-limited child process; SSRF guard on outgoing requests; Origin check for cookie-authenticated writes; rate limits on login; containers run as non-root.
 
-[Unreleased]: https://github.com/pathvector-studio/biblioflow/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/pathvector-studio/biblioflow/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/pathvector-studio/biblioflow/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/pathvector-studio/biblioflow/releases/tag/v0.1.0
