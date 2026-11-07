@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import __version__
 from app.api.v1.papers import ingest_error_handler
 from app.api.v1.router import api_router
 from app.core.config import get_settings
@@ -31,7 +32,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
         title="BiblioFlow API",
-        version="0.1.0",
+        version=__version__,
         lifespan=lifespan,
         docs_url="/api/docs" if settings.enable_docs else None,
         redoc_url=None,
