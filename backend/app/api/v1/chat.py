@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
@@ -28,10 +31,28 @@ from app.core.redis import get_redis
 from app.core.security import SCOPE_READ_PAPERS, SCOPE_USE_AI, SCOPE_WRITE_PAPERS
 from app.db.session import get_db
 from app.models.chat import ChatConversation, ChatRole
-from app.schemas.chat import ChatMessageOut, ChatRequest, ChatStatus, ConversationDetail, ConversationOut
+from app.models.chunk import PaperChunk
+from app.models.paper import Paper
+from app.schemas.chat import (
+    ChatMessageOut,
+    ChatRequest,
+    ChatStatus,
+    ConversationDetail,
+    ConversationOut,
+    ExplainRegionRequest,
+)
 from app.services import chat as chat_service
 from app.services import llm
-from app.services.chat_prompt import build_messages
+from app.services import images
+from app.services.chat_prompt import (
+    CHUNK_CHARS,
+    DEFAULT_REGION_QUESTION,
+    Source,
+    build_messages,
+    build_region_messages,
+    clip,
+    format_authors,
+)
 from app.services.chat_stream import (
     ChatRun,
     acquire_slot,
@@ -42,10 +63,12 @@ from app.services.chat_stream import (
 )
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+explain_router = APIRouter(prefix="/papers", tags=["chat"])
 logger = logging.getLogger("biblioflow.chat")
 
 CHAT_RATE_LIMIT = 10  # per user and minute
 CHAT_IP_RATE_LIMIT = 30  # per client IP and minute
+EXPLAIN_RATE_LIMIT = 5  # explain-region, per user and minute (images are costly)
 FIRST_EVENT_GRACE = 5.0  # seconds on top of LLM_FIRST_TOKEN_TIMEOUT before the first event counts as missing
 
 
@@ -209,6 +232,59 @@ async def chat(
             raise not_found()
         conv_workspace = personal
 
+    async def prepare() -> Prepared:
+        history = await chat_service.load_history(db, conversation.id) if conversation else []
+        sources, degraded = await chat_service.retrieve_sources(
+            db, user_id=user_id, paper_id=paper.id if paper else None, workspace_id=scope_ws,
+            message=body.message, limit=settings.llm_max_context_chunks,
+        )
+        messages = build_messages(body.message, sources, history, cross=paper is None) if sources else None
+        return Prepared(messages=messages, sources=sources, degraded=degraded)
+
+    return await _start_stream(
+        request, db, principal, client, prepare, conversation=conversation, conv_workspace=conv_workspace,
+        paper=paper, user_text=body.message,
+        user_meta=None if paper else {"scope_workspace_id": str(scope_ws) if scope_ws else None},
+    )
+
+
+def _text_of(content: Any) -> str:
+    """The text of a message ``content`` (a string, or a list of parts of which only text parts count)."""
+    if isinstance(content, str):
+        return content
+    return "".join(p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text")
+
+
+@dataclass
+class Prepared:
+    """What a request needs to call the model: the messages (None = answer with the fixed reply, no model call)."""
+
+    messages: list[llm.Message] | None
+    sources: list[Source]
+    degraded: bool = False
+    vision: bool = False
+    user_meta: dict[str, Any] | None = None  # replaces ``user_meta`` of the request when set
+
+
+async def _start_stream(
+    request: Request,
+    db: AsyncSession,
+    principal: Principal,
+    client: llm.LLMClient,
+    prepare: Callable[[], Awaitable[Prepared]],
+    *,
+    conversation: ChatConversation | None,
+    conv_workspace: uuid.UUID,
+    paper: Paper | None,
+    user_text: str,
+    user_meta: dict[str, Any] | None,
+) -> StreamingResponse:
+    """Shared tail of ``/chat`` and ``/explain-region``: daily budget, concurrency slot, ``prepare()`` (retrieval,
+    prompt, image checks), the first event (so a model that is down is a 502 and nothing is saved), then save the
+    question and hand the stream over. Access and per-minute limits are checked by the caller."""
+    settings = get_settings()
+    redis = get_redis()
+    user_id = principal.user.id
     # Daily budget: requests are counted by a fixed window (a day), tokens after each answer.
     day = await RateLimiter(
         redis, llm.daily_requests_key(user_id), settings.llm_daily_requests_per_user, 86400
@@ -220,16 +296,15 @@ async def chat(
 
     events = first = None
     try:  # from here on the slot belongs to the stream; any early exit gives it back
-        history = await chat_service.load_history(db, conversation.id) if conversation else []
-        sources, degraded = await chat_service.retrieve_sources(
-            db, user_id=user_id, paper_id=paper.id if paper else None, workspace_id=scope_ws,
-            message=body.message, limit=settings.llm_max_context_chunks,
-        )
+        prepared = await prepare()
+        if prepared.user_meta is not None:
+            user_meta = prepared.user_meta
         prompt_chars = 0
-        if sources:
-            messages = build_messages(body.message, sources, history, cross=paper is None)
-            prompt_chars = sum(len(str(m["content"])) for m in messages)
-            events = client.stream(messages, max_tokens=settings.llm_max_output_tokens)
+        if prepared.messages is not None:
+            prompt_chars = sum(len(_text_of(m["content"])) for m in prepared.messages)
+            events = client.stream(
+                prepared.messages, vision=prepared.vision, max_tokens=settings.llm_max_output_tokens
+            )
             try:  # read the first event now, so a model that is down is a 502 and nothing is saved
                 first = await asyncio.wait_for(
                     events.__anext__(), settings.llm_first_token_timeout + FIRST_EVENT_GRACE
@@ -242,16 +317,16 @@ async def chat(
         if conversation is None:
             conversation = await chat_service.create_conversation(
                 db, user_id=user_id, workspace_id=conv_workspace, paper_id=paper.id if paper else None,
-                first_message=body.message,
+                first_message=user_text,
             )
         await chat_service.append_message(
-            db, conversation, role=ChatRole.user, content=body.message,
-            meta=None if paper else {"scope_workspace_id": str(scope_ws) if scope_ws else None},
+            db, conversation, role=ChatRole.user, content=user_text, meta=user_meta,
         )
         await db.commit()
         run = ChatRun(
             conversation_id=conversation.id, message_id=uuid.uuid4(), user_id=user_id,
-            paper_id=paper.id if paper else None, sources=sources, degraded=degraded, model=client.model_id if sources else None,
+            paper_id=paper.id if paper else None, sources=prepared.sources, degraded=prepared.degraded,
+            model=(client.vision_model_id if prepared.vision else client.model_id) if prepared.messages is not None else None,
             prompt_chars=prompt_chars, events=events, first=first,
         )
     except BaseException:
@@ -267,4 +342,74 @@ async def chat(
         stream_chat(run, request),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
+
+
+# ---------------------------------------------------------------- POST /papers/{id}/explain-region (SSE)
+@explain_router.post("/{paper_id}/explain-region")
+async def explain_region(
+    paper_id: uuid.UUID,
+    body: ExplainRegionRequest,
+    request: Request,
+    principal: Principal = Depends(require_scopes(SCOPE_USE_AI)),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Explain a rectangle the user cut out of one page (figure, equation, table). Same events as ``POST /chat``;
+    ``meta.sources`` is empty and the answer has no citations (the page text is context only). The image is checked
+    and re-encoded, sent to the vision model, and never stored or logged."""
+    settings = get_settings()
+    client = llm.get_client()
+    if client is None:
+        raise HTTPException(status_code=503, detail="llm_disabled")
+    redis = get_redis()
+    user_id = principal.user.id
+    await enforce_rate_limit(redis, "explain", (str(user_id),), EXPLAIN_RATE_LIMIT)
+    await enforce_rate_limit(redis, "chat-ip", (client_ip(request),), CHAT_IP_RATE_LIMIT)
+
+    paper = await get_paper_for_user(db, paper_id, principal)
+    r = body.rect
+    if paper.page_count is None or body.page_number > paper.page_count:
+        raise HTTPException(status_code=422, detail="page_number out of range")
+    if not (r.x1 < r.x2 and r.y1 < r.y2 and r.x1 >= 0 and r.y1 >= 0 and r.x2 <= r.width and r.y2 <= r.height):
+        raise HTTPException(status_code=422, detail="invalid rect")
+    if client.vision_model_id is None:
+        raise HTTPException(status_code=501, detail="vision_unsupported")
+
+    conversation: ChatConversation | None = None
+    if body.conversation_id is not None:
+        conversation = (
+            await db.execute(_own_conversations(principal).where(ChatConversation.id == body.conversation_id))
+        ).scalar_one_or_none()
+        if conversation is None:
+            raise not_found()
+        if conversation.paper_id != paper.id:
+            raise HTTPException(status_code=422, detail="conversation belongs to another paper")
+
+    question = (body.question or "").strip() or DEFAULT_REGION_QUESTION
+
+    async def prepare() -> Prepared:
+        try:
+            image_url = await images.prepare_image(body.image)
+        except images.InvalidImage:
+            raise HTTPException(status_code=422, detail="invalid image") from None
+        rows = (
+            await db.execute(
+                select(PaperChunk.section, PaperChunk.text)
+                .where(PaperChunk.paper_id == paper.id, PaperChunk.page_number == body.page_number)
+                .order_by(PaperChunk.chunk_index)
+                .limit(settings.llm_max_context_chunks)
+            )
+        ).all()
+        history = await chat_service.load_history(db, conversation.id) if conversation else []
+        messages = build_region_messages(
+            question, paper_id=str(paper.id), title=paper.title, authors=format_authors(paper.authors),
+            page_number=body.page_number, page_chunks=[(sec, clip(text, CHUNK_CHARS)) for sec, text in rows],
+            image_url=image_url, history=history,
+        )
+        return Prepared(messages=messages, sources=[], vision=True)
+
+    return await _start_stream(
+        request, db, principal, client, prepare, conversation=conversation, conv_workspace=paper.workspace_id,
+        paper=paper, user_text=question,
+        user_meta={"page_number": body.page_number, "rect": r.model_dump()},
     )

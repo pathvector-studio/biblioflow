@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ChatStatus(BaseModel):
@@ -50,3 +50,24 @@ class ChatRequest(BaseModel):
         if not v.strip():
             raise ValueError("message must not be blank")
         return v
+
+
+class Rect(BaseModel):
+    """A selected region in PDF points (origin bottom-left), with the page size it refers to."""
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+    width: float = Field(gt=0, le=100_000)
+    height: float = Field(gt=0, le=100_000)
+
+
+class ExplainRegionRequest(BaseModel):
+    page_number: int = Field(ge=1, le=100_000)
+    rect: Rect
+    image: str = Field(min_length=1, max_length=2_200_000)  # data URL; the exact limits are checked after parsing
+    question: str | None = Field(default=None, max_length=1000)
+    conversation_id: uuid.UUID | None = None
