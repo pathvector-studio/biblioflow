@@ -29,6 +29,17 @@ Options are environment variables: `BIBLIOFLOW_DIR` (directory), `BIBLIOFLOW_POR
 
 The installer asks one question: whether to download the model for semantic search (bge-m3, int8, about 0.6 GB, from this repository's GitHub Release, MIT; it runs on your machine and your papers' text is never sent anywhere). The default is no. Answering yes writes `EMBEDDING_PROVIDER=local` to `.env`, which is the consent. The question is read from the terminal even under `curl | bash`; with no terminal the answer is no unless `BIBLIOFLOW_SEMANTIC_SEARCH=yes` is set. You can change it any time (see [Embedding providers](#embedding-providers)).
 
+### Updating
+
+Read the release's **Upgrade notes** in [CHANGELOG.md](CHANGELOG.md), take a backup, then run the installer again (with the same `BIBLIOFLOW_DIR` if you changed it). It keeps `.env` and your data, checks out the latest release and rebuilds; migrations run when the API starts.
+
+```bash
+cd ~/biblioflow && scripts/backup.sh
+curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
+```
+
+To go back, restore that backup on the previous release (see [Backup and restore](#backup-and-restore)). A production clone is updated with `scripts/deploy.sh` instead, which takes the backup itself (see below).
+
 Or by hand:
 
 ```bash
