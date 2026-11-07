@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -22,6 +23,9 @@ UPLOAD_PATH = "/api/v1/papers/upload"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    problem = get_settings().llm_config_problem
+    if problem:  # chat stays off (503 llm_disabled) instead of the API refusing to start
+        logging.getLogger("biblioflow.llm").warning("AI chat is disabled: %s (set LLM_PROVIDER=none to silence)", problem)
     yield
     await close_arq_pool()
     await close_redis()

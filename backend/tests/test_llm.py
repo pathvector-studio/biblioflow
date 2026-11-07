@@ -44,26 +44,55 @@ def test_unknown_provider_is_rejected():
         settings(llm_provider="bogus")
 
 
+# Incomplete settings must not stop the API (an old .env may keep LLM_PROVIDER=openai without a key): chat stays off.
+def _off(s: Settings, missing: str) -> None:
+    assert s.llm_config_problem and missing in s.llm_config_problem
+    assert build_client(s) is None
+
+
 @pytest.mark.parametrize("provider", ["anthropic", "openai", "gemini", "ollama", "openai_compatible"])
-def test_model_is_required(provider):
-    with pytest.raises(ValidationError, match="LLM_MODEL"):
-        settings(llm_provider=provider, llm_api_key=KEY, llm_api_base="http://x")
-    with pytest.raises(ValidationError, match="LLM_MODEL"):
-        settings(llm_provider=provider, llm_model="  ", llm_api_key=KEY, llm_api_base="http://x")
+def test_missing_model_disables_chat(provider):
+    _off(settings(llm_provider=provider, llm_api_key=KEY, llm_api_base="http://x"), "LLM_MODEL")
+    _off(settings(llm_provider=provider, llm_model="  ", llm_api_key=KEY, llm_api_base="http://x"), "LLM_MODEL")
 
 
 @pytest.mark.parametrize("provider", ["ollama", "openai_compatible"])
-def test_api_base_is_required_for_local_servers(provider):
-    with pytest.raises(ValidationError, match="LLM_API_BASE"):
-        settings(llm_provider=provider, llm_model="m")
-    settings(llm_provider=provider, llm_model="m", llm_api_base="http://ollama:11434")  # key not needed
+def test_missing_api_base_disables_chat_for_local_servers(provider):
+    _off(settings(llm_provider=provider, llm_model="m"), "LLM_API_BASE")
+    s = settings(llm_provider=provider, llm_model="m", llm_api_base="http://ollama:11434")  # key not needed
+    assert s.llm_config_problem is None and build_client(s) is not None
 
 
 @pytest.mark.parametrize("provider", ["anthropic", "openai", "gemini"])
-def test_api_key_is_required_for_cloud_providers(provider):
-    with pytest.raises(ValidationError, match="LLM_API_KEY"):
-        settings(llm_provider=provider, llm_model="m")
-    settings(llm_provider=provider, llm_model="m", llm_api_key=KEY)
+def test_missing_api_key_disables_chat_for_cloud_providers(provider):
+    _off(settings(llm_provider=provider, llm_model="m"), "LLM_API_KEY")
+    _off(settings(llm_provider=provider, llm_model="m", llm_api_key=" "), "LLM_API_KEY")  # LLM_API_KEY= in .env
+    s = settings(llm_provider=provider, llm_model="m", llm_api_key=KEY)
+    assert s.llm_config_problem is None and build_client(s) is not None
+
+
+def test_old_env_example_placeholder_starts_with_chat_off():
+    """The former .env.example: LLM_PROVIDER=openai, LLM_MODEL=gpt-4o-mini and an empty key."""
+    s = settings(llm_provider="openai", llm_model="gpt-4o-mini", llm_api_key="")
+    _off(s, "LLM_API_KEY")
+    assert KEY not in s.llm_config_problem
+
+
+async def test_startup_warns_about_incomplete_llm_settings(monkeypatch, caplog):
+    from app import main
+
+    monkeypatch.setattr(main, "get_settings", lambda: settings(llm_provider="openai", llm_model="gpt-4o-mini"))
+    monkeypatch.setattr(main, "close_arq_pool", _noop)
+    monkeypatch.setattr(main, "close_redis", _noop)
+    monkeypatch.setattr(main, "dispose_engine", _noop)
+    with caplog.at_level(logging.WARNING, logger="biblioflow.llm"):
+        async with main.lifespan(None):
+            pass
+    assert "AI chat is disabled: LLM_API_KEY is required when LLM_PROVIDER=openai" in caplog.text
+
+
+async def _noop() -> None:
+    return None
 
 
 def test_first_token_timeout_cannot_exceed_total():

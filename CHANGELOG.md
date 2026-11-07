@@ -14,6 +14,10 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - `POST /api/v1/chat` without `paper_id` asks the whole library (hybrid search over every workspace you belong to, or one with `workspace_id`); citations carry the paper they come from. Library-wide conversations are listed with the others (`paper_id` is null).
 - `POST /api/v1/papers/{id}/explain-region`: send a rectangle cut from a PDF page (figure, equation, table) to a vision model and get a streamed explanation in the context of that page. The image is checked and re-encoded on the server (PNG/JPEG up to 1.5 MiB, long side scaled to 2048 px, metadata dropped) and is never stored; it needs a vision-capable model (`GET /api/v1/chat/status` shows `vision_available`) and the `use:ai` scope for tokens, with a 5 per minute limit.
 
+
+### Fixed
+- An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
+
 ## [0.2.0] - 2026-11-07
 
 ### Added
