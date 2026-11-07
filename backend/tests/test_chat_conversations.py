@@ -32,6 +32,9 @@ async def make_conv(user, workspace_id, paper_id=None, question="What is a Clos 
             paper_id=uuid.UUID(str(paper_id)) if paper_id else None, first_message=question,
         )
         await chat_service.append_message(db, conv, role=ChatRole.user, content=question)
+        # Separate transactions, as POST /chat does: created_at is the transaction's now(), so messages saved in
+        # one transaction would tie and fall back to the random id.
+        await db.commit()
         if with_answer:
             await chat_service.append_message(
                 db, conv, role=ChatRole.assistant, content="A leaf-spine network [1].",
