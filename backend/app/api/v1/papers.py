@@ -120,6 +120,7 @@ async def _detail(db: AsyncSession, paper: Paper) -> PaperDetail:
         has_pdf=paper.has_pdf,
         relative_file_path=paper.relative_file_path,
         file_size=paper.file_size,
+        file_sha256=paper.file_sha256 if paper.has_pdf else None,
         page_count=paper.page_count,
         index_status=paper.index_status,
         collection_ids=sorted(cids),
@@ -446,7 +447,8 @@ async def get_paper_chunks(
         )
     ).scalars()
     return ChunksOut(
-        paper_id=paper.id, index_status=paper.index_status, page_count=paper.page_count, page_from=page_from,
+        paper_id=paper.id, index_status=paper.index_status, page_count=paper.page_count,
+        file_sha256=paper.file_sha256 if paper.has_pdf else None, page_from=page_from,
         page_to=last, chunks=[ChunkOut.model_validate(c, from_attributes=True) for c in rows],
     )
 
