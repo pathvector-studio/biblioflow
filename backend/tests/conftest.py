@@ -32,7 +32,7 @@ os.environ["EMBEDDING_PROVIDER"] = "none"  # tests that need vectors patch embed
 os.environ["LLM_PROVIDER"] = "none"  # tests that need a model patch llm.get_client
 
 TABLES = (
-    "paper_collections, collections, paper_tags, tags, annotations, paper_chunks, papers, "
+    "chat_messages, chat_conversations, paper_collections, collections, paper_tags, tags, annotations, paper_chunks, papers, "
     "workspace_invitations, workspace_members, workspaces, api_keys, users"
 )
 

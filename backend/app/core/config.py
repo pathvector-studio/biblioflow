@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     llm_first_token_timeout: float = Field(30.0, gt=0, le=600)
     llm_daily_requests_per_user: int = Field(200, ge=1)
     llm_daily_tokens_per_user: int = Field(200_000, ge=1)
+    chat_retention_days: int = Field(90, ge=0)  # conversations idle (updated_at) longer than this are deleted; 0 = keep
 
     # Embeddings (semantic search). Off by default (`none`): turning on `local` is the consent to download the model. `local` = the biblioflow-embedder container (bge-m3 on ONNX Runtime).
     embedding_provider: Literal["local", "voyage", "openai", "none"] = "none"

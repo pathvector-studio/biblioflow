@@ -429,3 +429,14 @@ async def scan_watch_folder(ctx: dict[str, Any]) -> dict[str, int]:
         enqueue_pool=ctx["redis"],
     )
     return {"ingested": len(res.ingested), "rejected": len(res.rejected), "skipped": len(res.skipped)}
+
+
+# ------------------------------------------------------------------ chat retention
+async def purge_old_conversations(ctx: dict[str, Any]) -> int:
+    """Daily: delete chat conversations idle for longer than ``CHAT_RETENTION_DAYS`` (0 = keep forever)."""
+    from app.services.chat import delete_expired_conversations
+
+    n = await delete_expired_conversations(get_sessionmaker(), retention_days=get_settings().chat_retention_days)
+    if n:
+        logger.info("chat retention: deleted %d conversation(s)", n)
+    return n
