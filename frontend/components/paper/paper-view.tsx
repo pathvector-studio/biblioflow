@@ -11,7 +11,7 @@ import { api, describeError } from "@/lib/api";
 import { formatAuthors } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { useMe, useWorkspace } from "@/lib/session";
-import type { Annotation, AnnotationDraft, PaperDetail } from "@/lib/types";
+import type { Annotation, AnnotationDraft, Citation, PaperDetail } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +23,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnnotationEditDialog } from "@/components/paper/annotation-edit-dialog";
+import { AiTab } from "@/components/paper/ai-tab";
 import { AnnotationsTab } from "@/components/paper/annotations-tab";
 import { BibliographyTab } from "@/components/paper/bibliography-tab";
 import { NotesTab } from "@/components/paper/notes-tab";
 import { UploadBox } from "@/components/paper/upload-box";
+import type { CitationRequest } from "@/components/paper/pdf-pane";
 
 // pdf.js はブラウザ専用のため SSR では読み込まない
 const PdfPane = dynamic(() => import("@/components/paper/pdf-pane").then((m) => m.PdfPane), {
@@ -49,6 +51,8 @@ export function PaperView({ paperId }: { paperId: string }) {
 
   const [split, setSplit] = useState(58);
   const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
+  const [citation, setCitation] = useState<CitationRequest | null>(null);
+  const [tab, setTab] = useState("notes");
   const [editing, setEditing] = useState<Annotation | null>(null);
   const [deleting, setDeleting] = useState<Annotation | null>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -86,6 +90,10 @@ export function PaperView({ paperId }: { paperId: string }) {
   );
   const onEdit = useCallback((a: Annotation) => setEditing(a), []);
   const onDelete = useCallback((a: Annotation) => setDeleting(a), []);
+  const onCite = useCallback(
+    (c: Citation) => setCitation({ pageNumber: c.page_number, bboxes: c.bboxes, nonce: Date.now() }),
+    [],
+  );
   const onCreate = useCallback((d: AnnotationDraft) => createAnnotation(d), [createAnnotation]);
 
   function onDividerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -125,6 +133,7 @@ export function PaperView({ paperId }: { paperId: string }) {
               myUserId={me.data?.user.id}
               isOwner={current.role === "owner"}
               focusRequest={focus}
+              citationRequest={citation}
               onCreate={onCreate}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -154,11 +163,12 @@ export function PaperView({ paperId }: { paperId: string }) {
           }}
           className="hidden w-1.5 shrink-0 cursor-col-resize bg-border hover:bg-primary/40 focus-visible:bg-primary/40 md:block"
         />
-        <Tabs defaultValue="notes" className="flex min-h-0 min-w-0 flex-1 flex-col p-3">
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 min-w-0 flex-1 flex-col p-3">
           <TabsList className="self-start">
             <TabsTrigger value="notes">{t.reader.tabNotes}</TabsTrigger>
             <TabsTrigger value="bibliography">{t.reader.tabBibliography}</TabsTrigger>
             <TabsTrigger value="annotations">{t.reader.tabAnnotations}</TabsTrigger>
+            <TabsTrigger value="ai">{t.reader.tabAi}</TabsTrigger>
           </TabsList>
           <TabsContent value="notes" forceMount className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
             <NotesTab key={p.id} paper={p} canEdit={canEdit} />
@@ -173,6 +183,9 @@ export function PaperView({ paperId }: { paperId: string }) {
               onEdit={onEdit}
               onDelete={onDelete}
             />
+          </TabsContent>
+          <TabsContent value="ai" forceMount className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
+            <AiTab key={p.id} paperId={p.id} active={tab === "ai"} onCite={onCite} />
           </TabsContent>
         </Tabs>
       </div>
