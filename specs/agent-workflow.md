@@ -32,7 +32,7 @@ decision: null                       # 要判断なら 1 問 + 選択肢
 | 子（subagent・子セッション）の起動 | 課金がありうる操作（`gh workflow run` など）、外部への送信（X・メール・他人のリポジトリへの PR や issue） |
 | **承認済みの計画の項目**: push → PR → CI green → squash マージ（1 項目ずつ） | |
 
-**承認は計画単位**（2026-11-07、ユーザー決定）: ユーザーが spec か `STATUS.md` の計画を承認したら、その項目は親が push からマージまで進める。そのため push・PR 作成・マージは `ask` にせず、運用で守る（force push だけは `deny`）。計画の外に出る変更が必要になったら、その時点で止めて聞く。
+**承認は計画単位**（2026-11-07、ユーザー決定）: ユーザーが spec か `STATUS.md` の計画を承認したら、その項目は親が push からマージまで進める。そのため push・PR 作成・マージは `ask` にせず、運用で守る（force push だけは `deny`）。計画の外に出る変更が必要になったら、その時点で止めて聞く。例外: **biblioflow-web の main へのマージは本番サイトへの公開**（Cloudflare が main から自動でデプロイする）なので、計画の項目でも毎回承認を取る。
 
 仕組み: `.claude/settings.json` の `ask` / `deny` と、PreToolUse フック `.claude/hooks/guard.py`（`git -C . push` や `sh -c` のような、ルールが前方一致で見落とす書き方を拾う）。Bash のルールもフックも安全の境界ではない（Claude Code のドキュメントのとおり）。最終的な歯止めは main のルールセット・GitHub の権限・ここに書いた運用。
 
