@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "ask": [
+      "Bash(git push*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh release*)",
+      "Bash(gh workflow run*)",
+      "Bash(git tag *)",
+      "Bash(git clean*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -r*)",
+      "Bash(rm -fr*)",
+      "Bash(scripts/deploy.sh*)",
+      "Bash(scripts/restore.sh*)",
+      "Bash(*wrangler*)",
+      "Bash(op *)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(uv add *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(~/.config/biblioflow/**)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.py\"",
+            "onFailure": "block"
+          }
+        ]
+      }
+    ]
+  }
+}

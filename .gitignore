@@ -16,3 +16,6 @@ __pycache__
 backups/
 access-token.txt
 AGENTS.local.md
+
+# Agent hand-off notes (specs/agent-workflow.md)
+.handoff/
