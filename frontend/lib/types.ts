@@ -193,6 +193,13 @@ export interface PdfBox {
   height: number;
 }
 
+export interface PaperChunks {
+  paper_id: string;
+  page_from: number;
+  page_to: number;
+  chunks: { id: string; chunk_index: number; page_number: number; section: string | null; text: string; bboxes: PdfBox[] }[];
+}
+
 export interface Citation {
   ref: number;
   chunk_id: string;
@@ -201,6 +208,8 @@ export interface Citation {
   section: string | null;
   bboxes: PdfBox[];
   label: string;
+  /** 論文のタイトル（サーバーが付ける。古い会話にはないことがある） */
+  title?: string;
 }
 
 export interface ChatSource {

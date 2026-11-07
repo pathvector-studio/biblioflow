@@ -16,6 +16,7 @@ export const en: Dict = {
     save: "Save",
   },
   nav: {
+    ai: "AI",
     add: "Add",
     language: "Language",
     library: "Library",
@@ -184,6 +185,14 @@ export const en: Dict = {
     serverError: "Could not call the AI. Ask an administrator to check the settings.",
     visionUnsupported: "This model does not support images.",
     loadFailed: "Could not load the conversation.",
+    citationTitleCross: "Open {label} in \"{title}\"",
+    crossPlaceholder: "Ask about your whole library (Enter to send, Shift+Enter for a new line)",
+    crossEmpty: "Ask about the whole library and the sources appear as badges with the paper title. Click one to open that paper at the cited page.",
+    crossTitle: "Ask your library",
+    scope: "Scope",
+    scopeAll: "All workspaces",
+    scopeLocked: "This conversation's scope can't be changed. Start a new conversation to pick another.",
+    scopeUnknown: "(a workspace you can't see)",
     remaining: "{n} left today",
   },
   notes: {

@@ -14,6 +14,7 @@ export const ja = {
     save: "保存",
   },
   nav: {
+    ai: "AI",
     add: "追加",
     language: "言語",
     library: "ライブラリ",
@@ -182,6 +183,14 @@ export const ja = {
     serverError: "AI を呼び出せませんでした。管理者に設定を確認してもらってください。",
     visionUnsupported: "このモデルは画像に対応していません。",
     loadFailed: "会話を読み込めませんでした。",
+    citationTitleCross: "「{title}」の {label} を開く",
+    crossPlaceholder: "ライブラリ全体について質問する（Enter で送信、Shift+Enter で改行）",
+    crossEmpty: "ライブラリ全体に質問すると、回答の根拠が論文名つきのバッジで示されます。クリックするとその論文が該当ページで開きます。",
+    crossTitle: "ライブラリに質問",
+    scope: "範囲",
+    scopeAll: "すべてのワークスペース",
+    scopeLocked: "この会話の範囲は変えられません。新しい会話で選び直せます。",
+    scopeUnknown: "（見られないワークスペース）",
     remaining: "今日の残り {n} 回",
   },
   notes: {

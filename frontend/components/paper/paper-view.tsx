@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +12,7 @@ import { api, describeError } from "@/lib/api";
 import { formatAuthors } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { useMe, useWorkspace } from "@/lib/session";
-import type { Annotation, AnnotationDraft, Citation, PaperDetail } from "@/lib/types";
+import type { Annotation, AnnotationDraft, Citation, PaperChunks, PaperDetail } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +57,37 @@ export function PaperView({ paperId }: { paperId: string }) {
   const [editing, setEditing] = useState<Annotation | null>(null);
   const [deleting, setDeleting] = useState<Annotation | null>(null);
   const container = useRef<HTMLDivElement>(null);
+
+  // 別の画面（AI 画面の引用）から `?page=4&hl=<chunk_id>` で開かれたら、そのページへ移ってハイライトする
+  const searchParams = useSearchParams();
+  const wantPage = Number(searchParams.get("page"));
+  const wantChunk = searchParams.get("hl");
+  const hasPdf = paper.data?.has_pdf === true;
+  const jumped = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasPdf || !Number.isInteger(wantPage) || wantPage < 1) return;
+    const marker = `${paperId}:${wantPage}:${wantChunk ?? ""}`;
+    if (jumped.current === marker) return;
+    jumped.current = marker;
+    let cancelled = false;
+    void (async () => {
+      let bboxes: Citation["bboxes"] = [];
+      if (wantChunk) {
+        try {
+          const r = await api.get<PaperChunks>(`/papers/${paperId}/chunks`, { page_from: wantPage, page_to: wantPage });
+          bboxes = r.chunks.find((c) => c.id === wantChunk)?.bboxes ?? [];
+        } catch {
+          // チャンクが取れなくてもページには移る
+        }
+      }
+      if (!cancelled) setCitation({ pageNumber: wantPage, bboxes, nonce: Date.now() });
+    })();
+    return () => {
+      cancelled = true;
+      // 開発時の StrictMode の再実行で、取り消した分をやり直せるようにする
+      if (jumped.current === marker) jumped.current = null;
+    };
+  }, [hasPdf, paperId, wantPage, wantChunk]);
 
   const key = ["annotations", paperId];
   const replace = (a: Annotation) =>

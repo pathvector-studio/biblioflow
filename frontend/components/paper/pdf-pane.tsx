@@ -261,17 +261,31 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
   // 引用のクリック: そのページへ移り、範囲を数秒だけハイライトする（保存しない）
   useEffect(() => {
     if (!citationRequest) return;
-    const h = citationHighlight(citationRequest);
-    if (h) {
-      utilsRef.current?.scrollToHighlight(h);
-    } else {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const apply = (): boolean => {
+      // 別画面から開いた直後は、ビューアの準備ができるまで待つ
       const viewer = utilsRef.current?.getViewer();
-      if (viewer && viewer.pagesCount > 0) {
+      if (!viewer || viewer.pagesCount === 0) return false;
+      const h = citationHighlight(citationRequest);
+      if (h) {
+        utilsRef.current?.scrollToHighlight(h);
+      } else {
         viewer.currentPageNumber = Math.min(Math.max(1, citationRequest.pageNumber), viewer.pagesCount);
       }
+      timer = setTimeout(() => setExpiredNonce(citationRequest.nonce), CITATION_MS);
+      return true;
+    };
+    let poll: ReturnType<typeof setInterval> | undefined;
+    if (!apply()) {
+      let tries = 0;
+      poll = setInterval(() => {
+        if (apply() || ++tries > 100) clearInterval(poll);
+      }, 200);
     }
-    const timer = setTimeout(() => setExpiredNonce(citationRequest.nonce), CITATION_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(timer);
+    };
   }, [citationRequest]);
 
   function goToPage(n: number) {
