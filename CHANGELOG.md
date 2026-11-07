@@ -12,6 +12,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - Stored AI conversations: `GET /api/v1/chat/conversations`, `GET /api/v1/chat/conversations/{id}` and `DELETE`. Only the author can read a conversation; it is deleted after `CHAT_RETENTION_DAYS` (default 90, `0` keeps it forever).
 - `POST /api/v1/chat`: ask one paper a question and get a streamed answer (server-sent events) with citations that point at the page and position in the PDF. API tokens need the new `use:ai` scope; there are per-minute, per-day and concurrency limits.
 - `POST /api/v1/chat` without `paper_id` asks the whole library (hybrid search over every workspace you belong to, or one with `workspace_id`); citations carry the paper they come from. Library-wide conversations are listed with the others (`paper_id` is null).
+- `POST /api/v1/papers/{id}/explain-region`: send a rectangle cut from a PDF page (figure, equation, table) to a vision model and get a streamed explanation in the context of that page. The image is checked and re-encoded on the server (PNG/JPEG up to 1.5 MiB, long side scaled to 2048 px, metadata dropped) and is never stored; it needs a vision-capable model (`GET /api/v1/chat/status` shows `vision_available`) and the `use:ai` scope for tokens, with a 5 per minute limit.
 
 ## [0.2.0] - 2026-11-07
 
