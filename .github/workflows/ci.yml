@@ -107,6 +107,12 @@ jobs:
         env:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
         run: python3 scripts/check-private-info.py --commits "$RANGE"
+      - name: All commits (e-mails and messages)
+        if: github.event_name != 'pull_request'
+        run: python3 scripts/check-private-info.py --commits HEAD
+      # Values shaped like secrets, in every commit. The binary, not gitleaks-action (which needs a license for organizations).
+      - name: gitleaks (all history, values redacted)
+        run: docker run --rm -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.28.0 git /repo --redact --no-banner --log-opts=--all
 
   # install.sh (also served at https://biblioflow.pathvector.dev/install.sh): lint, then prepare a checkout of this commit.
   installer:
