@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 
 class ChatStatus(BaseModel):
@@ -36,3 +36,17 @@ class ConversationOut(BaseModel):
 
 class ConversationDetail(ConversationOut):
     messages: list[ChatMessageOut]
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=4000)
+    paper_id: uuid.UUID | None = None  # required for now: library-wide chat comes later
+    workspace_id: uuid.UUID | None = None  # library-wide chat only
+    conversation_id: uuid.UUID | None = None
+
+    @field_validator("message")
+    @classmethod
+    def _not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("message must not be blank")
+        return v

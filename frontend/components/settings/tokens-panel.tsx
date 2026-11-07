@@ -23,7 +23,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-const SCOPES = ["read:papers", "write:papers"] as const;
+const SCOPES = ["read:papers", "write:papers", "use:ai"] as const;
+const SCOPE_LABELS = { "read:papers": "scopeRead", "write:papers": "scopeWrite", "use:ai": "scopeAi" } as const;
 const EXPIRY_DAYS = ["30", "90", "365", ""] as const;
 
 export function TokensPanel() {
@@ -81,7 +82,7 @@ export function TokensPanel() {
                 checked={scopes.includes(s)}
                 onChange={(e) => setScopes((prev) => (e.target.checked ? [...prev, s] : prev.filter((x) => x !== s)))}
               />
-              {s === "read:papers" ? t.settings.scopeRead : t.settings.scopeWrite}
+              {t.settings[SCOPE_LABELS[s]]}
             </label>
           ))}
         </fieldset>

@@ -23,6 +23,7 @@ __all__ = [
     "Usage",
     "build_client",
     "daily_requests_key",
+    "daily_tokens_key",
     "get_client",
 ]
 
@@ -42,3 +43,8 @@ def daily_requests_key(user_id: object, now: datetime | None = None) -> str:
     """Redis key of the per-user daily request counter (a ``RateLimiter`` with window 86400 writes it)."""
     day = (now or datetime.now(UTC)).strftime("%Y-%m-%d")
     return f"bf:ai:day:{user_id}:{day}"
+
+
+def daily_tokens_key(user_id: object, now: datetime | None = None) -> str:
+    """Redis key of the per-user daily token counter (INCRBY after each answer, 2-day TTL)."""
+    return f"{daily_requests_key(user_id, now)}:tokens"
