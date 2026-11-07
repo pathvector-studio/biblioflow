@@ -1,6 +1,6 @@
 # Phase 3d: アプリ内チャット・矩形選択の Vision 解説（バックエンド）
 
-> 状態: **案（未承認）**。`specs/phase3.md` の R11〜R13 を具体化する。画面は Phase 4b。
+> 状態: **承認済み（2026-11-07）**。「決定事項」の 6 問はすべて推奨 (a)。`specs/phase3.md` の R11〜R13 を具体化する。画面は Phase 4b。
 
 ## 目的
 BiblioFlow 自身が LLM を呼び、(1) 1 本の論文についての対話、(2) ライブラリ横断の質問、(3) PDF 上の矩形（図・数式・表）の解説、を API として提供する。回答の根拠はチャンク ID と座標に対応づけて返し、フロントが該当ページへジャンプ・ハイライトできるようにする。
@@ -21,13 +21,13 @@ BiblioFlow 自身が LLM を呼び、(1) 1 本の論文についての対話、(
 - 注釈 `kind=area` の `position` は JSONB（64 KB まで）。右ペインのタブは `components/paper/paper-view.tsx`（notes / bibliography / annotations）。
 - 最新の migration は `0006_chunk_embedding_model.py`（次は 0007）。
 
-## 決定（案。「決めてほしいこと」に関わる点は推奨案で書く）
+## 決定
 
 ### LLM 層 `app/services/llm/`
 - **LiteLLM SDK 本体のみ**（`litellm`。`[proxy]` と `litellm-enterprise` は不可。CI の `check-licenses.py` で確認）。呼び出しは `litellm.acompletion` を `LLMClient` の背後に隔離し、API 層は `LLMClient` だけを知る（embedding の `get_embedder()` と同じ形: `llm.get_client()` は無効なら `None`）。
 - 設定（`Settings`）:
   - `LLM_PROVIDER=none|anthropic|openai|gemini|ollama|openai_compatible`（**既定 `none`**）。`none` のとき chat / explain-region は **503 `llm_disabled`**。
-  - `LLM_MODEL`（チャット用。例 `claude-sonnet-4-5`）、`VISION_MODEL`（空なら `LLM_MODEL` が vision 対応とみなす）。LiteLLM のモデル文字列は provider から組み立てる（`anthropic/<model>` 等）。
+  - `LLM_MODEL`（チャット用。例 `claude-sonnet-5-5`）、`VISION_MODEL`（空なら `LLM_MODEL` が vision 対応とみなす）。LiteLLM のモデル文字列は provider から組み立てる（`anthropic/<model>` 等）。
   - `LLM_API_KEY: SecretStr | None`（必要なプロバイダーのみ。`ollama` とキー不要の `openai_compatible` は空でよい）。`LLM_API_BASE`（ollama / openai_compatible で必須。**管理者設定なので `safe_client` は通さない**。embedding と同じ扱いで、LAN の Ollama に届く必要がある）。
   - 上限: `LLM_MAX_OUTPUT_TOKENS`（既定 1024）、`LLM_MAX_CONTEXT_CHUNKS`（既定 8）、`LLM_TIMEOUT`（既定 60 秒、最初のトークンまで 30 秒）、`LLM_DAILY_REQUESTS_PER_USER`（既定 200）、`LLM_DAILY_TOKENS_PER_USER`（既定 200000）。
   - 起動時検証: provider が `none` 以外でモデル未指定、`ollama`/`openai_compatible` で `LLM_API_BASE` 未指定はエラー。
@@ -109,7 +109,7 @@ BiblioFlow 自身が LLM を呼び、(1) 1 本の論文についての対話、(
 
 その後 Phase 4b（AI タブ、引用バッジ、矩形選択の切り抜き UI）。
 
-## 決めてほしいこと
+## 決定事項（2026-11-07、ユーザー承認。すべて (a)）
 1. **動作確認するプロバイダーの範囲**: (a) 3d では Claude と Ollama だけ確認し、他は LiteLLM 任せで「未検証」と明記 / (b) Claude・OpenAI・Gemini・Ollama を全部確認してから出す。推奨 (a)（手元で確認できる範囲を正直に書ける。キー・費用の手間も少ない）。
 2. **会話の保存**: (a) 本人だけが読め、90 日で削除 / (b) 保存しない（ブラウザのメモリだけ）/ (c) 研究室で共有可能。推奨 (a)（引用つきの履歴は学習に便利で、共有はプライバシーの判断が別に要る）。
 3. **Vision の切り抜き**: (a) クライアント側 canvas（サーバーは検証・再エンコードのみ）/ (b) サーバーで PDF を描画（pdfium 系の追加が必要）。推奨 (a)（(b) は依存・ライセンス・隔離の負担が大きい）。
