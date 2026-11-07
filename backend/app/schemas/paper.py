@@ -36,6 +36,7 @@ class PaperDetail(PaperLight):
     notes_md: str
     collection_ids: list[uuid.UUID]
     file_size: int | None
+    file_sha256: str | None = None
     page_count: int | None
     index_status: IndexStatus
     created_at: datetime

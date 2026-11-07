@@ -4,6 +4,7 @@ from sqlalchemy import func, select, text
 
 from app.db.session import get_sessionmaker
 from app.models.chunk import PaperChunk
+from app.models.paper import Paper
 from tests.helpers import join_workspace, pdf_files
 from tests.pdfgen import make_pdf_pages
 
@@ -248,3 +249,18 @@ async def test_reindex_cli(login, resolver, storage, enqueued, monkeypatch):
     runner = CliRunner()  # argument validation happens before any event loop starts
     assert runner.invoke(cli.cli, ["reindex"]).exit_code == 2
     assert runner.invoke(cli.cli, ["reindex", "--all", "--paper", pid]).exit_code == 2
+
+
+async def test_chunks_and_detail_file_sha256(login, resolver):
+    _, a = await login("a@example.com")
+    pid = await make_paper(a, "P", [(1, "A", "one")])
+    assert (await a.get(f"{API}/papers/{pid}/chunks")).json()["file_sha256"] is None
+    assert (await a.get(f"{API}/papers/{pid}")).json()["file_sha256"] is None
+    assert "file_sha256" not in (await a.get(f"{API}/papers/light")).json()[0]
+    sha = "ab" * 32
+    async with get_sessionmaker()() as db:
+        p = await db.get(Paper, uuid.UUID(pid))
+        p.has_pdf, p.file_sha256 = True, sha
+        await db.commit()
+    assert (await a.get(f"{API}/papers/{pid}/chunks")).json()["file_sha256"] == sha
+    assert (await a.get(f"{API}/papers/{pid}")).json()["file_sha256"] == sha

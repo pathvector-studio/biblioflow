@@ -139,6 +139,7 @@ def build_server(client: BiblioflowClient) -> FastMCP:
             f"authors: {one_line(_authors(p.get('authors', [])), 400)}",
             f"year: {p.get('year') or '-'}  venue: {one_line(p.get('venue') or '-', 200)}",
             f"identifier: {p['identifier']}  citekey: {p.get('citekey') or '-'}  status: {p['status']}",
+            f"file_sha256: {p.get('file_sha256') or '-'}",
             f"has_pdf: {p['has_pdf']}  pages: {p.get('page_count') or '-'}  index_status: {p['index_status']}",
             f"Fields below are wrapped in <paper_context>.{DATA_NOTE}",
         ]
@@ -160,7 +161,8 @@ def build_server(client: BiblioflowClient) -> FastMCP:
             raise ApiError(f"Page range must satisfy 1 <= start_page <= end_page and at most {MAX_PAGES} pages.")
         d = await client.get(f"/papers/{pid}/chunks", page_from=start_page, page_to=last)
         head = (
-            f"pages {d['page_from']}-{d['page_to']} of {d.get('page_count') or '?'}; index_status={d['index_status']}."
+            f"sha256={d.get('file_sha256') or '-'} pages {d['page_from']}-{d['page_to']} of "
+            f"{d.get('page_count') or '?'}; index_status={d['index_status']}."
         )
         if not d["chunks"]:
             note = (

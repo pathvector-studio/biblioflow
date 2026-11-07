@@ -6,6 +6,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Added
+- `read_pages` and `get_paper` (MCP) and the chunks and paper detail APIs return the PDF's SHA-256, so citations can be pinned to the exact file.
+
 ## [0.2.0] - 2026-11-07
 
 ### Added
