@@ -7,7 +7,7 @@ secrets (tokens, API keys, private keys), and checks commit author/committer e-m
 
   scripts/check-private-info.py                 # all tracked files (CI)
   scripts/check-private-info.py --staged        # staged files (pre-commit hook)
-  scripts/check-private-info.py --commits A..B  # also commit e-mails and messages in A..B (CI)
+  scripts/check-private-info.py --commits A..B  # also commit e-mails and messages in A..B (CI; HEAD = all history)
   scripts/check-private-info.py --author        # the e-mail the next commit will use (pre-commit hook)
   scripts/check-private-info.py --message FILE  # a commit message (commit-msg hook)
 """
@@ -38,6 +38,9 @@ EMAIL_ALLOWED = re.compile(
 PUBLIC_HOSTS = {"biblioflow.pathvector.dev"}
 MDNS_ALLOWED = {"dev-host.local"}
 HOME_PLACEHOLDERS = {"you", "me", "user", "username", "runner", "example", "<you>"}
+# Commits already on the public main whose message has a known, accepted finding. History is not rewritten
+# (2026-11-07, the user's decision); the dev hostname named there is behind Cloudflare Access.
+KNOWN_MESSAGES = {"bad3aa1bd4159f7a4ee7507e9814c7d7e83129a1": "dev tunnel hostname, behind Cloudflare Access"}
 
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 IPV4 = re.compile(r"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})(?![\d.]|/\d)")
@@ -131,7 +134,8 @@ def check_commits(rng: str) -> list[str]:
             continue
         sha, ae, ce, body = rec.split("\x1f", 3)
         out += check_email(ae, f"commit {sha[:8]} author") + check_email(ce, f"commit {sha[:8]} committer")
-        out += problems_in(body, f"commit {sha[:8]} message")
+        if sha not in KNOWN_MESSAGES:
+            out += problems_in(body, f"commit {sha[:8]} message")
     return out
 
 
