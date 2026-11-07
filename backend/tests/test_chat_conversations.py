@@ -83,8 +83,9 @@ async def test_list_get_delete_own(login):
     assert (await c.delete(f"{URL}/{conv_paper}")).status_code == 204
     assert (await c.get(f"{URL}/{conv_paper}")).status_code == 404
     assert (await c.delete(f"{URL}/{conv_paper}")).status_code == 404
-    async with get_sessionmaker()() as db:  # messages went with it
-        assert (await db.execute(select(func.count()).select_from(ChatMessage))).scalar_one() == 0
+    async with get_sessionmaker()() as db:  # its messages went with it (conv_lib keeps its own)
+        left = select(func.count()).select_from(ChatMessage).where(ChatMessage.conversation_id == uuid.UUID(conv_paper))
+        assert (await db.execute(left)).scalar_one() == 0
     assert [i["id"] for i in (await c.get(URL)).json()] == [conv_lib]
 
 

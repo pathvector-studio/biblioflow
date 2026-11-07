@@ -5,7 +5,7 @@
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| 3d（チャット・Vision 解説）: `specs/phase3d.md` の実装計画 1〜6 を 1 PR ずつ | biblioflow | 親 + 子 | 1（LLM 層と設定）: PR・CI 待ち。次は 2（会話の保存） |
+| 3d（チャット・Vision 解説）: `specs/phase3d.md` の実装計画 1〜6 を 1 PR ずつ | biblioflow | 親 + 子 | 1 完了（#27）。2（会話の保存）: PR・CI 待ち。次は 3（単一論文のチャット） |
 
 ## 承認待ち
 - なし
@@ -17,6 +17,7 @@
 - なし（Remote Control 経由では子セッションを起動できないので、子は subagent を既定にした）
 
 ## 直近の完了
+- 3d-1: LLM 層と設定（#27）
 - 3d の spec（#26）
 - PDF の SHA-256 を chunks・詳細 API と MCP で返す（#25）
 - 開発体制の試行 1 回目（biblioflow #23・biblioflow-web #4）。ユーザーの中継 0 回
