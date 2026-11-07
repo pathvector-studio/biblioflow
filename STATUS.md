@@ -13,6 +13,7 @@
 
 ## 予定
 - MCP `read_pages` とチャンク API で `file_sha256` を返す（引用を PDF のバージョンに結び付けるため。外部からの提案を受けて次のリリースで入れると回答する）
+- biblioflow-mcp を外部の MCP カタログ（HOL Guard）に登録する: v1.0 になってから（PyPI に出すのが前提。それまでは見送りと回答する）
 
 ## 詰まり
 - Remote Control 経由のターンでは子セッションを起動できない。そのときは subagent で代行する
