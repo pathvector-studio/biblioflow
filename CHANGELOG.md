@@ -9,6 +9,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ### Added
 - `read_pages` and `get_paper` (MCP) and the chunks and paper detail APIs return the PDF's SHA-256, so citations can be pinned to the exact file.
 - AI chat settings (`LLM_PROVIDER`, default `none` = off; `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, daily limits) and `GET /api/v1/chat/status`. Nothing is sent to a model until you choose a provider; the chat itself comes in a later release.
+- Stored AI conversations: `GET /api/v1/chat/conversations`, `GET /api/v1/chat/conversations/{id}` and `DELETE`. Only the author can read a conversation; it is deleted after `CHAT_RETENTION_DAYS` (default 90, `0` keeps it forever).
 
 ## [0.2.0] - 2026-11-07
 
