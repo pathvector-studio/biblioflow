@@ -173,3 +173,67 @@ export interface AnnotationDraft {
   comment: string;
   color: string;
 }
+
+// ---- AI chat (backend/app/schemas/chat.py) ----
+export interface ChatStatus {
+  enabled: boolean;
+  provider: string;
+  model: string | null;
+  vision_available: boolean;
+  daily_requests_remaining: number | null;
+}
+
+/** PDF のポイント単位、原点は左下（y1 < y2）。width / height はそのページの大きさ */
+export interface PdfBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width: number;
+  height: number;
+}
+
+export interface Citation {
+  ref: number;
+  chunk_id: string;
+  paper_id: string;
+  page_number: number;
+  section: string | null;
+  bboxes: PdfBox[];
+  label: string;
+}
+
+export interface ChatSource {
+  ref: number;
+  chunk_id: string;
+  paper_id: string;
+  title: string;
+  page_number: number;
+  section: string | null;
+  bboxes: PdfBox[];
+}
+
+export type ChatMessageStatus = "complete" | "error" | "cancelled";
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: Citation[];
+  meta: Record<string, unknown> | null;
+  status: ChatMessageStatus;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  workspace_id: string;
+  paper_id: string | null;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationDetail extends Conversation {
+  messages: ChatMessage[];
+}
