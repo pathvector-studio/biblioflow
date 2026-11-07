@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -77,6 +78,20 @@ jobs:
       - run: uv sync --frozen
       - run: uv run ruff check .
       - run: uv run pytest -q
+
+  # VERSION is the one place the version is set (scripts/version.py); a release tag must be v$(cat VERSION).
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Every copy matches VERSION
+        if: github.ref_type != 'tag'
+        run: python3 scripts/version.py check
+      - name: The tag matches VERSION
+        if: github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python3 scripts/version.py check --tag "$TAG"
 
   # No local-environment details (LAN addresses, hostnames, home paths, personal e-mails) in the public repository.
   private-info:
