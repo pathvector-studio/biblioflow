@@ -25,6 +25,7 @@ dependencies = [
     "onnxruntime>=1.20",
     "tokenizers>=0.20",
     "numpy>=2",
+    "litellm>=1.108.2",
 ]
 
 [dependency-groups]
