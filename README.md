@@ -305,6 +305,47 @@ claude mcp add biblioflow \
 
 Behind Cloudflare Access, also pass the service token: `-e CF_ACCESS_CLIENT_ID=... -e CF_ACCESS_CLIENT_SECRET=...`. To develop it: `uv run --directory mcp pytest`.
 
+## AI chat and figure explanations
+
+BiblioFlow can answer questions about a paper or the whole library, and explain a figure, equation or table you select on a PDF page, with a model you choose. It is **off by default** (`LLM_PROVIDER=none`): nothing is sent anywhere, and the chat endpoints answer `503 llm_disabled`. The installer leaves it off, because most providers need an API key.
+
+- `POST /api/v1/chat` with `paper_id`: a question about one paper. Without `paper_id`: a question across every workspace you belong to (or one, with `workspace_id`). The answer streams as server-sent events (`meta`, `delta`, `done`, or `error`). Citations are numbered markers such as `[1]` that the server checks against the passages it actually sent; each comes back with the paper, page and position in the PDF and a label such as `p.4, Sec 3.2`.
+- `POST /api/v1/papers/{id}/explain-region`: a PNG or JPEG cut from a page (up to 1.5 MiB) and the rectangle it came from. The server checks the image, scales it to at most 2048 px, re-encodes it as PNG (dropping metadata) and sends it with the text of that page. It needs a vision-capable model.
+- `GET /api/v1/chat/status`: whether chat is on, the provider and model, whether images are supported and how many requests you have left today. `GET /api/v1/chat/conversations` lists your conversations; only you can read them, and they are deleted `CHAT_RETENTION_DAYS` (default 90) after the last message. Images are never stored.
+- API tokens need the `use:ai` scope for chat and explanations, so a read-only token that leaks cannot spend your LLM budget.
+
+### Providers
+
+Set these in `.env` and run `docker compose up -d`:
+
+| `LLM_PROVIDER` | `LLM_MODEL` (example) | Also needs |
+|---|---|---|
+| `anthropic` | `claude-sonnet-5-5` | `LLM_API_KEY` |
+| `openai` | `gpt-4o-mini` | `LLM_API_KEY` |
+| `gemini` | `gemini-2.5-flash` | `LLM_API_KEY` |
+| `ollama` | `llama3.2` (a vision model such as `llama3.2-vision` for explanations) | `LLM_API_BASE`, e.g. `http://host.docker.internal:11434` |
+| `openai_compatible` | the server's model name (vLLM, LM Studio, ...) | `LLM_API_BASE`, and `LLM_API_KEY` if the server wants one |
+
+`VISION_MODEL` sets a separate model for explanations; when it is empty, `LLM_MODEL` is used if LiteLLM says it accepts images. Calls go through the [LiteLLM](https://github.com/BerriAI/litellm) SDK (not its proxy). LiteLLM's telemetry and callbacks are turned off, and provider errors are reduced to a fixed message so that a key or URL never ends up in a response or a log.
+
+### What is sent to the provider
+
+| Sent | Not sent |
+|---|---|
+| Your question | The PDF file |
+| Up to `LLM_MAX_CONTEXT_CHUNKS` (default 8) passages found by search, each cut to 1,500 characters | Anything from workspaces you cannot access |
+| The title, authors and year of the papers those passages come from | Your e-mail address, user ID or API tokens |
+| The last 6 exchanges of the conversation (at most 8,000 characters) | Other users' conversations |
+| For explanations: the selected image and the text of that page | |
+
+With `ollama` (or an OpenAI-compatible server you run yourself) nothing leaves your network. Logs record only counts, the model, token numbers and timings, never the question, the answer, the passages or the image.
+
+Text from papers is passed inside `<paper_context>` tags, and the system prompt tells the model to treat it as data, never as instructions. A paper with hidden text such as "ignore the previous instructions" can at worst produce a wrong answer: the model has no tools, the server drops citations that point at nothing, and Markdown images (a way to leak data through a URL) are removed from answers.
+
+### Limits
+
+Per user: 10 chat requests and 5 explanations per minute (and 30 per minute per IP address), at most 2 answers streaming at once, and per day `LLM_DAILY_REQUESTS_PER_USER` requests (default 200) and `LLM_DAILY_TOKENS_PER_USER` tokens (default 200,000). Each answer is capped at `LLM_MAX_OUTPUT_TOKENS` (default 1,024). If search finds nothing, the model is not called at all.
+
 ## Tests
 
 Integration tests run against the `biblioflow_test` database and need an image built with `INSTALL_DEV=true`.
@@ -324,14 +365,12 @@ docker compose run --rm biblioflow-api pytest
 
 Not implemented yet, roughly in this order (details in `specs/phase3.md` and `specs/roadmap.md`):
 
-- **LLM providers**: OpenAI, Anthropic, Gemini or a local model (Ollama, vLLM) through LiteLLM, with your own API key. The `LLM_*` settings in `.env.example` are placeholders until then.
-- **AI chat about a paper**, with citation badges such as `[p.4, Sec 3.2]` that jump to the page and position in the PDF.
-- **Figure and equation explanations**: drag-select an area of the PDF and ask a Vision LLM about it. (Area selection itself already works, as an annotation.)
+- **AI screens**: an AI tab next to the PDF with citation badges such as `[p.4, Sec 3.2]` that jump to the position in the PDF, and drag-selecting an area to ask about it. The [API](#ai-chat-and-figure-explanations) is ready.
 - **Comparing papers**: questions across several papers and comparison tables of methods.
 - **Browser extension** to save a paper and its PDF from publisher pages in one click.
 - **Export and import**: BibTeX / RIS / CSL JSON for collections and tags, automatic export, notes and annotations as Markdown, and migration from Zotero, Mendeley, BibTeX and RIS.
 
-Until the in-app AI lands, the [MCP server](#search-embeddings-and-mcp) lets an MCP client search and read your library.
+Until the AI screens land, use the [chat API](#ai-chat-and-figure-explanations), or the [MCP server](#search-embeddings-and-mcp) to let an MCP client search and read your library.
 
 ## Sponsoring
 
