@@ -3,7 +3,7 @@
 
 Permission rules match the start of each subcommand, so `git -C . push`, `sh -c '...'` or `env git push` slip past
 `Bash(git push*)`. This hook looks at the whole command text and turns the operations that need the user's approval
-into an "ask", and reads of secret files into a "deny". It is a second layer, not a security boundary.
+(outside an approved plan, or never plan-level: tags, deploys, secrets, new deps) into an "ask", and reads of secret files into a "deny". It is a second layer, not a security boundary.
 """
 
 import json
@@ -14,8 +14,6 @@ import sys
 GIT = r"\bgit(?:\s+(?:-[Cc]\s+\S+|--\S+))*\s+"
 
 ASK = [
-    (GIT + r"push\b", "git push"),
-    (r"\bgh\s+pr\s+(create|merge|close|ready)\b", "gh pr create/merge"),
     (r"\bgh\s+(release|workflow\s+run|repo\s+(edit|delete|create))\b", "gh release / workflow run / repo change"),
     (r"\bgh\s+api\b.*(-X|--method)\s*(POST|PUT|PATCH|DELETE)", "gh api write"),
     (GIT + r"tag\s+(?!-l\b|--list\b)\S", "git tag"),
@@ -30,8 +28,9 @@ ASK = [
 
 # Reading the secret files themselves (compose and with-env.sh pass values without printing them).
 DENY = [
+    (GIT + r"push\b[^|;&]*(--force|\s-f\b|\s\+\S)", "force push (main is protected; update branches with git merge)"),
     (r"\b(cat|less|more|head|tail|bat|grep|rg|awk|sed|cp|base64|xxd|strings)\b[^|;&]*(\.env\b(?!\.example)|\.config/biblioflow)",
-     "reading a secret file"),
+     "reading a secret file (print key names only)"),
 ]
 
 
@@ -42,7 +41,7 @@ def main() -> int:
     cmd = data.get("tool_input", {}).get("command", "")
     for pattern, label in DENY:
         if re.search(pattern, cmd):
-            return decide("deny", f"guard: {label} is not allowed; print key names only (see AGENTS.md 6.2)")
+            return decide("deny", f"guard: {label} is not allowed (see specs/agent-workflow.md and AGENTS.md 6.2)")
     for pattern, label in ASK:
         if re.search(pattern, cmd):
             return decide("ask", f"guard: {label} needs the user's approval")
