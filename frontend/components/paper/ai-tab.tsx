@@ -59,6 +59,8 @@ export function AiTab({
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: listKey });
       void queryClient.invalidateQueries({ queryKey: ["chat-status"] });
+      // 応答の開始前に停止すると、サーバーが会話を保存するのはこの後（最初のトークンが来たとき）になる
+      window.setTimeout(() => void queryClient.invalidateQueries({ queryKey: listKey }), 5000);
     },
   });
 
@@ -105,7 +107,15 @@ export function AiTab({
       {enabled && (
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
-            <Button size="sm" variant="ghost" aria-expanded={listOpen} onClick={() => setListOpen((v) => !v)}>
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-expanded={listOpen}
+              onClick={() => {
+                if (!listOpen) void conversations.refetch();
+                setListOpen((v) => !v);
+              }}
+            >
               {t.ai.conversations}
               {list.length > 0 && ` (${list.length})`}
               <ChevronDown className={cn("h-4 w-4 transition-transform", listOpen && "rotate-180")} />
