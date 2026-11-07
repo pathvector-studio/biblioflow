@@ -11,7 +11,7 @@
 | [uv](https://docs.astral.sh/uv/) | `mcp/` のテスト、backend をコンテナの外で触るとき | `brew install uv` |
 | Node.js 22 と npm | フロントの lint / typecheck / build | `brew install node@22` |
 | `gh` | PR とマージ | `brew install gh`、`gh auth login` |
-| 1Password CLI（任意） | 外部トークンを `op://` 参照で渡す | `brew install --cask 1password-cli`、アプリの「設定 > 開発者 > CLI と連携」 |
+| 1Password のアプリと CLI（任意） | 外部トークンを `op://` 参照で渡す | `brew install --cask 1password 1password-cli`、アプリの「設定 > 開発者 > 1Password CLI と連携」（CLI だけではアプリは入らない） |
 
 **リポジトリの外に置くもの**（`scripts/dev-setup.sh` が作る。git には入らない）:
 
@@ -19,7 +19,8 @@
 ~/.config/biblioflow/            (700)
   dev.env            (600)  .env の実体。DB・Valkey・JWT の秘密、ポート、公開範囲、許可するオリジン
   AGENTS.local.md           このマシンのメモ（コーディングエージェント向け。秘密は書かない）
-  mcp.env            (600)  biblioflow-mcp の接続先、PAT、Access のサービストークン
+  mcp.env.tpl        (600)  biblioflow-mcp の設定の正本（1Password の参照だけ）
+  mcp.env            (600)  mcp.env.tpl から op inject で書き出した実値（MCP が読む）
   cloudflare.env     (600)  CLOUDFLARE_API_TOKEN（Cloudflare のスクリプトを動かすときだけ渡す）
 ```
 
@@ -75,24 +76,35 @@ python3 scripts/check-private-info.py
 
 ## 外部トークン（1Password）
 
-マシンごとに作り直せない秘密（Cloudflare の API トークン、Access のサービストークン、PAT、LLM のキー）は 1Password に保存して、ファイルには参照だけを書く:
+マシンごとに作り直せない秘密（Cloudflare の API トークン、Access のサービストークン、PAT、LLM のキー）は 1Password を正本にする。ファイルには参照（`op://<vault>/<item>/<field>`）だけを書いた `.tpl` を置く。
+
+1Password の CLI 連携は、ターミナルのセッションごとに承認を求め、しばらく使わないと切れる。リモート（SSH・画面共有）からは承認できないこともある。そのため、**常に使うもの（MCP）は `op inject` で一度だけ平文の 600 ファイルに書き出し**、たまに使うもの（Cloudflare のスクリプト）は `op run` でその都度読む。
 
 ```bash
-# ~/.config/biblioflow/cloudflare.env
+# ~/.config/biblioflow/mcp.env.tpl（参照だけ。秘密はない）
+# 同じマシンの BiblioFlow にはループバックのゲートウェイでつなぐ（Access を通らないので PAT だけでよい）
+BIBLIOFLOW_URL=http://127.0.0.1:3000
+BIBLIOFLOW_TOKEN=op://<vault>/biblioflow-pat-prod/credential
+# 外から Cloudflare Access 越しに使うマシンでは、URL を https://papers.example.com にして次の 2 行も足す
+# CF_ACCESS_CLIENT_ID=op://<vault>/biblioflow-access-prod/username
+# CF_ACCESS_CLIENT_SECRET=op://<vault>/biblioflow-access-prod/credential
+
+# ~/.config/biblioflow/cloudflare.env（参照のまま使う）
 CLOUDFLARE_API_TOKEN=op://<vault>/biblioflow-cloudflare-api/credential
-# ~/.config/biblioflow/mcp.env
-BIBLIOFLOW_URL=https://papers.example.com
-BIBLIOFLOW_TOKEN=op://<vault>/biblioflow-pat/credential
-CF_ACCESS_CLIENT_ID=op://<vault>/biblioflow-access-service-token/username
-CF_ACCESS_CLIENT_SECRET=op://<vault>/biblioflow-access-service-token/credential
 ```
-
-`scripts/with-env.sh <ファイル> -- <コマンド>` で渡す。ファイルに `op://` があれば `op run` で解決し（出力に値が出ると伏せ字になる）、なければ平文の `KEY=value` として読む。権限が 600 でないファイルは拒否する。
 
 ```bash
+# 書き出す（承認は 1 回。PAT を作り直したらもう一度）
+op inject -f -i ~/.config/biblioflow/mcp.env.tpl -o ~/.config/biblioflow/mcp.env && chmod 600 ~/.config/biblioflow/mcp.env
+# MCP を登録する（設定ファイルに残るのはパスだけ。-s user で全プロジェクトから使える）
+claude mcp add -s user biblioflow -- "$PWD/scripts/with-env.sh" ~/.config/biblioflow/mcp.env -- uv run --quiet --directory "$PWD/mcp" biblioflow-mcp
+# Cloudflare のスクリプト（op run で都度読む）
 scripts/with-env.sh ~/.config/biblioflow/cloudflare.env -- scripts/cloudflare-access.sh papers.example.com you@example.com
-claude mcp add biblioflow -- "$PWD/scripts/with-env.sh" ~/.config/biblioflow/mcp.env -- uv run --directory "$PWD/mcp" biblioflow-mcp
 ```
+
+`scripts/with-env.sh <ファイル> -- <コマンド>` は、ファイルに `op://` があれば `op run` で解決し（出力に値が出ると伏せ字になる）、なければ平文の `KEY=value` として読む。権限が 600 でないファイルは拒否する。
+
+外から使うときは認証が二重になる。Cloudflare Access のサービストークン（ホストの入口。ホストごとに 1 つ）と、BiblioFlow の PAT（誰としてどの論文を見るか）の両方を送る。
 
 `claude mcp add -e BIBLIOFLOW_TOKEN=...` は、トークンを Claude Code の設定ファイルに平文で残すので使わない。
 
@@ -107,7 +119,7 @@ claude mcp add biblioflow -- "$PWD/scripts/with-env.sh" ~/.config/biblioflow/mcp
 ## 別のマシンで始めるとき
 
 1. clone して `scripts/dev-setup.sh`（秘密はそのマシンで新しく生成される。前のマシンの `dev.env` はコピーしない）。
-2. 1Password CLI を入れてサインインする。`mcp.env` と `cloudflare.env` に `op://` 参照を書く（上の例）。
+2. 1Password のアプリと CLI を入れ（`brew install --cask 1password 1password-cli`）、アプリの「設定 > 開発者 > 1Password CLI と連携」をオンにする。`mcp.env.tpl` と `cloudflare.env` に `op://` 参照を書き、`op inject` で `mcp.env` を書き出す（上の例）。
 3. `AGENTS.local.md` にそのマシンのこと（ポート、ほかのサービス、トンネルを動かすかどうか）を書く。
 4. メモリの小さいマシンでは `EMBEDDING_PROVIDER=none` のままにする（`local` は embedder だけで約 2 GB を使う）。
 
