@@ -180,6 +180,7 @@ export const ja = {
     tokenScopes: "スコープ",
     scopeRead: "読み取り (read:papers)",
     scopeWrite: "書き込み (write:papers)",
+    scopeAi: "AI チャット (use:ai)",
     tokenExpiry: "有効期限",
     days: "日",
     never: "無期限",

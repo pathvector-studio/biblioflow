@@ -21,7 +21,8 @@ PAT_PREFIX = "bf_pat_"
 PAT_DISPLAY_PREFIX_LEN = 12
 SCOPE_READ_PAPERS = "read:papers"
 SCOPE_WRITE_PAPERS = "write:papers"
-ALL_SCOPES = (SCOPE_READ_PAPERS, SCOPE_WRITE_PAPERS)
+SCOPE_USE_AI = "use:ai"  # chat / explain-region: costs LLM money, so a token needs it explicitly
+ALL_SCOPES = (SCOPE_READ_PAPERS, SCOPE_WRITE_PAPERS, SCOPE_USE_AI)
 MIN_PASSWORD_LEN = 12
 MAX_PASSWORD_LEN = 128
 

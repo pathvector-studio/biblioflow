@@ -182,6 +182,7 @@ export const en: Dict = {
     tokenScopes: "Scopes",
     scopeRead: "Read (read:papers)",
     scopeWrite: "Write (write:papers)",
+    scopeAi: "AI chat (use:ai)",
     tokenExpiry: "Expiry",
     days: "days",
     never: "Never",

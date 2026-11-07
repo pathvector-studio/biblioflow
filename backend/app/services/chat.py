@@ -6,10 +6,12 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.chat import ChatConversation, ChatMessage, ChatMessageStatus, ChatRole
+from app.services.chat_prompt import Source, clip, format_authors, retrieval_or_query
+from app.services.search import run_search
 
 TITLE_MAX = 80
 
@@ -42,11 +44,12 @@ async def append_message(
     model: str | None = None,
     usage: dict[str, Any] | None = None,
     status: ChatMessageStatus = ChatMessageStatus.complete,
+    id: uuid.UUID | None = None,
 ) -> ChatMessage:
     """Add a message and bump the conversation's ``updated_at`` (flushed, not committed)."""
     msg = ChatMessage(
-        conversation_id=conversation.id, role=role, content=content, citations=citations or [], meta=meta,
-        model=model, usage=usage, status=status,
+        id=id or uuid.uuid4(), conversation_id=conversation.id, role=role, content=content,
+        citations=citations or [], meta=meta, model=model, usage=usage, status=status,
     )
     db.add(msg)
     conversation.updated_at = func.now()
@@ -66,3 +69,53 @@ async def delete_expired_conversations(
         result = await db.execute(delete(ChatConversation).where(ChatConversation.updated_at < cutoff))
         await db.commit()
         return result.rowcount or 0
+
+
+async def load_history(db: AsyncSession, conversation_id: uuid.UUID) -> list[tuple[str, str]]:
+    """Finished (question, answer) pairs of a conversation, oldest first. A question whose answer failed or was
+    cancelled is left out."""
+    rows = (
+        await db.execute(
+            select(ChatMessage.role, ChatMessage.content, ChatMessage.status)
+            .where(ChatMessage.conversation_id == conversation_id)
+            .order_by(ChatMessage.created_at, ChatMessage.id)
+        )
+    ).all()
+    pairs: list[tuple[str, str]] = []
+    question: str | None = None
+    for role, content, status in rows:
+        if role == ChatRole.user:
+            question = content
+        elif question is not None and status == ChatMessageStatus.complete:
+            pairs.append((question, content))
+            question = None
+        else:
+            question = None
+    return pairs
+
+
+async def retrieve_sources(
+    db: AsyncSession, *, user_id: uuid.UUID, paper_id: uuid.UUID, message: str, limit: int
+) -> tuple[list[Source], bool]:
+    """Top ``limit`` chunks of one paper for a question (hybrid; keyword only when semantic search is down, which is
+    reported as ``degraded``). Every chunk is cut to ``CHUNK_CHARS``. The caller has checked access to the paper."""
+    q = " ".join(message.split())[:500]
+    if len(q) < 2:
+        return [], False
+    outcome = await run_search(db, user_id=user_id, q=q, mode="hybrid", limit=limit, paper_id=paper_id)
+    hits = outcome.hits
+    if not hits:  # a whole question seldom matches word for word: retry with any of its longer words
+        any_word = retrieval_or_query(q)
+        if any_word and any_word != q:
+            hits = (
+                await run_search(db, user_id=user_id, q=any_word, mode="keyword", limit=limit, paper_id=paper_id)
+            ).hits
+    sources = [
+        Source(
+            ref=i, chunk_id=str(h.chunk.id), paper_id=str(h.paper.id), title=h.paper.title,
+            authors=format_authors(h.paper.authors), page_number=h.chunk.page_number, section=h.chunk.section,
+            bboxes=h.chunk.bboxes, text=clip(h.chunk.text),
+        )
+        for i, h in enumerate(hits[:limit], start=1)
+    ]
+    return sources, outcome.degraded

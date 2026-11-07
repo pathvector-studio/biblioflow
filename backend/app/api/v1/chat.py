@@ -2,24 +2,44 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import Principal, accessible_workspace_ids, get_paper_for_user, get_principal, require_scopes
+from app.api.v1.auth import client_ip
 from app.core.config import get_settings
-from app.core.errors import not_found
+from app.core.errors import RateLimitExceeded, not_found
+from app.core.ratelimit import RateLimiter, enforce_rate_limit
 from app.core.redis import get_redis
-from app.core.security import SCOPE_READ_PAPERS, SCOPE_WRITE_PAPERS
+from app.core.security import SCOPE_READ_PAPERS, SCOPE_USE_AI, SCOPE_WRITE_PAPERS
 from app.db.session import get_db
-from app.models.chat import ChatConversation
-from app.schemas.chat import ChatMessageOut, ChatStatus, ConversationDetail, ConversationOut
+from app.models.chat import ChatConversation, ChatRole
+from app.schemas.chat import ChatMessageOut, ChatRequest, ChatStatus, ConversationDetail, ConversationOut
+from app.services import chat as chat_service
 from app.services import llm
+from app.services.chat_prompt import build_messages
+from app.services.chat_stream import (
+    ChatRun,
+    acquire_slot,
+    release_slot,
+    seconds_until_utc_midnight,
+    stream_chat,
+    tokens_used_today,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+logger = logging.getLogger("biblioflow.chat")
+
+CHAT_RATE_LIMIT = 10  # per user and minute
+CHAT_IP_RATE_LIMIT = 30  # per client IP and minute
+FIRST_EVENT_GRACE = 5.0  # seconds on top of LLM_FIRST_TOKEN_TIMEOUT before the first event counts as missing
 
 
 @router.get("/status", response_model=ChatStatus)
@@ -119,3 +139,98 @@ async def delete_conversation(
     await db.execute(delete(ChatConversation).where(ChatConversation.id == conv.id))
     await db.commit()
     return Response(status_code=204)
+
+
+# ---------------------------------------------------------------- POST /chat (SSE)
+def _daily_limit() -> HTTPException:
+    return HTTPException(
+        status_code=429, detail="daily_limit", headers={"Retry-After": str(seconds_until_utc_midnight())}
+    )
+
+
+@router.post("")
+async def chat(
+    body: ChatRequest,
+    request: Request,
+    principal: Principal = Depends(require_scopes(SCOPE_USE_AI)),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Ask one paper a question. Answers as ``text/event-stream``: ``meta``, ``delta``*, then ``done`` (or ``error``
+    when the model fails after the start). Failures before the start are ordinary HTTP errors."""
+    settings = get_settings()
+    client = llm.get_client()
+    if client is None:
+        raise HTTPException(status_code=503, detail="llm_disabled")
+    if body.paper_id is None:
+        raise HTTPException(status_code=422, detail="paper_id is required (library-wide chat is not available yet)")
+
+    redis = get_redis()
+    user_id = principal.user.id
+    await enforce_rate_limit(redis, "chat", (str(user_id),), CHAT_RATE_LIMIT)
+    await enforce_rate_limit(redis, "chat-ip", (client_ip(request),), CHAT_IP_RATE_LIMIT)
+
+    paper = await get_paper_for_user(db, body.paper_id, principal)
+    conversation: ChatConversation | None = None
+    if body.conversation_id is not None:
+        conversation = (
+            await db.execute(_own_conversations(principal).where(ChatConversation.id == body.conversation_id))
+        ).scalar_one_or_none()
+        if conversation is None:
+            raise not_found()
+        if conversation.paper_id != paper.id:
+            raise HTTPException(status_code=422, detail="conversation belongs to another paper")
+
+    # Daily budget: requests are counted by a fixed window (a day), tokens after each answer.
+    day = await RateLimiter(
+        redis, llm.daily_requests_key(user_id), settings.llm_daily_requests_per_user, 86400
+    ).hit()
+    if not day.allowed or await tokens_used_today(redis, user_id) >= settings.llm_daily_tokens_per_user:
+        raise _daily_limit()
+    if not await acquire_slot(redis, user_id):
+        raise RateLimitExceeded(5)
+
+    events = first = None
+    try:  # from here on the slot belongs to the stream; any early exit gives it back
+        history = await chat_service.load_history(db, conversation.id) if conversation else []
+        sources, degraded = await chat_service.retrieve_sources(
+            db, user_id=user_id, paper_id=paper.id, message=body.message, limit=settings.llm_max_context_chunks
+        )
+        prompt_chars = 0
+        if sources:
+            messages = build_messages(body.message, sources, history)
+            prompt_chars = sum(len(str(m["content"])) for m in messages)
+            events = client.stream(messages, max_tokens=settings.llm_max_output_tokens)
+            try:  # read the first event now, so a model that is down is a 502 and nothing is saved
+                first = await asyncio.wait_for(
+                    events.__anext__(), settings.llm_first_token_timeout + FIRST_EVENT_GRACE
+                )
+            except StopAsyncIteration:
+                first = None
+            except (llm.LLMError, TimeoutError) as exc:
+                logger.warning("chat: model unavailable before the start: %s", type(exc).__name__)
+                raise HTTPException(status_code=502, detail="llm_unavailable") from None
+        if conversation is None:
+            conversation = await chat_service.create_conversation(
+                db, user_id=user_id, workspace_id=paper.workspace_id, paper_id=paper.id, first_message=body.message
+            )
+        await chat_service.append_message(db, conversation, role=ChatRole.user, content=body.message)
+        await db.commit()
+        run = ChatRun(
+            conversation_id=conversation.id, message_id=uuid.uuid4(), user_id=user_id, paper_id=paper.id,
+            sources=sources, degraded=degraded, model=client.model_id if sources else None,
+            prompt_chars=prompt_chars, events=events, first=first,
+        )
+    except BaseException:
+        await release_slot(redis, user_id)
+        aclose = getattr(events, "aclose", None)
+        if aclose is not None:
+            try:
+                await aclose()
+            except Exception:  # best effort: the provider stream may already be gone
+                pass
+        raise
+    return StreamingResponse(
+        stream_chat(run, request),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )

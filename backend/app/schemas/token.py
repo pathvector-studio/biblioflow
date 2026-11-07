@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-Scope = Literal["read:papers", "write:papers"]
+Scope = Literal["read:papers", "write:papers", "use:ai"]
 
 
 class TokenCreate(BaseModel):
