@@ -11,8 +11,8 @@
 | トラック | 内容 | 状態 |
 |---|---|---|
 | A. Phase 3（AI） | `specs/phase3.md`。3c MCP（キーワード検索）→ 3a embedding（bge-m3 既定）+ 3b ハイブリッド検索 → 3d アプリ内チャット・矩形選択の Vision 解説 → Phase 4b の画面 | ✅ 完了（2026-11-08） |
-| B. ブラウザ拡張 | 出版社のページから 1 クリックで保存。ページの DOI / arXiv / PII（`citation_*` メタタグ等）を拾って既存の API（PAT + Access のサービストークン）に送る。PDF はブラウザのセッションで取得して upload に送る。ブラウザが開いている PDF をそのまま送る経路も作る | A と並行 |
-| C. エクスポート・インポート | BibTeX / RIS / CSL JSON の一括出力（コレクション・タグ・検索結果単位）と、自動更新される出力ファイル（Better BibTeX 相当）。Zotero（RDF / SQLite + storage）・Mendeley・BibTeX / RIS からの移行（添付 PDF・タグ・コレクション・ノートを含む） | A と並行 |
+| B. ブラウザ拡張 | 出版社のページから 1 クリックで保存。ページの DOI / arXiv / PII（`citation_*` メタタグ等）を拾って既存の API（PAT + Access のサービストークン）に送る。PDF はブラウザのセッションで取得して upload に送る。ブラウザが開いている PDF をそのまま送る経路も作る | ✅ 実装済み（2026-11-08、#42。`specs/browser-extension.md`。Firefox と実際の出版社のサイトは未確認） |
+| C. エクスポート・インポート | BibTeX / RIS / CSL JSON の一括出力（コレクション・タグ・検索結果単位）と、自動更新される出力ファイル（Better BibTeX 相当）。Zotero（RDF / SQLite + storage）・Mendeley・BibTeX / RIS からの移行（添付 PDF・タグ・コレクション・ノートを含む） | ✅ 完了（2026-11-09、#41・#43〜#45。`specs/export-import.md`。Zotero の SQLite は読まない） |
 | D. 残りの機能差 | 下の表の「中」「低」を順に | A〜C の後 |
 
 ## Zotero との機能差
