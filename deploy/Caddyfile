@@ -72,7 +72,8 @@
 	}
 
 	# Bibliography file import (4 MiB file; the multipart envelope needs a little more, same 5 MiB as app/main.py).
-	handle /api/v1/imports /api/v1/imports/preview {
+	@imports path /api/v1/imports /api/v1/imports/preview
+	handle @imports {
 		import body_limit 5
 		reverse_proxy biblioflow-api:8000 {
 			import upstream_headers

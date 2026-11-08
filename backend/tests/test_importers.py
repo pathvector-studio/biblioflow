@@ -111,7 +111,7 @@ def test_csljson_items():
     assert [(a.family, a.given) for a in d.authors] == [("LeCun", "Yann"), ("Bengio", "Yoshua"), ("Hinton", "Geoffrey")]
     assert d.tags == ["deep learning", "review"] and d.citekey is None  # a URL id is not a citekey
     b = by_title(r, "BERT")
-    assert b.arxiv_id == "1810.04805" and b.year == 2018 and b.citekey == "devlin2019bert"
+    assert (b.arxiv_id, b.year, b.citekey) == ("1810.04805", 2018, "devlin2019bert")
 
 
 def test_csljson_wrapped_in_object_and_invalid():
