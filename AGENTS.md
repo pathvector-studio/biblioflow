@@ -108,7 +108,7 @@
 
 ## 6. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-07（Phase 3d のバックエンド実装。全体の順番は `specs/roadmap.md`）
+> 最終更新: 2026-11-08（Phase 4b の AI 画面。全体の順番は `specs/roadmap.md`）
 
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
@@ -119,7 +119,7 @@
 | 公開形態（LAN / Tailscale / Cloudflare Tunnel） | ✅ 完了 | PR #4・#6（旧リポジトリ）。設計詳細は `specs/deploy-modes.md`。Cloudflare Tunnel + Access は実環境で検証済み（2026-11-04） |
 | 3. PDF解析・RAG・マルチモーダル | ✅ 3c（MCP・キーワード検索）、3a/3b（embedding・ハイブリッド検索）、3d（チャット・矩形選択の Vision 解説の API）を実装済み。実プロバイダーでの確認（手動）は未実施 | `specs/phase3.md`、`specs/phase3d.md` |
 | ロードマップ（ブラウザ拡張・エクスポート/インポート・Zotero との機能差） | 計画 | `specs/roadmap.md`。ブラウザ拡張とエクスポート/インポートは Phase 3 と並行 |
-| 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | **次に着手**（API は 3d で完成） | 右ペインに AI タブを追加する |
+| 4b. AI 画面（チャット・引用ジャンプ・矩形選択の AI 解説） | ✅ 完了（#36〜#38、Ollama でブラウザ確認） | `specs/phase4b.md` |
 
 ### 6.2 確定済みの設計判断（再検討しない）
 - 認証: **FastAPI 自前 JWT**（Cookie `bf_session`、HttpOnly/SameSite=Lax、ログアウトで Redis（Valkey）の jti denylist に登録）。NextAuth は使わない。
@@ -189,7 +189,7 @@ gh auth status                          # 切れていれば `gh auth login`
 ### 6.4 Phase 4 の要点（完了）
 - フロントは Cookie セッションで同一オリジンの `/api` を呼ぶ。本番はゲートウェイが `/api/*` を API に直接振り分ける（Next の `/api` リライトは `npm run dev` 用に残してある）。**`middleware.ts` を置かない**（Next のミドルウェアの body 上限で PDF アップロードが切れるため）。
 - i18n は自前辞書（`frontend/lib/i18n/{ja,en}.ts`）。`en` は `ja` の型に縛られ、未翻訳キーは `npm run typecheck` で落ちる。
-- PDF ビューアは `react-pdf-highlighter-extended`。右ペインのタブ（`components/paper/paper-view.tsx`）に Phase 4b で AI タブを足す。エリア注釈（kind `area`）が矩形選択 Vision 解説の入口。
+- PDF ビューアは `react-pdf-highlighter-extended`。右ペインのタブ（`components/paper/paper-view.tsx`）に AI タブ（`components/paper/ai-tab.tsx`）、上部のナビに横断の AI 画面（`/ai`、`components/ai/cross-chat.tsx`）。SSE は `lib/ai/stream.ts` の `fetch` で読む（`EventSource` は使わない）。引用の bbox は原点左下なので `lib/ai/geometry.ts` で反転する。別の論文への引用は `/papers/<id>?page=<n>&hl=<chunk_id>`。矩形選択の「AI で解説」は `lib/ai/crop.ts` で canvas から PNG を切り抜き、閲覧者にも出す（注釈は作らない）。
 - ローカル DB に QA 用ユーザー `qa-owner@` / `qa-viewer@biblioflow.example.com` と共有ワークスペース「QA Lab」がある（パスワードはリポジトリに書かない）。
 - ブラウザ確認は Playwright（scratchpad にインストール）で LAN アドレスを開いて行った。
 
