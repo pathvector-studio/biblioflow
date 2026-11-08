@@ -74,11 +74,7 @@ jobs:
           node-version: 22
       - run: node --test 'extension/test/*.test.js'
       - run: node extension/build.mjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: biblioflow-clipper
-          path: extension/dist/*.zip
-          if-no-files-found: error
+      - run: test -f extension/dist/biblioflow-clipper-chrome-$(cat VERSION).zip && test -f extension/dist/biblioflow-clipper-firefox-$(cat VERSION).zip
 
   mcp:
     runs-on: ubuntu-latest
