@@ -4,6 +4,7 @@ import { useI18n } from "@/lib/i18n";
 import { useWorkspace } from "@/lib/session";
 import { UploadZone } from "@/components/add/upload-zone";
 import { LookupPanel } from "@/components/add/lookup-panel";
+import { ImportPanel } from "@/components/add/import-panel";
 
 export default function AddPage() {
   const { t } = useI18n();
@@ -16,6 +17,7 @@ export default function AddPage() {
     <div className="mx-auto grid max-w-5xl gap-8 p-4 lg:grid-cols-2">
       <UploadZone />
       <LookupPanel />
+      <ImportPanel />
     </div>
   );
 }

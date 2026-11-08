@@ -7,6 +7,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ## [Unreleased]
 
 ### Added
+- Import references from a BibTeX, RIS (Mendeley Reference Manager included), CSL JSON or Zotero RDF file (up to 4 MiB) on the Add screen, or with `POST /api/v1/imports/preview` and `POST /api/v1/imports`: a preview of new, already-present and unreadable records, then wishlist papers with their tags, collections (Zotero nesting kept) and notes. Existing papers are never overwritten, and importing a file twice adds nothing. Nothing is fetched from the internet.
 - Export the library (or any filtered view: workspace, collection, tag, status, year, search) as BibTeX, RIS or CSL JSON from the library screen, or with `GET /api/v1/export?format=bibtex|ris|csljson` and a token with `read:papers`. BibTeX citekeys match the ones shown in the app and are unique within the file.
 - Browser extension (`extension/`, Chrome and Firefox): save the paper you are reading with one click. It uses your own browser session to fetch the PDF and sends it with its DOI / arXiv ID to your server with an API token; if the PDF is not available, the paper goes to your wishlist. It reads a page only when you press the button. See the README's "Browser extension" section.
 - `read_pages` and `get_paper` (MCP) and the chunks and paper detail APIs return the PDF's SHA-256, so citations can be pinned to the exact file.

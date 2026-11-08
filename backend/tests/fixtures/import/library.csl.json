@@ -1,0 +1,31 @@
+[
+  {
+    "id": "http://zotero.org/users/1/items/ABCD1234",
+    "type": "article-journal",
+    "title": "Deep learning",
+    "author": [
+      {"family": "LeCun", "given": "Yann"},
+      {"family": "Bengio", "given": "Yoshua"},
+      {"literal": "Geoffrey Hinton"}
+    ],
+    "container-title": "Nature",
+    "issued": {"date-parts": [[2015, 5]]},
+    "DOI": "10.1038/nature14539",
+    "abstract": "Deep learning allows computational models to learn representations of data.",
+    "keyword": "deep learning, review"
+  },
+  {
+    "id": "devlin2019bert",
+    "type": "paper-conference",
+    "title": "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding",
+    "author": [{"family": "Devlin", "given": "Jacob"}],
+    "issued": {"raw": "2018-10-11"},
+    "URL": "https://arxiv.org/abs/1810.04805v2"
+  },
+  {
+    "id": "untitled",
+    "type": "book",
+    "author": [{"family": "Nobody"}]
+  },
+  "not an object"
+]

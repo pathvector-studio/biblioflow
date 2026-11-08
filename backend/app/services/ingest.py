@@ -468,6 +468,57 @@ async def create_metadata_only(
     return created
 
 
+_BIBTEX_HEAD = re.compile(r"(@[A-Za-z]+\s*\{)[^,\s{}]*,")
+
+
+def align_bibtex_key(bibtex: str, citekey: str) -> str:
+    """Replace the citekey in the first entry head of ``bibtex`` (``@article{old,`` -> ``@article{new,``)."""
+    key = re.sub(r"[^A-Za-z0-9_:.\-]", "", citekey) or "paper"
+    return _BIBTEX_HEAD.sub(lambda m: f"{m.group(1)}{key},", bibtex, count=1)
+
+
+async def stage_wishlist_paper(
+    db: AsyncSession,
+    *,
+    workspace_id: uuid.UUID,
+    user_id: uuid.UUID,
+    meta: PaperMetadata,
+    citekey: str | None = None,
+    bibtex: str | None = None,
+    notes_md: str = "",
+) -> Paper:
+    """Add a wishlist paper (no PDF) and flush, without committing (file imports run many in one transaction).
+
+    ``citekey`` is used when given (the caller has checked it is free), otherwise one is generated; a citekey
+    collision with a concurrent request is retried with the next free key. An existing identifier raises
+    ``IntegrityError``.
+    """
+    created: Paper | None = None
+    attempts = 0
+
+    async def attempt() -> None:
+        nonlocal created, attempts
+        attempts += 1
+        key = citekey if (citekey and attempts == 1) else await unique_citekey(db, workspace_id, meta)
+        created = Paper(
+            id=uuid.uuid4(),
+            workspace_id=workspace_id,
+            created_by=user_id,
+            citekey=key,
+            bibtex=align_bibtex_key(bibtex, key) if bibtex else make_bibtex(meta, key),
+            status=PaperStatus.wishlist,
+            has_pdf=False,
+            notes_md=notes_md,
+            **_new_paper_fields(meta),
+        )
+        db.add(created)
+        await db.flush()
+
+    await _flush_retrying_citekey(db, attempt)
+    assert created is not None
+    return created
+
+
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9._ -]+")
 
 

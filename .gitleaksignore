@@ -1,0 +1,4 @@
+# False positives from commits that only exist on pull request branches (gitleaks scans --all).
+# Format: <commit>:<file>:<rule>:<line>
+# feat/c3-import: a citekey literal in a test assertion, rewritten in a later commit.
+f18ee0f119ff05dfe89e747139f7a5450474ebc2:backend/tests/test_importers.py:generic-api-key:114

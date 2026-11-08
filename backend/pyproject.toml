@@ -27,6 +27,7 @@ dependencies = [
     "numpy>=2",
     "litellm>=1.103.10,<1.104",  # 1.104–1.109 pin filelock<4, which has open CVEs (fixed in 4.2.1)
     "pillow>=11.0",
+    "bibtexparser>=1.4,<2",
 ]
 
 [dependency-groups]

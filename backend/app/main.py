@@ -18,7 +18,9 @@ from app.services.ingest import IngestError
 
 # Every route except the PDF upload takes JSON; notes (<= 500k chars) fit in 4 MiB.
 JSON_BODY_LIMIT = 4 * 1024 * 1024
+IMPORT_BODY_LIMIT = 5 * 1024 * 1024  # 4 MiB file + multipart envelope; same value in deploy/Caddyfile
 UPLOAD_PATH = "/api/v1/papers/upload"
+IMPORT_PATHS = ("/api/v1/imports", "/api/v1/imports/preview")  # bibliography file, see api/v1/imports.py
 
 
 @asynccontextmanager
@@ -46,7 +48,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         BodySizeLimitMiddleware,
         max_bytes=min(JSON_BODY_LIMIT, settings.max_upload_bytes),
-        path_limits={UPLOAD_PATH: settings.max_upload_bytes},
+        path_limits={UPLOAD_PATH: settings.max_upload_bytes, **dict.fromkeys(IMPORT_PATHS, IMPORT_BODY_LIMIT)},
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(
