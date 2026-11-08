@@ -4,13 +4,14 @@ from app.models.auto_export import AutoExport
 from app.models.chat import ChatConversation, ChatMessage, ChatMessageStatus, ChatRole
 from app.models.chunk import PaperChunk
 from app.models.collection import Collection, paper_collections
+from app.models.import_job import ImportJob
 from app.models.paper import IdentifierType, IndexStatus, Paper, PaperStatus
 from app.models.tag import Tag, paper_tags
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceInvitation, WorkspaceKind, WorkspaceMember, WorkspaceRole
 
 __all__ = [
-    "Annotation", "AnnotationKind", "ApiKey", "AutoExport", "ChatConversation", "ChatMessage", "ChatMessageStatus", "ChatRole", "Collection", "IdentifierType", "IndexStatus",
+    "Annotation", "AnnotationKind", "ApiKey", "AutoExport", "ChatConversation", "ChatMessage", "ChatMessageStatus", "ChatRole", "Collection", "IdentifierType", "ImportJob", "IndexStatus",
     "Paper", "PaperChunk", "PaperStatus", "Tag", "User", "Workspace", "WorkspaceInvitation",
     "WorkspaceKind", "WorkspaceMember", "WorkspaceRole", "paper_collections", "paper_tags",
 ]

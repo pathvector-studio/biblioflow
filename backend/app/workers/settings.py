@@ -9,11 +9,13 @@ from app.db.session import dispose_engine, get_engine
 from app.workers.tasks import (
     EMBED_MAX_TRIES,
     EMBED_TIMEOUT,
+    IMPORT_JOB_TIMEOUT,
     auto_export_sync,
     backfill_embeddings,
     embed_paper,
     process_paper,
     purge_old_conversations,
+    run_import_job,
     scan_watch_folder,
 )
 
@@ -48,7 +50,13 @@ def watch_cron_schedule(poll_seconds: int) -> dict[str, Any]:
 
 
 class WorkerSettings:
-    functions = [ping, process_paper, func(embed_paper, timeout=EMBED_TIMEOUT, max_tries=EMBED_MAX_TRIES, keep_result=0)]
+    functions = [
+        ping,
+        process_paper,
+        func(embed_paper, timeout=EMBED_TIMEOUT, max_tries=EMBED_MAX_TRIES, keep_result=0),
+        # One try: a half-done import is re-run by the user (it is idempotent), never silently by the queue.
+        func(run_import_job, timeout=IMPORT_JOB_TIMEOUT, max_tries=1, keep_result=0),
+    ]
     cron_jobs = [
         cron(scan_watch_folder, run_at_startup=True, unique=True, timeout=300, **watch_cron_schedule(get_settings().watch_poll_seconds)),
         # Every 10 minutes: embed what is missing once the embedder has its model (see backfill_embeddings_core).

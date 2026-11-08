@@ -449,3 +449,25 @@ async def auto_export_sync(ctx: dict[str, Any]) -> dict[str, int]:
 
     res = await sync_auto_exports(get_sessionmaker(), get_settings().export_dir)
     return {"written": len(res.written), "skipped": len(res.skipped), "failed": len(res.failed)}
+
+
+# ------------------------------------------------------------------ import from the server folder
+IMPORT_JOB_TIMEOUT = 6 * 3600
+
+
+async def run_import_job(ctx: dict[str, Any], job_id: str) -> str:
+    """Apply a bibliography file from ``IMPORT_DIR/<workspace slug>/`` and store the PDFs it points to."""
+    from app.services.import_job import run_import_job as run
+
+    settings = get_settings()
+    status = await run(
+        uuid.UUID(job_id),
+        sessionmaker=get_sessionmaker(),
+        import_dir=settings.import_dir,
+        library_root=settings.library_root,
+        max_bytes=settings.max_upload_bytes,
+        resolver=get_resolver(),
+        enqueue_pool=ctx["redis"],
+    )
+    logger.info("import job %s: %s", job_id, status)
+    return status

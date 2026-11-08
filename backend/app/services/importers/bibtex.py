@@ -135,6 +135,8 @@ def parse_file_field(value: str | None) -> list[str]:
         m = _FILE_MIME.match(part)
         if m:
             part = m.group("rest")
+        if part.startswith(":"):
+            part = part[1:]  # JabRef's empty description: ":file:///x/a.pdf:application/pdf"
         if not _DRIVE.match(part) and ":" in part and "://" not in part:
             part = part.split(":", 1)[1]  # "Full Text:files/1/a.pdf" -> path (description dropped)
         part = part.strip()

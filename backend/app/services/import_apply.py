@@ -50,6 +50,8 @@ class ItemResult:
     identifier: str | None = None
     matched_by: str | None = None  # "existing" | "file"
     reason: str | None = None
+    paper_id: uuid.UUID | None = None  # set by a real run (not a dry run) for records that were saved or matched
+    attachments: list[str] = field(default_factory=list)  # paths as written in the file (unvalidated)
 
 
 @dataclass
@@ -288,7 +290,7 @@ async def run_import(
         existing = known[hit] if hit is not None else None
         result = ItemResult(
             ref=item.ref, title=item.title, status="matched" if hit else "new", identifier=meta.identifier,
-            matched_by=("file" if hit in in_file else "existing") if hit else None,
+            matched_by=("file" if hit in in_file else "existing") if hit else None, attachments=item.attachments,
         )
         if item.attachments:
             out.with_attachments += 1
@@ -305,6 +307,8 @@ async def run_import(
                 result.reason = str(exc) if isinstance(exc, ValueError) else "could not be saved"
                 out.results.append(result)
                 continue
+        if ctx is not None:
+            result.paper_id = pid
         if not hit:
             in_file.update(keys)
             for k in keys:

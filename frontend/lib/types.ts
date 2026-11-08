@@ -275,6 +275,32 @@ export interface ImportItemResult {
   reason: string | null;
 }
 
+export interface ImportFolder {
+  slug: string;
+  exists: boolean;
+  files: { name: string; size: number; format: ImportSummary["format"] }[];
+}
+
+export interface ImportJob {
+  id: string;
+  workspace_id: string;
+  source: string;
+  status: "queued" | "running" | "done" | "failed";
+  total: number;
+  new: number;
+  matched: number;
+  unreadable: number;
+  with_attachments: number;
+  pdfs_processed: number;
+  pdfs_attached: number;
+  pdfs_failed: number;
+  problems: { ref: string; reason: string; stage: "record" | "pdf" }[];
+  error: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
 export interface ImportSummary {
   format: "bibtex" | "ris" | "csljson" | "zotero_rdf";
   dry_run: boolean;

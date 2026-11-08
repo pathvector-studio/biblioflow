@@ -7,9 +7,11 @@
 data/library/*
 data/watch/*
 data/exports/*
+data/import/*
 !data/library/.gitkeep
 !data/watch/.gitkeep
 !data/exports/.gitkeep
+!data/import/.gitkeep
 node_modules
 .next
 __pycache__
