@@ -1,5 +1,5 @@
 import type { Dict } from "@/lib/i18n/ja";
-import type { PaperDetail } from "@/lib/types";
+import type { ImportSummary, PaperDetail } from "@/lib/types";
 
 const BASE = "/api/v1";
 
@@ -117,6 +117,25 @@ export function uploadPdf(
     };
     xhr.send(form);
   });
+}
+
+/** 書誌ファイル（BibTeX / RIS / CSL JSON / Zotero RDF）の取り込み。`dryRun` ならプレビューだけで何も書かない */
+export async function importBibliography(file: File, workspaceId: string, dryRun: boolean): Promise<ImportSummary> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("workspace_id", workspaceId);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/imports${dryRun ? "/preview" : ""}`, { method: "POST", credentials: "same-origin", body: form });
+  } catch {
+    throw new ApiError(0, null);
+  }
+  const body: unknown = await res.json().catch(() => null);
+  if (!res.ok) {
+    if (res.status === 401) redirectToLogin();
+    throw new ApiError(res.status, detailOf(body));
+  }
+  return body as ImportSummary;
 }
 
 /** API エラーを画面に出す文言にする。`overrides` はステータス別に呼び出し側で差し替える */

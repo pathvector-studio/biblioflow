@@ -202,7 +202,7 @@ async def test_body_limit_per_path():
 
 async def test_app_json_limit_below_upload_limit(monkeypatch):
     from app.core.config import get_settings
-    from app.main import JSON_BODY_LIMIT, UPLOAD_PATH, create_app
+    from app.main import IMPORT_BODY_LIMIT, IMPORT_PATHS, JSON_BODY_LIMIT, UPLOAD_PATH, create_app
 
     monkeypatch.setenv("MAX_UPLOAD_MB", "50")
     get_settings.cache_clear()
@@ -211,7 +211,7 @@ async def test_app_json_limit_below_upload_limit(monkeypatch):
     finally:
         get_settings.cache_clear()
     assert mw.kwargs["max_bytes"] == JSON_BODY_LIMIT
-    assert mw.kwargs["path_limits"] == {UPLOAD_PATH: 50 * 1024 * 1024}
+    assert mw.kwargs["path_limits"] == {UPLOAD_PATH: 50 * 1024 * 1024, **dict.fromkeys(IMPORT_PATHS, IMPORT_BODY_LIMIT)}
 
 
 async def test_security_headers():

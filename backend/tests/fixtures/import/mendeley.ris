@@ -1,0 +1,42 @@
+TY  - JOUR
+AU  - Silver, David
+AU  - Huang, Aja
+AU  - Maddison, Chris J.
+T1  - Mastering the game of Go with deep neural networks and tree search
+JO  - Nature
+PY  - 2016///
+Y1  - 2016
+VL  - 529
+SP  - 484
+EP  - 489
+DO  - 10.1038/nature16961
+UR  - https://doi.org/10.1038/nature16961
+AB  - The game of Go has long been viewed as the most challenging of classic games
+for artificial intelligence.
+KW  - reinforcement learning
+KW  - games
+N1  - Seminal paper
+L1  - file:///home/example/Mendeley/silver.pdf
+ID  - silver2016
+ER  -
+
+TY  - GEN
+TI  - Adam: A Method for Stochastic Optimization
+AU  - Kingma, Diederik P.
+AU  - Ba, Jimmy
+PY  - 2014
+UR  - https://arxiv.org/abs/1412.6980
+KW  - optimization
+ER  -
+
+TY  - JOUR
+AU  - Title, Missing
+PY  - 2020
+ER  -
+
+TY  - CONF
+T1  - A Paper With No Identifiers at All
+A1  - Roe, Richard
+Y1  - 2019/05/01
+T2  - Workshop on Examples
+ER  -

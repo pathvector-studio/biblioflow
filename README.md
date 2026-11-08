@@ -185,6 +185,15 @@ Settings > Auto-export keeps a file up to date for LaTeX, Obsidian or any tool t
 
 Exports are regenerated from the database, so `scripts/backup.sh` does not copy `data/exports`; after a restore the worker rewrites the files within a minute. The directory is `EXPORT_DIR` (default `/data/exports`, mounted from `./data/exports`).
 
+### Importing references
+
+Add > "Import from a bibliography file" reads a BibTeX (`.bib`), RIS (`.ris`, including Mendeley Reference Manager exports), CSL JSON or Zotero RDF file of up to 4 MiB (the format is detected from the content) and adds the records to the current workspace as wishlist papers without a PDF. A preview shows how many records are new, match a paper you already have (same DOI, arXiv ID or identifier) and could not be read; nothing is saved until you confirm.
+
+- Tags come from `keywords` / `KW` / `dc:subject`, Zotero collections become collections with the same names and nesting, and notes (`note` / `annote`, `N1`, Zotero notes) are appended to the paper's notes. A BibTeX record keeps its original entry text in the BibTeX tab.
+- A matching paper keeps its title, authors and other values; only tags, collections and notes are added. Importing the same file again changes nothing. Records without a DOI or arXiv ID get a `BF-` identifier derived from the title, year and first author, which is what makes that possible.
+- Nothing is looked up on the internet and no link in the file is opened, so the data is exactly what the file says. Records that cannot be read (no title, a broken entry) are listed and skipped; the others are imported. The whole file is one database transaction per import.
+- Editors and owners only. The API is `POST /api/v1/imports/preview` and `POST /api/v1/imports` (multipart `file` and optional `workspace_id`; a token needs `write:papers`), limited to 20 previews and 5 imports per minute. File paths in the records (`file`, `L1`, Zotero attachments) are listed but not imported here; PDFs are not uploaded through the browser.
+
 ## Production deployment
 
 Use a dedicated clone for production and update it only with `scripts/deploy.sh`:

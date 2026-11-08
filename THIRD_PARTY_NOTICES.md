@@ -16,6 +16,7 @@ production dependencies under GPL, AGPL, SSPL, BUSL, Elastic, Commons Clause or 
 | caniuse-lite (dependency of Next.js) | frontend image | CC-BY-4.0 | https://github.com/browserslist/caniuse-lite |
 | certifi | backend image | MPL-2.0 | https://github.com/certifi/python-certifi |
 | tqdm (dependency of `tokenizers` via `huggingface-hub`; the code path that uses it is never run) | backend image | MPL-2.0 AND MIT | https://github.com/tqdm/tqdm |
+| bibtexparser (reads BibTeX files in the import; used unmodified, dual-licensed, used here under its BSD option) | backend image | LGPL-3.0 or BSD-3-Clause | https://github.com/sciunto-org/python-bibtexparser |
 | Pillow (checks and re-encodes the cropped image of explain-region; Copyright (c) 2010 Jeffrey A. Clark and contributors, Copyright (c) 1997-2011 by Secret Labs AB, Copyright (c) 1995-2011 by Fredrik Lundh and contributors) | backend image | MIT-CMU (HPND) | https://github.com/python-pillow/Pillow |
 
 The other npm and Python production dependencies are under MIT, BSD, Apache-2.0, ISC, 0BSD, PSF,

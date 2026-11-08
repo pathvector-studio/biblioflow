@@ -265,3 +265,29 @@ export interface Conversation {
 export interface ConversationDetail extends Conversation {
   messages: ChatMessage[];
 }
+
+export interface ImportItemResult {
+  ref: string;
+  title: string;
+  status: "new" | "matched" | "unreadable";
+  identifier: string | null;
+  matched_by: "existing" | "file" | null;
+  reason: string | null;
+}
+
+export interface ImportSummary {
+  format: "bibtex" | "ris" | "csljson" | "zotero_rdf";
+  dry_run: boolean;
+  total: number;
+  new: number;
+  matched: number;
+  unreadable: number;
+  with_attachments: number;
+  tags_added: number;
+  collections_created: number;
+  collection_links: number;
+  notes_added: number;
+  problems: ImportItemResult[];
+  items: ImportItemResult[];
+  problems_truncated: boolean;
+}
