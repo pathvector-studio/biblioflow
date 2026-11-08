@@ -12,9 +12,9 @@ BiblioFlow に入れた文献を、LaTeX・Word・Obsidian・ほかの文献管�
 - [ ] R3: 自動エクスポート: ワークスペースごとに「絞り込み・形式・ファイル名」を登録すると、`data/exports/{workspace_slug}/{ファイル名}` にファイルが置かれ、論文を追加・編集・削除してから 2 分以内に書き直される（Better BibTeX の自動エクスポート相当。LaTeX や Obsidian がこのファイルを直接読める）。登録・削除は editor 以上。
 
 ### インポート
-- [ ] R4: 画面から BibTeX・RIS・CSL JSON・Zotero RDF のファイル（4 MiB まで）を選ぶと、書誌情報だけを取り込める（PDF なしの `wishlist`）。取り込む前に「新規 N 件・既存と一致 M 件・読めなかった K 件」のプレビューを出し、確定してから保存する。
-- [ ] R5: PDF つきの移行: Zotero の「ファイルもエクスポート」付きの書き出し（Zotero RDF か BibTeX と `files/` フォルダ）や、`file` 欄のある BibTeX / RIS を、サーバーの `data/import/{workspace_slug}/` に置いて画面から取り込みを始めると、PDF も既存の取り込み処理（`ingest_pdf`）で保存・索引される。進み具合と結果（件数と、失敗した項目の理由）を画面で見られる。
-- [ ] R6: タグ（BibTeX の `keywords`、RIS の `KW`、RDF の `dc:subject`）はタグに、Zotero RDF のコレクションは同じ名前・同じ入れ子のコレクションに、ノート（RDF の `bib:Memo`、BibTeX の `note` / `annote`）は論文のノートの末尾に入る。
+- [x] R4: 画面から BibTeX・RIS・CSL JSON・Zotero RDF のファイル（4 MiB まで）を選ぶと、書誌情報だけを取り込める（PDF なしの `wishlist`）。取り込む前に「新規 N 件・既存と一致 M 件・読めなかった K 件」のプレビューを出し、確定してから保存する。
+- [x] R5: PDF つきの移行: Zotero の「ファイルもエクスポート」付きの書き出し（Zotero RDF か BibTeX と `files/` フォルダ）や、`file` 欄のある BibTeX / RIS を、サーバーの `data/import/{workspace_slug}/` に置いて画面から取り込みを始めると、PDF も既存の取り込み処理（`ingest_pdf`）で保存・索引される。進み具合と結果（件数と、失敗した項目の理由）を画面で見られる。
+- [x] R6: タグ（BibTeX の `keywords`、RIS の `KW`、RDF の `dc:subject`）はタグに、Zotero RDF のコレクションは同じ名前・同じ入れ子のコレクションに、ノート（RDF の `bib:Memo`、BibTeX の `note` / `annote`）は論文のノートの末尾に入る。
 - [x] R7: すでにある論文（同じワークスペースで DOI・arXiv ID・識別子が一致）は重複して作らない。既存の論文に PDF がなければ PDF を紐付け、タグ・コレクションは足す。タイトル・著者などの既存の値は上書きしない。
 - [x] R8: 取り込みは editor 以上。ファイルの中のパスは `data/import/{workspace_slug}/` の外を指せない（`..`・絶対パス・symlink を拒否）。PDF は既存どおり子プロセスで検査する。読めない項目があっても、ほかの項目は取り込む。
 
