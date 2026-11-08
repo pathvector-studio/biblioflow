@@ -7,6 +7,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ## [Unreleased]
 
 ### Added
+- Export the library (or any filtered view: workspace, collection, tag, status, year, search) as BibTeX, RIS or CSL JSON from the library screen, or with `GET /api/v1/export?format=bibtex|ris|csljson` and a token with `read:papers`. BibTeX citekeys match the ones shown in the app and are unique within the file.
 - `read_pages` and `get_paper` (MCP) and the chunks and paper detail APIs return the PDF's SHA-256, so citations can be pinned to the exact file.
 - AI chat settings (`LLM_PROVIDER`, default `none` = off; `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, daily limits) and `GET /api/v1/chat/status`. Nothing is sent to a model until you choose a provider. The README's "AI chat and figure explanations" section lists the provider settings and exactly what is sent.
 - Stored AI conversations: `GET /api/v1/chat/conversations`, `GET /api/v1/chat/conversations/{id}` and `DELETE`. Only the author can read a conversation; it is deleted after `CHAT_RETENTION_DAYS` (default 90, `0` keeps it forever).

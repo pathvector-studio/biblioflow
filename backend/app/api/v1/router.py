@@ -1,6 +1,18 @@
 from fastapi import APIRouter
 
-from app.api.v1 import annotations, auth, chat, collections, health, invitations, papers, search, tokens, workspaces
+from app.api.v1 import (
+    annotations,
+    auth,
+    chat,
+    collections,
+    export,
+    health,
+    invitations,
+    papers,
+    search,
+    tokens,
+    workspaces,
+)
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -9,6 +21,7 @@ api_router.include_router(tokens.router)
 api_router.include_router(workspaces.router)
 api_router.include_router(invitations.router)
 api_router.include_router(papers.router)
+api_router.include_router(export.router)
 api_router.include_router(collections.router)
 api_router.include_router(annotations.router)
 api_router.include_router(search.router)
