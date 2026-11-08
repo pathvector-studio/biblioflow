@@ -16,11 +16,14 @@ function MarkdownAnswerBase({
   citations,
   onCite,
   citeTitle,
+  showTitle = false,
 }: {
   content: string;
   citations: Citation[];
   onCite?: (c: Citation) => void;
   citeTitle: (c: Citation) => string;
+  /** 横断の回答: バッジに論文名も出す */
+  showTitle?: boolean;
 }) {
   const text = useMemo(() => linkCitations(content, citations), [content, citations]);
   const components = useMemo<Components>(() => {
@@ -35,10 +38,12 @@ function MarkdownAnswerBase({
             <button
               type="button"
               title={citeTitle(c)}
+              aria-label={citeTitle(c)}
               onClick={() => onCite?.(c)}
-              className="mx-0.5 inline-flex items-center rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0 text-[11px] font-medium leading-5 text-primary no-underline hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0 text-[11px] font-medium leading-5 text-primary no-underline hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {children}
+              <span className="shrink-0">{children}</span>
+              {showTitle && c.title && <span className="max-w-[14rem] truncate font-normal">{c.title}</span>}
             </button>
           );
         }
@@ -50,7 +55,7 @@ function MarkdownAnswerBase({
         );
       },
     };
-  }, [citations, onCite, citeTitle]);
+  }, [citations, onCite, citeTitle, showTitle]);
 
   return (
     <div className="markdown">

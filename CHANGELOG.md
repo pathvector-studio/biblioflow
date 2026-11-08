@@ -15,6 +15,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - `POST /api/v1/papers/{id}/explain-region`: send a rectangle cut from a PDF page (figure, equation, table) to a vision model and get a streamed explanation in the context of that page. The image is checked and re-encoded on the server (PNG/JPEG up to 1.5 MiB, long side scaled to 2048 px, metadata dropped) and is never stored; it needs a vision-capable model (`GET /api/v1/chat/status` shows `vision_available`) and the `use:ai` scope for tokens, with a 5 per minute limit.
 
 - The paper screen has an AI tab: ask about the paper and watch the answer stream in (with a Stop button). Citations appear as badges like `p.4, Sec 3.2`; click one to jump to that page and highlight the cited passage in the PDF. Your earlier conversations for the paper can be reopened, continued and deleted.
+- An "AI" page in the top navigation asks the whole library (all workspaces or one): citations show the paper title, and clicking one opens that paper at the cited page with the passage highlighted. Library-wide conversations can be reopened, continued and deleted there.
 
 ### Fixed
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.

@@ -11,14 +11,23 @@ export function MessageList({
   messages,
   onCite,
   empty,
+  showTitle = false,
 }: {
   messages: UiMessage[];
   onCite?: (c: Citation) => void;
   empty?: string;
+  /** 横断の回答: 引用のバッジに論文名を付ける */
+  showTitle?: boolean;
 }) {
   const { t } = useI18n();
   const end = useRef<HTMLDivElement>(null);
-  const citeTitle = useCallback((c: Citation) => t.ai.citationTitle.replace("{label}", c.label), [t]);
+  const citeTitle = useCallback(
+    (c: Citation) =>
+      showTitle && c.title
+        ? t.ai.citationTitleCross.replace("{title}", c.title).replace("{label}", c.label)
+        : t.ai.citationTitle.replace("{label}", c.label),
+    [t, showTitle],
+  );
 
   // 新しい内容が来たら末尾へ（流れている間も追う）
   const last = messages[messages.length - 1];
@@ -46,7 +55,7 @@ export function MessageList({
                 // 流れている間は検証前のテキストなので、バッジにせずそのまま見せる
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
               ) : (
-                <MarkdownAnswer content={m.content} citations={m.citations} onCite={onCite} citeTitle={citeTitle} />
+                <MarkdownAnswer content={m.content} citations={m.citations} onCite={onCite} citeTitle={citeTitle} showTitle={showTitle} />
               )}
               {m.status === "cancelled" && (
                 <p className="mt-1 text-xs font-medium text-muted-foreground">{t.ai.cancelled}</p>
