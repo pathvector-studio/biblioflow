@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BiblioFlow</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="popup">
+    <h1>BiblioFlow</h1>
+    <p id="status" role="status" data-i18n="popup_loading"></p>
+    <section id="detected" hidden>
+      <dl>
+        <dt data-i18n="label_title"></dt>
+        <dd id="d-title"></dd>
+        <dt data-i18n="label_authors"></dt>
+        <dd id="d-authors"></dd>
+        <dt data-i18n="label_year"></dt>
+        <dd id="d-year"></dd>
+        <dt data-i18n="label_identifier"></dt>
+        <dd id="d-id"></dd>
+        <dt data-i18n="label_pdf"></dt>
+        <dd id="d-pdf"></dd>
+      </dl>
+      <label id="ws-row">
+        <span data-i18n="label_workspace"></span>
+        <select id="workspace"></select>
+      </label>
+      <button id="save" type="button" data-i18n="btn_save"></button>
+    </section>
+    <p id="result" role="status" hidden></p>
+    <p><a id="open-options" href="#" data-i18n="link_settings"></a></p>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
