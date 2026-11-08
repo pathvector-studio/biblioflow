@@ -5,8 +5,8 @@
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| C（エクスポート・インポート）: `specs/export-import.md` の 4 PR | biblioflow | 親 + 子 | spec 承認済み。(1) まとめて書き出し: PR・CI 待ち（DB テスト 587 passed） |
-| B（ブラウザ拡張）: `specs/browser-extension.md` | biblioflow `extension/` | 親 + 子 | spec 承認済み。実装中（C と並行） |
+| C（エクスポート・インポート）: `specs/export-import.md` の 4 PR | biblioflow | 親 + 子 | spec 承認済み。(1) まとめて書き出し: #41。(2) 自動エクスポート: 実装中 |
+| B（ブラウザ拡張）: `specs/browser-extension.md` | biblioflow `extension/` | 親 + 子 | spec 承認済み。PR・CI 待ち（Chromium で保存の流れを確認、Firefox は未確認） |
 
 ## 承認待ち
 - なし

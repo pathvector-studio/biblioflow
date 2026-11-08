@@ -354,6 +354,21 @@ Text from papers is passed inside `<paper_context>` tags, and the system prompt 
 
 Per user: 10 chat requests and 5 explanations per minute (and 30 per minute per IP address), at most 2 answers streaming at once, and per day `LLM_DAILY_REQUESTS_PER_USER` requests (default 200) and `LLM_DAILY_TOKENS_PER_USER` tokens (default 200,000). Each answer is capped at `LLM_MAX_OUTPUT_TOKENS` (default 1,024). If search finds nothing, the model is not called at all.
 
+## Browser extension
+
+`extension/` holds a small extension (Chrome and Firefox, plain JavaScript, no dependencies) that saves the paper you are reading with one click, the way Zotero Connector does. It reads the page's meta tags (`citation_*`, `dc.*`, arXiv / DOI / ScienceDirect URLs) only when you press the toolbar button, fetches the PDF with your own browser session (so subscriptions and cookies apply), and sends it to your BiblioFlow server with `POST /api/v1/papers/upload`. If the PDF cannot be fetched, it saves the paper to your wishlist and says so. It never imitates a browser to get around a site's bot protection.
+
+```bash
+node extension/build.mjs     # writes extension/dist/{chrome,firefox}/ and two zips
+```
+
+- **Chrome**: open `chrome://extensions`, turn on Developer mode, "Load unpacked", pick `extension/dist/chrome`.
+- **Firefox**: open `about:debugging#/runtime/this-firefox`, "Load Temporary Add-on", pick `extension/dist/firefox/manifest.json` (Firefox 128 or later).
+- **Settings**: in BiblioFlow, create an API token under Settings with the scopes `read:papers` and `write:papers`. Open the extension's settings, enter your BiblioFlow URL and the token, and press "Test connection" (the browser asks once for permission to contact that one server). The token is kept in the extension's local storage and is never given to web pages.
+- **Cloudflare Access**: if BiblioFlow is behind Access, sign in to Access in the same browser; its cookie is sent automatically. A service token (`CF-Access-Client-Id` / `-Secret`) can be entered instead.
+
+The extension's only permissions are `activeTab`, `scripting` and `storage`, plus the host permission you grant for your own server. Tests: `node --test 'extension/test/*.test.js'`.
+
 ## Tests
 
 Integration tests run against the `biblioflow_test` database and need an image built with `INSTALL_DEV=true`.

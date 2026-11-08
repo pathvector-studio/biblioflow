@@ -65,6 +65,17 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node --test 'extension/test/*.test.js'
+      - run: node extension/build.mjs
+      - run: test -f extension/dist/biblioflow-clipper-chrome-$(cat VERSION).zip && test -f extension/dist/biblioflow-clipper-firefox-$(cat VERSION).zip
+
   mcp:
     runs-on: ubuntu-latest
     defaults:
