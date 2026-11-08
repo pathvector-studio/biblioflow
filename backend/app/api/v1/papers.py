@@ -147,30 +147,18 @@ def _author_matches(pat: str) -> Any:
     )
 
 
-async def _rate_limit(principal: Principal, name: str, limit: int) -> None:
-    await enforce_rate_limit(get_redis(), name, (str(principal.user.id),), limit)
-
-
-async def _upload_chunks(file: UploadFile) -> AsyncIterator[bytes]:
-    while chunk := await file.read(CHUNK):
-        yield chunk
-
-
-# ------------------------------------------------------------------ list / lookup / create
-@router.get("/light", response_model=list[PaperLight])
-async def list_papers_light(
-    response: Response,
-    q: str | None = Query(None, max_length=200),
-    tag: str | None = Query(None, max_length=100),
+async def paper_filter(
+    db: AsyncSession,
+    principal: Principal,
+    *,
+    q: str | None = None,
+    tag: str | None = None,
     collection_id: uuid.UUID | None = None,
-    year: int | None = Query(None, ge=1, le=9999),
+    year: int | None = None,
     status: PaperStatus | None = None,
     workspace_id: uuid.UUID | None = None,
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-    principal: Principal = Depends(require_scopes(SCOPE_READ_PAPERS)),
-    db: AsyncSession = Depends(get_db),
-) -> list[PaperLight]:
+) -> Any:
+    """WHERE clause shared by the list and export endpoints (always limited to the caller's workspaces)."""
     conds = [Paper.workspace_id.in_(accessible_workspace_ids(principal.user.id))]
     if workspace_id is not None:
         await get_workspace_for_user(db, workspace_id, principal, WorkspaceRole.viewer)
@@ -201,7 +189,36 @@ async def list_papers_light(
         conds.append(Paper.year == year)
     if status is not None:
         conds.append(Paper.status == status)
-    where = and_(*conds)
+    return and_(*conds)
+
+
+async def _rate_limit(principal: Principal, name: str, limit: int) -> None:
+    await enforce_rate_limit(get_redis(), name, (str(principal.user.id),), limit)
+
+
+async def _upload_chunks(file: UploadFile) -> AsyncIterator[bytes]:
+    while chunk := await file.read(CHUNK):
+        yield chunk
+
+
+# ------------------------------------------------------------------ list / lookup / create
+@router.get("/light", response_model=list[PaperLight])
+async def list_papers_light(
+    response: Response,
+    q: str | None = Query(None, max_length=200),
+    tag: str | None = Query(None, max_length=100),
+    collection_id: uuid.UUID | None = None,
+    year: int | None = Query(None, ge=1, le=9999),
+    status: PaperStatus | None = None,
+    workspace_id: uuid.UUID | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    principal: Principal = Depends(require_scopes(SCOPE_READ_PAPERS)),
+    db: AsyncSession = Depends(get_db),
+) -> list[PaperLight]:
+    where = await paper_filter(
+        db, principal, q=q, tag=tag, collection_id=collection_id, year=year, status=status, workspace_id=workspace_id
+    )
 
     total = (await db.execute(select(func.count()).select_from(Paper).where(where))).scalar_one()
     rows = (
