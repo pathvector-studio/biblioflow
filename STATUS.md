@@ -5,12 +5,14 @@
 ## 進行中
 | タスク | リポジトリ / ブランチ | 担当 | 状態 |
 |---|---|---|---|
-| なし | | | |
+| C（エクスポート・インポート）: `specs/export-import.md` の 4 PR | biblioflow | 親 + 子 | spec 承認済み。(1) まとめて書き出し: 実装中 |
+| B（ブラウザ拡張）: `specs/browser-extension.md` | biblioflow `extension/` | 親 + 子 | spec 承認済み。実装中（C と並行） |
 
 ## 承認待ち
 - なし
 
 ## 予定
+- PDF の翻訳（案: 選んだ文章の翻訳と、ページ単位の対訳）: 範囲は未決。C・B の後に spec を書く
 - biblioflow-mcp を外部の MCP カタログ（HOL Guard）に登録する: v1.0 になってから（PyPI に出すのが前提。それまでは見送りと回答する）
 
 ## 詰まり
