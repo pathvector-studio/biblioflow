@@ -440,3 +440,12 @@ async def purge_old_conversations(ctx: dict[str, Any]) -> int:
     if n:
         logger.info("chat retention: deleted %d conversation(s)", n)
     return n
+
+
+# ------------------------------------------------------------------ auto-export
+async def auto_export_sync(ctx: dict[str, Any]) -> dict[str, int]:
+    """Every minute: rewrite each auto-export file whose papers changed (see ``services.auto_export``)."""
+    from app.services.auto_export import sync_auto_exports
+
+    res = await sync_auto_exports(get_sessionmaker(), get_settings().export_dir)
+    return {"written": len(res.written), "skipped": len(res.skipped), "failed": len(res.failed)}

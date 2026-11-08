@@ -21,7 +21,7 @@ ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 RUN groupadd --gid "${GID}" app \
  && useradd --uid "${UID}" --gid "${GID}" --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin app \
- && mkdir -p /data/library /data/watch /models \
+ && mkdir -p /data/library /data/watch /data/exports /models \
  && chown -R app:app /data /models
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv

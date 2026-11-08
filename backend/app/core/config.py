@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     max_upload_mb: int = Field(50, ge=1, le=2048)
     library_root: Path = Path("/data/library")
     watch_dir: Path = Path("/data/watch")
+    export_dir: Path = Path("/data/exports")  # auto-export files: {export_dir}/{workspace_slug}/{filename}
     filename_template: str = DEFAULT_TEMPLATE
     embedding_dim: int = EMBEDDING_DIMENSION
 

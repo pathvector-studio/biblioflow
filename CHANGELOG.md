@@ -19,6 +19,11 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - An "AI" page in the top navigation asks the whole library (all workspaces or one): citations show the paper title, and clicking one opens that paper at the cited page with the passage highlighted. Library-wide conversations can be reopened, continued and deleted there.
 - Select an area of the PDF (figure, table, equation) and press "Explain with AI" to get a streamed explanation in the AI tab, with an optional question. Viewers who cannot annotate can use it too; nothing is saved to the paper. It only appears when the model supports images.
 
+- Auto-export (Settings > Auto-export): register a format, a filename and filters per workspace and the worker keeps `data/exports/<workspace-slug>/<filename>` (BibTeX, RIS or CSL JSON) up to date, rewriting it within a minute or two of any paper being added, edited or deleted. Editors can add and delete; the API is `GET/POST /api/v1/workspaces/{id}/auto-exports` and `DELETE .../{auto_export_id}`.
+
+### Upgrade notes
+- Auto-export needs a new `./data/exports` directory writable by the container user (`APP_UID`). The installer creates it; on an existing install run `mkdir -p data/exports` (and `chown` it like `data/library` if the host user differs) before `docker compose up -d`. `EXPORT_DIR` (default `/data/exports`) is optional in `.env`.
+
 ### Fixed
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
 

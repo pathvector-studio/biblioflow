@@ -147,22 +147,16 @@ def _author_matches(pat: str) -> Any:
     )
 
 
-async def paper_filter(
-    db: AsyncSession,
-    principal: Principal,
+def filter_conditions(
     *,
     q: str | None = None,
     tag: str | None = None,
     collection_id: uuid.UUID | None = None,
     year: int | None = None,
     status: PaperStatus | None = None,
-    workspace_id: uuid.UUID | None = None,
-) -> Any:
-    """WHERE clause shared by the list and export endpoints (always limited to the caller's workspaces)."""
-    conds = [Paper.workspace_id.in_(accessible_workspace_ids(principal.user.id))]
-    if workspace_id is not None:
-        await get_workspace_for_user(db, workspace_id, principal, WorkspaceRole.viewer)
-        conds.append(Paper.workspace_id == workspace_id)
+) -> list[Any]:
+    """The filter conditions shared by the list, export and auto-export queries (no access check)."""
+    conds: list[Any] = []
     if q and q.strip():
         pat = _like_pattern(q.strip())
         conds.append(
@@ -189,6 +183,26 @@ async def paper_filter(
         conds.append(Paper.year == year)
     if status is not None:
         conds.append(Paper.status == status)
+    return conds
+
+
+async def paper_filter(
+    db: AsyncSession,
+    principal: Principal,
+    *,
+    q: str | None = None,
+    tag: str | None = None,
+    collection_id: uuid.UUID | None = None,
+    year: int | None = None,
+    status: PaperStatus | None = None,
+    workspace_id: uuid.UUID | None = None,
+) -> Any:
+    """WHERE clause shared by the list and export endpoints (always limited to the caller's workspaces)."""
+    conds = [Paper.workspace_id.in_(accessible_workspace_ids(principal.user.id))]
+    if workspace_id is not None:
+        await get_workspace_for_user(db, workspace_id, principal, WorkspaceRole.viewer)
+        conds.append(Paper.workspace_id == workspace_id)
+    conds.extend(filter_conditions(q=q, tag=tag, collection_id=collection_id, year=year, status=status))
     return and_(*conds)
 
 
