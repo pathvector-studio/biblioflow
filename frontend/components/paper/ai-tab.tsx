@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, MessageSquarePlus, Send, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, describeError } from "@/lib/api";
+import type { RegionCapture } from "@/lib/ai/crop";
 import { useI18n } from "@/lib/i18n";
 import type { ChatStatus, Citation, Conversation, ConversationDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -24,15 +25,24 @@ import { AiDisabledNotice } from "@/components/ai/status-notice";
 import { fromConversation, useAiErrorText, useChatStream } from "@/components/ai/use-chat-stream";
 
 /** 右ペインの「AI」タブ。この論文についての質問と、自分の会話の一覧 */
+/** PDF の矩形選択から来た「AI で解説」の依頼。nonce が変わるたびに 1 回だけ送る */
+export interface ExplainRequest {
+  capture: RegionCapture;
+  question: string;
+  nonce: number;
+}
+
 export function AiTab({
   paperId,
   active,
   onCite,
+  explainRequest,
 }: {
   paperId: string;
   /** タブが開いているとき。開いたときに状態を確かめる */
   active: boolean;
   onCite: (c: Citation) => void;
+  explainRequest?: ExplainRequest | null;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -91,6 +101,34 @@ export function AiTab({
     const accepted = await chat.send(text, { body: { paper_id: paperId } });
     if (!accepted) setDraft((d) => d || text);
   }
+
+  // 矩形選択からの解説。開いている会話があればその続きに、なければ新しい会話にする
+  const handled = useRef<number | null>(null);
+  const { send } = chat;
+  const streamingRef = useRef(false);
+  useEffect(() => {
+    streamingRef.current = chat.streaming;
+  });
+  useEffect(() => {
+    if (!explainRequest || handled.current === explainRequest.nonce) return;
+    handled.current = explainRequest.nonce;
+    // 回答の生成中は送れない（send は何もせず false を返す）。理由を伝える
+    if (streamingRef.current) {
+      toast.error(t.ai.explainBusy);
+      return;
+    }
+    const { capture, question } = explainRequest;
+    const text = [t.ai.explainMessage.replace("{n}", String(capture.page_number)), question].filter(Boolean).join("\n");
+    void send(text, {
+      path: `/papers/${paperId}/explain-region`,
+      body: {
+        page_number: capture.page_number,
+        rect: capture.rect,
+        image: capture.image,
+        ...(question ? { question } : {}),
+      },
+    });
+  }, [explainRequest, send, paperId, t]);
 
   const list = conversations.data ?? [];
 

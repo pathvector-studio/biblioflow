@@ -12,7 +12,8 @@ import { api, describeError } from "@/lib/api";
 import { formatAuthors } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { useMe, useWorkspace } from "@/lib/session";
-import type { Annotation, AnnotationDraft, Citation, PaperChunks, PaperDetail } from "@/lib/types";
+import type { RegionCapture } from "@/lib/ai/crop";
+import type { Annotation, AnnotationDraft, ChatStatus, Citation, PaperChunks, PaperDetail } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnnotationEditDialog } from "@/components/paper/annotation-edit-dialog";
-import { AiTab } from "@/components/paper/ai-tab";
+import { AiTab, type ExplainRequest } from "@/components/paper/ai-tab";
 import { AnnotationsTab } from "@/components/paper/annotations-tab";
 import { BibliographyTab } from "@/components/paper/bibliography-tab";
 import { NotesTab } from "@/components/paper/notes-tab";
@@ -57,6 +58,20 @@ export function PaperView({ paperId }: { paperId: string }) {
   const [editing, setEditing] = useState<Annotation | null>(null);
   const [deleting, setDeleting] = useState<Annotation | null>(null);
   const container = useRef<HTMLDivElement>(null);
+
+  // AI で解説は、チャットが有効でモデルが画像に対応しているときだけ出す（AI タブと同じ問い合わせを共有する）
+  const chatStatus = useQuery({
+    queryKey: ["chat-status"],
+    queryFn: () => api.get<ChatStatus>("/chat/status"),
+    retry: false,
+    staleTime: 30_000,
+  });
+  const explainEnabled = chatStatus.data?.enabled === true && chatStatus.data.vision_available;
+  const [explainRequest, setExplainRequest] = useState<ExplainRequest | null>(null);
+  const onExplain = useCallback((capture: RegionCapture, question: string) => {
+    setTab("ai");
+    setExplainRequest({ capture, question, nonce: Date.now() });
+  }, []);
 
   // 別の画面（AI 画面の引用）から `?page=4&hl=<chunk_id>` で開かれたら、そのページへ移ってハイライトする
   const searchParams = useSearchParams();
@@ -166,6 +181,8 @@ export function PaperView({ paperId }: { paperId: string }) {
               isOwner={current.role === "owner"}
               focusRequest={focus}
               citationRequest={citation}
+              explainEnabled={explainEnabled}
+              onExplain={onExplain}
               onCreate={onCreate}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -217,7 +234,7 @@ export function PaperView({ paperId }: { paperId: string }) {
             />
           </TabsContent>
           <TabsContent value="ai" forceMount className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
-            <AiTab key={p.id} paperId={p.id} active={tab === "ai"} onCite={onCite} />
+            <AiTab key={p.id} paperId={p.id} active={tab === "ai"} onCite={onCite} explainRequest={explainRequest} />
           </TabsContent>
         </Tabs>
       </div>
