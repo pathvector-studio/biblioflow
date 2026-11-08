@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     library_root: Path = Path("/data/library")
     watch_dir: Path = Path("/data/watch")
     export_dir: Path = Path("/data/exports")  # auto-export files: {export_dir}/{workspace_slug}/{filename}
+    import_dir: Path = Path("/data/import")  # bibliography files + PDFs to import: {import_dir}/{workspace_slug}/
     filename_template: str = DEFAULT_TEMPLATE
     embedding_dim: int = EMBEDDING_DIMENSION
 

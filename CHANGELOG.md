@@ -21,9 +21,11 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - Select an area of the PDF (figure, table, equation) and press "Explain with AI" to get a streamed explanation in the AI tab, with an optional question. Viewers who cannot annotate can use it too; nothing is saved to the paper. It only appears when the model supports images.
 
 - Auto-export (Settings > Auto-export): register a format, a filename and filters per workspace and the worker keeps `data/exports/<workspace-slug>/<filename>` (BibTeX, RIS or CSL JSON) up to date, rewriting it within a minute or two of any paper being added, edited or deleted. Editors can add and delete; the API is `GET/POST /api/v1/workspaces/{id}/auto-exports` and `DELETE .../{auto_export_id}`.
+- Import with PDFs from a server folder (Add > "Import with PDFs from the server folder"): put a Zotero "Export Files" output (RDF or BibTeX + `files/`) or a BibTeX / RIS file with `file` fields in `data/import/<workspace-slug>/`, pick it on screen, and a worker job adds the references and stores and indexes the PDFs, with progress and per-record failures shown. Paths outside the folder (`..`, absolute paths elsewhere, symlinks) are refused for that record only, and importing again never duplicates a paper or replaces a PDF. API: `GET /api/v1/workspaces/{id}/import-folder`, `POST` and `GET /api/v1/workspaces/{id}/import-jobs`.
 
 ### Upgrade notes
 - Auto-export needs a new `./data/exports` directory writable by the container user (`APP_UID`). The installer creates it; on an existing install run `mkdir -p data/exports` (and `chown` it like `data/library` if the host user differs) before `docker compose up -d`. `EXPORT_DIR` (default `/data/exports`) is optional in `.env`.
+- Importing from a server folder needs a new `./data/import` directory, created and owned like `data/exports` (`mkdir -p data/import`, `chown` to `APP_UID` if the host user differs). `IMPORT_DIR` (default `/data/import`) is optional in `.env`. Its contents are not part of the backup.
 
 ### Fixed
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.

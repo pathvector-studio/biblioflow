@@ -63,6 +63,9 @@ def test_bibtex_authors_and_file_field_helpers():
     assert (a.family, a.given) == ("van Beethoven", "Ludwig")
     assert bib.parse_file_field("a/b.pdf;:c/d.pdf:application/pdf") == ["a/b.pdf", "c/d.pdf"]
     assert bib.parse_file_field(r"C:\Users\x\p.pdf") == [r"C:\Users\x\p.pdf"]
+    assert bib.parse_file_field(":file:///x/a.pdf:application/pdf;:file://files/b.pdf:application/pdf") == [
+        "file:///x/a.pdf", "file://files/b.pdf",
+    ]
     assert bib.parse_file_field("") == []
 
 

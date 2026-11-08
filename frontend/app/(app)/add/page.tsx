@@ -5,6 +5,7 @@ import { useWorkspace } from "@/lib/session";
 import { UploadZone } from "@/components/add/upload-zone";
 import { LookupPanel } from "@/components/add/lookup-panel";
 import { ImportPanel } from "@/components/add/import-panel";
+import { ImportFolderPanel } from "@/components/add/import-folder-panel";
 
 export default function AddPage() {
   const { t } = useI18n();
@@ -18,6 +19,7 @@ export default function AddPage() {
       <UploadZone />
       <LookupPanel />
       <ImportPanel />
+      <ImportFolderPanel />
     </div>
   );
 }

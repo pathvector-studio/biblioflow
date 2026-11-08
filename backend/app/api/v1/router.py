@@ -8,6 +8,7 @@ from app.api.v1 import (
     collections,
     export,
     health,
+    import_jobs,
     imports,
     invitations,
     papers,
@@ -25,6 +26,7 @@ api_router.include_router(invitations.router)
 api_router.include_router(papers.router)
 api_router.include_router(export.router)
 api_router.include_router(imports.router)
+api_router.include_router(import_jobs.router)
 api_router.include_router(auto_exports.router)
 api_router.include_router(collections.router)
 api_router.include_router(annotations.router)

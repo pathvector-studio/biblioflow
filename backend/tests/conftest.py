@@ -161,13 +161,16 @@ def storage(tmp_path, monkeypatch):
 
     s = get_settings()
     lib, watch, exports = tmp_path / "library", tmp_path / "watch", tmp_path / "exports"
+    imports = tmp_path / "import"
+    imports.mkdir()
     lib.mkdir()
     watch.mkdir()
     exports.mkdir()
     monkeypatch.setattr(s, "library_root", lib)
     monkeypatch.setattr(s, "watch_dir", watch)
     monkeypatch.setattr(s, "export_dir", exports)
-    return SimpleNamespace(library=lib, watch=watch, exports=exports)
+    monkeypatch.setattr(s, "import_dir", imports)
+    return SimpleNamespace(library=lib, watch=watch, exports=exports, imports=imports)
 
 
 @pytest.fixture
