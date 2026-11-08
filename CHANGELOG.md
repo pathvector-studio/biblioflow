@@ -16,6 +16,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 - The paper screen has an AI tab: ask about the paper and watch the answer stream in (with a Stop button). Citations appear as badges like `p.4, Sec 3.2`; click one to jump to that page and highlight the cited passage in the PDF. Your earlier conversations for the paper can be reopened, continued and deleted.
 - An "AI" page in the top navigation asks the whole library (all workspaces or one): citations show the paper title, and clicking one opens that paper at the cited page with the passage highlighted. Library-wide conversations can be reopened, continued and deleted there.
+- Select an area of the PDF (figure, table, equation) and press "Explain with AI" to get a streamed explanation in the AI tab, with an optional question. Viewers who cannot annotate can use it too; nothing is saved to the paper. It only appears when the model supports images.
 
 ### Fixed
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
