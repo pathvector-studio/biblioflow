@@ -19,3 +19,6 @@ AGENTS.local.md
 
 # Agent hand-off notes (specs/agent-workflow.md)
 .handoff/
+
+# Browser extension build output
+extension/dist/

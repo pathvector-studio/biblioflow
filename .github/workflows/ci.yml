@@ -65,6 +65,21 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+  extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node --test 'extension/test/*.test.js'
+      - run: node extension/build.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: biblioflow-clipper
+          path: extension/dist/*.zip
+          if-no-files-found: error
+
   mcp:
     runs-on: ubuntu-latest
     defaults:

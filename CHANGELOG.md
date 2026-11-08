@@ -7,6 +7,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ## [Unreleased]
 
 ### Added
+- Browser extension (`extension/`, Chrome and Firefox): save the paper you are reading with one click. It uses your own browser session to fetch the PDF and sends it with its DOI / arXiv ID to your server with an API token; if the PDF is not available, the paper goes to your wishlist. It reads a page only when you press the button. See the README's "Browser extension" section.
 - `read_pages` and `get_paper` (MCP) and the chunks and paper detail APIs return the PDF's SHA-256, so citations can be pinned to the exact file.
 - AI chat settings (`LLM_PROVIDER`, default `none` = off; `LLM_MODEL`, `LLM_API_KEY`, `LLM_API_BASE`, daily limits) and `GET /api/v1/chat/status`. Nothing is sent to a model until you choose a provider. The README's "AI chat and figure explanations" section lists the provider settings and exactly what is sent.
 - Stored AI conversations: `GET /api/v1/chat/conversations`, `GET /api/v1/chat/conversations/{id}` and `DELETE`. Only the author can read a conversation; it is deleted after `CHAT_RETENTION_DAYS` (default 90, `0` keeps it forever).
