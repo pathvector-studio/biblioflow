@@ -6,8 +6,10 @@
 .envrc
 data/library/*
 data/watch/*
+data/exports/*
 !data/library/.gitkeep
 !data/watch/.gitkeep
+!data/exports/.gitkeep
 node_modules
 .next
 __pycache__

@@ -9,6 +9,7 @@ from app.db.session import dispose_engine, get_engine
 from app.workers.tasks import (
     EMBED_MAX_TRIES,
     EMBED_TIMEOUT,
+    auto_export_sync,
     backfill_embeddings,
     embed_paper,
     process_paper,
@@ -52,6 +53,8 @@ class WorkerSettings:
         cron(scan_watch_folder, run_at_startup=True, unique=True, timeout=300, **watch_cron_schedule(get_settings().watch_poll_seconds)),
         # Every 10 minutes: embed what is missing once the embedder has its model (see backfill_embeddings_core).
         cron(backfill_embeddings, minute=set(range(0, 60, 10)), second={0}, run_at_startup=True, unique=True, timeout=120),
+        # Every minute: rewrite auto-export files (data/exports) when the matching papers changed.
+        cron(auto_export_sync, second={0}, run_at_startup=True, unique=True, timeout=110),
         # Daily at 03:17 UTC: drop chat conversations past CHAT_RETENTION_DAYS (0 = keep forever).
         cron(purge_old_conversations, hour={3}, minute={17}, second={0}, unique=True, timeout=300),
     ]

@@ -64,6 +64,25 @@ export interface WorkspaceInvitation {
   expires_at: string;
 }
 
+export type ExportFormat = "bibtex" | "ris" | "csljson";
+
+export interface AutoExport {
+  id: string;
+  workspace_id: string;
+  filename: string;
+  format: ExportFormat;
+  path: string;
+  q: string | null;
+  tag: string | null;
+  collection_id: string | null;
+  year: number | null;
+  status: PaperStatus | null;
+  paper_count: number | null;
+  last_written_at: string | null;
+  last_error: string | null;
+  created_at: string;
+}
+
 export interface PaperLight {
   id: string;
   identifier: string;

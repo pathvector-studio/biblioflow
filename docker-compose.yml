@@ -35,6 +35,7 @@ x-backend-common: &backend-common
   volumes:
     - ./data/library:/data/library
     - ./data/watch:/data/watch
+    - ./data/exports:/data/exports
   networks:
     - biblioflow-internal
     - biblioflow-edge

@@ -160,12 +160,14 @@ def storage(tmp_path, monkeypatch):
     from app.core.config import get_settings
 
     s = get_settings()
-    lib, watch = tmp_path / "library", tmp_path / "watch"
+    lib, watch, exports = tmp_path / "library", tmp_path / "watch", tmp_path / "exports"
     lib.mkdir()
     watch.mkdir()
+    exports.mkdir()
     monkeypatch.setattr(s, "library_root", lib)
     monkeypatch.setattr(s, "watch_dir", watch)
-    return SimpleNamespace(library=lib, watch=watch)
+    monkeypatch.setattr(s, "export_dir", exports)
+    return SimpleNamespace(library=lib, watch=watch, exports=exports)
 
 
 @pytest.fixture

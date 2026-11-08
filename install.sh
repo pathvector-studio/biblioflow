@@ -172,7 +172,7 @@ main() {
   local app_uid app_gid
   app_uid="$(get_env APP_UID)"; app_uid="${app_uid:-1000}"
   app_gid="$(get_env APP_GID)"; app_gid="${app_gid:-1000}"
-  mkdir -p data/library data/watch
+  mkdir -p data/library data/watch data/exports
   if [ "$(uname -s)" = "Linux" ] && [ "$(stat -c %u data/library)" != "$app_uid" ]; then
     if [ "$(id -u)" = "0" ]; then
       chown -R "${app_uid}:${app_gid}" data
