@@ -69,6 +69,19 @@ export const api = {
     json<T>(path, { method: "POST", body: body ?? {}, ...opts }),
   patch: <T>(path: string, body: unknown) => json<T>(path, { method: "PATCH", body }),
   del: (path: string) => json<void>(path, { method: "DELETE" }),
+  /** ファイルとして取得してブラウザのダウンロードを起こす（エラーは ApiError） */
+  async download(path: string, query: RequestOptions["query"], fallbackName: string): Promise<void> {
+    const res = await send(path, { query });
+    const m = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "");
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = m?.[1] ?? fallbackName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
   /** 件数ヘッダ付きの一覧取得 */
   async getWithTotal<T>(path: string, query: RequestOptions["query"]): Promise<{ items: T[]; total: number }> {
     const res = await send(path, { query });

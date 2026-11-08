@@ -171,6 +171,14 @@ Move the service token from `access-token.txt` into your password manager and de
 - Cloudflare's edge rejects a client-supplied `CF-Connecting-IP` with 403 and a forged `X-Forwarded-For` is ignored; the gateway log and the API see the real client IP.
 - If Web Analytics (RUM) auto-injection is enabled for the zone, Cloudflare inserts a `static.cloudflareinsights.com` script into the HTML. Turn it off in Cloudflare if you do not want it.
 
+### Exporting references
+
+`GET /api/v1/export?format=bibtex|ris|csljson` takes the same filters as `/api/v1/papers/light` (`workspace_id`, `collection_id`, `tag`, `status`, `year`, `q`) and returns a file download; a personal access token needs the `read:papers` scope. The library screen's Export menu uses the current filters.
+
+```bash
+curl -H "Authorization: Bearer bf_pat_..." -o refs.bib "https://papers.example.com/api/v1/export?format=bibtex&tag=networking"
+```
+
 ## Production deployment
 
 Use a dedicated clone for production and update it only with `scripts/deploy.sh`:

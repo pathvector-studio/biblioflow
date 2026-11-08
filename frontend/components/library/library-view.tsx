@@ -160,6 +160,18 @@ export function LibraryView() {
     }
   }
 
+  async function exportAs(format: "bibtex" | "ris" | "csljson") {
+    try {
+      await api.download(
+        "/export",
+        { format, workspace_id: current.id, q, status, year, tag, collection_id: collection },
+        `biblioflow-export.${format === "bibtex" ? "bib" : format === "ris" ? "ris" : "json"}`,
+      );
+    } catch (e) {
+      toast.error(describeError(t, e));
+    }
+  }
+
   const items = papers.data?.items ?? [];
   const total = papers.data?.total ?? 0;
   const allSelected = items.length > 0 && items.every((p) => selected.has(p.id));
@@ -245,6 +257,19 @@ export function LibraryView() {
             ))}
           </Select>
           <div className="ml-auto flex items-center gap-2">
+            <Select
+              aria-label={t.library.export}
+              value=""
+              onChange={(e) => {
+                const v = e.target.value as "bibtex" | "ris" | "csljson" | "";
+                if (v) void exportAs(v);
+              }}
+            >
+              <option value="">{t.library.export}…</option>
+              <option value="bibtex">{t.library.exportBibtex}</option>
+              <option value="ris">{t.library.exportRis}</option>
+              <option value="csljson">{t.library.exportCsl}</option>
+            </Select>
             {selected.size > 0 && (
               <>
                 <span className="text-xs text-muted-foreground">{fmt(t.library.selected, { n: selected.size })}</span>
