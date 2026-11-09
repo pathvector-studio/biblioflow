@@ -57,6 +57,17 @@ export function WorkspaceProvider({ workspaces, children }: { workspaces: Worksp
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }
 
+/**
+ * 論文などが属するワークスペースでの権限。ヘッダーで選んでいるワークスペースとは別に判定する
+ * （横断の AI 画面の引用などから、ほかのワークスペースの論文を開くことがあるため）。
+ * 自分が属していないワークスペース（読み込み中を含む）では編集できない扱い。
+ */
+export function useWorkspaceRole(workspaceId: string | undefined) {
+  const { workspaces } = useWorkspace();
+  const role = workspaces.find((w) => w.id === workspaceId)?.role;
+  return { canEdit: role === "owner" || role === "editor", isOwner: role === "owner" };
+}
+
 export function useWorkspace(): WorkspaceState {
   const ctx = useContext(WorkspaceContext);
   if (!ctx) throw new Error("useWorkspace must be used inside WorkspaceProvider");

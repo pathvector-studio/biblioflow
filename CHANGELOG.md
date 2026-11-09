@@ -27,6 +27,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - Importing from a server folder needs a new `./data/import` directory, created and owned like `data/exports` (`mkdir -p data/import`, `chown` to `APP_UID` if the host user differs). `IMPORT_DIR` (default `/data/import`) is optional in `.env`. Its contents are not part of the backup.
 
 ### Fixed
+- The paper screen decides who may edit (notes, bibliography, annotations, PDF upload) by the paper's own workspace, not by the workspace picked in the header. Before, a viewer of a shared workspace saw editing tools on its papers when their own workspace was selected (the server still refused the changes), and the bibliography tab offered the header workspace's tags and collections.
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
 
 ## [0.2.0] - 2026-11-07
