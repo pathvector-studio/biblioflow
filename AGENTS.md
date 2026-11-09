@@ -108,7 +108,7 @@
 
 ## 6. 進捗ステータス & 再開手順（エージェントはまずここを読むこと）
 
-> 最終更新: 2026-11-09（トラック B のブラウザ拡張と C のエクスポート・インポート。全体の順番は `specs/roadmap.md`）
+> 最終更新: 2026-11-10（トラック B・C の完了と #47 まで。次は D の spec と PDF の翻訳の spec。進行中の作業は `STATUS.md`、全体の順番は `specs/roadmap.md`）
 
 ### 6.1 フェーズ進捗
 | Phase | 状態 | 備考 |
@@ -195,6 +195,7 @@ gh auth status                          # 切れていれば `gh auth login`
 - フロントは Cookie セッションで同一オリジンの `/api` を呼ぶ。本番はゲートウェイが `/api/*` を API に直接振り分ける（Next の `/api` リライトは `npm run dev` 用に残してある）。**`middleware.ts` を置かない**（Next のミドルウェアの body 上限で PDF アップロードが切れるため）。
 - i18n は自前辞書（`frontend/lib/i18n/{ja,en}.ts`）。`en` は `ja` の型に縛られ、未翻訳キーは `npm run typecheck` で落ちる。
 - PDF ビューアは `react-pdf-highlighter-extended`。右ペインのタブ（`components/paper/paper-view.tsx`）に AI タブ（`components/paper/ai-tab.tsx`）、上部のナビに横断の AI 画面（`/ai`、`components/ai/cross-chat.tsx`）。SSE は `lib/ai/stream.ts` の `fetch` で読む（`EventSource` は使わない）。引用の bbox は原点左下なので `lib/ai/geometry.ts` で反転する。別の論文への引用は `/papers/<id>?page=<n>&hl=<chunk_id>`。矩形選択の「AI で解説」は `lib/ai/crop.ts` で canvas から PNG を切り抜き、閲覧者にも出す（注釈は作らない）。
+- 論文の画面で編集できるかどうか（ノート・書誌・注釈・矩形選択の道具・PDF のアップロード）は、ヘッダーで選んだワークスペースではなく、論文のワークスペースで決める（`lib/session.tsx` の `useWorkspaceRole(paper.workspace_id)`。タグとコレクションの一覧も同じ）。横断の AI 画面の引用から、選んでいないワークスペースの論文が開かれるため。
 - ローカル DB に QA 用ユーザー `qa-owner@` / `qa-viewer@biblioflow.example.com` と共有ワークスペース「QA Lab」がある（パスワードはリポジトリに書かない）。
 - ブラウザ確認は Playwright（scratchpad にインストール）で LAN アドレスを開いて行った。
 
