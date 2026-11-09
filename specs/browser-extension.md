@@ -1,18 +1,18 @@
 # ブラウザ拡張（ロードマップのトラック B）
 
-> 状態: **承認済み（2026-11-08）**。エクスポート・インポート（トラック C、`specs/export-import.md`）と並行で進める。
+> 状態: **実装済み（2026-11-08、#42）**。承認は 2026-11-08。エクスポート・インポート（トラック C、`specs/export-import.md`）と並行で進める。
 
 ## 目的
 出版社のサイト（ScienceDirect・IEEE・ACM・Springer・Wiley・arXiv など）で読んでいる論文を、1 クリックで BiblioFlow に保存する（Zotero Connector 相当）。サーバーから出版社のサイトを取りに行くと 403 で拒否されるので、利用者のブラウザが、利用者のログイン状態のまま PDF を取って送る。
 
 ## 要件
-- [ ] R1: Chrome（Manifest V3）と Firefox で動く拡張を、このリポジトリの `extension/` に置く。ツールバーのボタンを押すと、今のページから見つけた論文（タイトル・著者・年・DOI / arXiv ID / PII）と、PDF が取れそうかを表示し、「保存」で送る。
-- [ ] R2: 論文の情報は、ページのメタタグ（`citation_title`・`citation_doi`・`citation_arxiv_id`・`citation_pdf_url`・`dc.identifier`・`prism.doi` など）、なければ URL（arXiv・`doi.org`・ScienceDirect の PII）から読む。最低限、ScienceDirect・IEEE Xplore・ACM DL・SpringerLink・Wiley・arXiv・Nature・PLOS で識別子が取れる。
-- [ ] R3: PDF が取れる場合（`citation_pdf_url` か、ブラウザで PDF を開いているタブ）は、ブラウザのログイン状態のまま PDF を取り、識別子を添えて `POST /api/v1/papers/upload` に送る。取れない場合（未購読・bot 対策のページ）は、識別子だけで `POST /api/v1/papers/metadata-only`（wishlist）に送り、そう表示する。
-- [ ] R4: 保存先のワークスペースを選べる（前回の選択を覚える）。保存の結果（新規・既存と一致して PDF を紐付けた・失敗の理由）を表示し、BiblioFlow でその論文を開くリンクを出す。
-- [ ] R5: 設定画面で、BiblioFlow の URL と PAT（`write:papers` と `read:papers`）を入れる。Cloudflare Access の内側にあるときは、ブラウザの Access のログイン（Cookie）でそのまま通る。サービストークン（`CF-Access-Client-Id` / `Secret`）も任意で入れられる。PAT とトークンは拡張のローカルの保存領域にだけ置き、ページのスクリプトには渡さない。
-- [ ] R6: 拡張が送る先は、設定した BiblioFlow の URL だけ。ページの内容を読むのはボタンを押したときだけで、それ以外のときにページを読んだり、閲覧履歴を送ったりしない。権限は `activeTab`・`scripting`・`storage` と、設定した URL へのホスト権限（設定時に利用者が許可する）に絞る。
-- [ ] R7: 文言は日本語と英語（ブラウザの言語に従う）。
+- [x] R1: Chrome（Manifest V3）と Firefox で動く拡張を、このリポジトリの `extension/` に置く。ツールバーのボタンを押すと、今のページから見つけた論文（タイトル・著者・年・DOI / arXiv ID / PII）と、PDF が取れそうかを表示し、「保存」で送る。
+- [x] R2: 論文の情報は、ページのメタタグ（`citation_title`・`citation_doi`・`citation_arxiv_id`・`citation_pdf_url`・`dc.identifier`・`prism.doi` など）、なければ URL（arXiv・`doi.org`・ScienceDirect の PII）から読む。最低限、ScienceDirect・IEEE Xplore・ACM DL・SpringerLink・Wiley・arXiv・Nature・PLOS で識別子が取れる。
+- [x] R3: PDF が取れる場合（`citation_pdf_url` か、ブラウザで PDF を開いているタブ）は、ブラウザのログイン状態のまま PDF を取り、識別子を添えて `POST /api/v1/papers/upload` に送る。取れない場合（未購読・bot 対策のページ）は、識別子だけで `POST /api/v1/papers/metadata-only`（wishlist）に送り、そう表示する。
+- [x] R4: 保存先のワークスペースを選べる（前回の選択を覚える）。保存の結果（新規・既存と一致して PDF を紐付けた・失敗の理由）を表示し、BiblioFlow でその論文を開くリンクを出す。
+- [x] R5: 設定画面で、BiblioFlow の URL と PAT（`write:papers` と `read:papers`）を入れる。Cloudflare Access の内側にあるときは、ブラウザの Access のログイン（Cookie）でそのまま通る。サービストークン（`CF-Access-Client-Id` / `Secret`）も任意で入れられる。PAT とトークンは拡張のローカルの保存領域にだけ置き、ページのスクリプトには渡さない。
+- [x] R6: 拡張が送る先は、設定した BiblioFlow の URL だけ。ページの内容を読むのはボタンを押したときだけで、それ以外のときにページを読んだり、閲覧履歴を送ったりしない。権限は `activeTab`・`scripting`・`storage` と、設定した URL へのホスト権限（設定時に利用者が許可する）に絞る。
+- [x] R7: 文言は日本語と英語（ブラウザの言語に従う）。
 
 ## スコープ外
 - Chrome Web Store・Firefox Add-ons への公開（公開は毎回ユーザーの承認が要る。まずは GitHub の Release に zip を置いて手で読み込む。公開は別の判断）
@@ -36,3 +36,9 @@
 - **認証は PAT**: 拡張からの Cookie 認証は CSRF の Origin 検査（`CORS_ALLOWED_ORIGINS`）と相性が悪い。PAT は Origin 検査の対象外で、スコープと期限を絞れる。
 - **PDF の取得はブラウザ側で**: 出版社のサイトはサーバーからの取得を拒否するため（AGENTS.md の import-url の判断）。拡張は利用者のログイン状態のまま取るだけで、bot 対策は回避しない。取った PDF は既存の upload に送り、サーバー側の検査（マジックバイト・サイズ・子プロセスでの解析）をそのまま通す。
 - **識別子の扱いはサーバーに任せる**: 拡張は見つけた DOI / arXiv ID / PII を `identifier` として添えるだけで、メタデータの解決と、wishlist との一致はサーバーの既存の処理が行う。
+
+## 結果（2026-11-08）
+- #42 で実装。`node --test 'extension/test/*.test.js'`（R2 のサイトごとの fixtures を含む）と、manifest・zip の作成を CI の `extension` ジョブで検査する。
+- Chromium（Playwright）で確認したこと: 設定画面の接続テスト（正しい PAT・誤った PAT）、`citation_*` のあるページからの PDF つきの保存、PDF が取れないときの wishlist への保存と表示、既存の wishlist への PDF の紐付け、ワークスペースの選択の記憶。ホスト権限は確認用の manifest であらかじめ許可した。
+- 確認していないこと: Firefox、実際のホスト権限の許可のダイアログ、実際の出版社のサイト（受け入れ基準 2・3）、Cloudflare Access の内側（受け入れ基準 5）。
+- 既知の制約: 結果の「新規」と「既存と一致」は、upload の応答から拡張の側で推定している（作成時刻が 10 秒以内なら新規）。
