@@ -32,7 +32,7 @@ os.environ["EMBEDDING_PROVIDER"] = "none"  # tests that need vectors patch embed
 os.environ["LLM_PROVIDER"] = "none"  # tests that need a model patch llm.get_client
 
 TABLES = (
-    "paper_collections, collections, paper_tags, tags, annotations, paper_chunks, papers, "
+    "chat_messages, chat_conversations, paper_collections, collections, paper_tags, tags, annotations, paper_chunks, papers, "
     "workspace_invitations, workspace_members, workspaces, api_keys, users"
 )
 
@@ -160,12 +160,17 @@ def storage(tmp_path, monkeypatch):
     from app.core.config import get_settings
 
     s = get_settings()
-    lib, watch = tmp_path / "library", tmp_path / "watch"
+    lib, watch, exports = tmp_path / "library", tmp_path / "watch", tmp_path / "exports"
+    imports = tmp_path / "import"
+    imports.mkdir()
     lib.mkdir()
     watch.mkdir()
+    exports.mkdir()
     monkeypatch.setattr(s, "library_root", lib)
     monkeypatch.setattr(s, "watch_dir", watch)
-    return SimpleNamespace(library=lib, watch=watch)
+    monkeypatch.setattr(s, "export_dir", exports)
+    monkeypatch.setattr(s, "import_dir", imports)
+    return SimpleNamespace(library=lib, watch=watch, exports=exports, imports=imports)
 
 
 @pytest.fixture

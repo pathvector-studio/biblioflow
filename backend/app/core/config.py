@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     max_upload_mb: int = Field(50, ge=1, le=2048)
     library_root: Path = Path("/data/library")
     watch_dir: Path = Path("/data/watch")
+    export_dir: Path = Path("/data/exports")  # auto-export files: {export_dir}/{workspace_slug}/{filename}
+    import_dir: Path = Path("/data/import")  # bibliography files + PDFs to import: {import_dir}/{workspace_slug}/
     filename_template: str = DEFAULT_TEMPLATE
     embedding_dim: int = EMBEDDING_DIMENSION
 
@@ -52,6 +54,7 @@ class Settings(BaseSettings):
     llm_first_token_timeout: float = Field(30.0, gt=0, le=600)
     llm_daily_requests_per_user: int = Field(200, ge=1)
     llm_daily_tokens_per_user: int = Field(200_000, ge=1)
+    chat_retention_days: int = Field(90, ge=0)  # conversations idle (updated_at) longer than this are deleted; 0 = keep
 
     # Embeddings (semantic search). Off by default (`none`): turning on `local` is the consent to download the model. `local` = the biblioflow-embedder container (bge-m3 on ONNX Runtime).
     embedding_provider: Literal["local", "voyage", "openai", "none"] = "none"
@@ -105,17 +108,25 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check_llm(self) -> Settings:
-        if self.llm_provider == "none":
-            return self
-        if not (self.llm_model or "").strip():
-            raise ValueError(f"LLM_MODEL is required when LLM_PROVIDER={self.llm_provider}")
-        if self.llm_provider in ("ollama", "openai_compatible") and not (self.llm_api_base or "").strip():
-            raise ValueError(f"LLM_API_BASE is required when LLM_PROVIDER={self.llm_provider}")
-        if self.llm_provider in ("anthropic", "openai", "gemini") and self.llm_api_key is None:
-            raise ValueError(f"LLM_API_KEY is required when LLM_PROVIDER={self.llm_provider}")
-        if self.llm_first_token_timeout > self.llm_timeout:
+        # Missing model / key / base URL is not an error (see llm_config_problem): an old .env may still carry the
+        # former .env.example placeholder LLM_PROVIDER=openai without a key, and an upgrade must not stop the API.
+        if self.llm_provider != "none" and self.llm_first_token_timeout > self.llm_timeout:
             raise ValueError("LLM_FIRST_TOKEN_TIMEOUT must not exceed LLM_TIMEOUT")
         return self
+
+    @property
+    def llm_config_problem(self) -> str | None:
+        """Why chat stays off although a provider is chosen (names settings only, never values), or None."""
+        if self.llm_provider == "none":
+            return None
+        if not (self.llm_model or "").strip():
+            return f"LLM_MODEL is required when LLM_PROVIDER={self.llm_provider}"
+        if self.llm_provider in ("ollama", "openai_compatible") and not (self.llm_api_base or "").strip():
+            return f"LLM_API_BASE is required when LLM_PROVIDER={self.llm_provider}"
+        key = self.llm_api_key.get_secret_value().strip() if self.llm_api_key else ""
+        if self.llm_provider in ("anthropic", "openai", "gemini") and not key:
+            return f"LLM_API_KEY is required when LLM_PROVIDER={self.llm_provider}"
+        return None
 
     @property
     def max_upload_bytes(self) -> int:

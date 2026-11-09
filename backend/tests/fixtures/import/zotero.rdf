@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF
+ xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+ xmlns:z="http://www.zotero.org/namespaces/export#"
+ xmlns:dcterms="http://purl.org/dc/terms/"
+ xmlns:dc="http://purl.org/dc/elements/1.1/"
+ xmlns:bib="http://purl.org/net/biblio#"
+ xmlns:foaf="http://xmlns.com/foaf/0.1/"
+ xmlns:link="http://purl.org/rss/1.0/modules/link/"
+ xmlns:prism="http://prismstandard.org/namespaces/1.2/basic/">
+    <bib:Article rdf:about="#item_1">
+        <z:itemType>journalArticle</z:itemType>
+        <dcterms:isPartOf>
+            <bib:Journal>
+                <dc:title>Nature</dc:title>
+                <prism:volume>521</prism:volume>
+            </bib:Journal>
+        </dcterms:isPartOf>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>LeCun</foaf:surname>
+                        <foaf:givenName>Yann</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Bengio</foaf:surname>
+                        <foaf:givenName>Yoshua</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <link:link rdf:resource="#item_2"/>
+        <link:link rdf:resource="#item_3"/>
+        <dc:title>Deep learning</dc:title>
+        <dc:date>2015-05-28</dc:date>
+        <dc:identifier>
+            <dcterms:URI>
+                <rdf:value>https://doi.org/10.1038/nature14539</rdf:value>
+            </dcterms:URI>
+        </dc:identifier>
+        <dcterms:abstract>Deep learning allows computational models to learn representations of data.</dcterms:abstract>
+        <dc:subject>deep learning</dc:subject>
+        <dc:subject>review</dc:subject>
+    </bib:Article>
+    <z:Attachment rdf:about="#item_2">
+        <z:itemType>attachment</z:itemType>
+        <dc:title>Full Text PDF</dc:title>
+        <rdf:resource rdf:resource="files/2/LeCun_2015.pdf"/>
+        <z:linkMode>1</z:linkMode>
+        <link:type>application/pdf</link:type>
+    </z:Attachment>
+    <bib:Memo rdf:about="#item_3">
+        <rdf:value>&lt;div data-schema-version="8"&gt;&lt;p&gt;Great &lt;b&gt;survey&lt;/b&gt;.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;read intro&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;</rdf:value>
+    </bib:Memo>
+    <bib:Article rdf:about="#item_4">
+        <z:itemType>preprint</z:itemType>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Kingma</foaf:surname>
+                        <foaf:givenName>Diederik P.</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <dc:title>Adam: A Method for Stochastic Optimization</dc:title>
+        <dc:date>2014-12-22</dc:date>
+        <dc:identifier>arXiv:1412.6980</dc:identifier>
+        <dc:subject>optimization</dc:subject>
+    </bib:Article>
+    <bib:Book rdf:about="#item_5">
+        <z:itemType>book</z:itemType>
+        <dc:title>A Book Without Identifiers</dc:title>
+        <dc:date>2001</dc:date>
+    </bib:Book>
+    <bib:Article rdf:about="#item_6">
+        <z:itemType>journalArticle</z:itemType>
+    </bib:Article>
+    <z:Collection rdf:about="#collection_1">
+        <dc:title>Networking</dc:title>
+        <dcterms:hasPart rdf:resource="#item_5"/>
+        <dcterms:hasPart rdf:resource="#collection_2"/>
+    </z:Collection>
+    <z:Collection rdf:about="#collection_2">
+        <dc:title>BGP</dc:title>
+        <dcterms:hasPart rdf:resource="#item_1"/>
+        <dcterms:hasPart rdf:resource="#item_4"/>
+    </z:Collection>
+    <z:Collection rdf:about="#collection_3">
+        <dc:title>Reading list</dc:title>
+        <dcterms:hasPart rdf:resource="#item_1"/>
+    </z:Collection>
+</rdf:RDF>

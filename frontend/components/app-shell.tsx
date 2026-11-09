@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, LogOut, Plus, Settings } from "lucide-react";
+import { BookOpen, LogOut, Plus, Settings, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { api, describeError } from "@/lib/api";
 import { useI18n, type Locale } from "@/lib/i18n";
@@ -32,6 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const nav = [
     { href: "/library", label: t.nav.library, icon: BookOpen },
     { href: "/add", label: t.nav.add, icon: Plus },
+    { href: "/ai", label: t.nav.ai, icon: Sparkles },
     { href: "/settings", label: t.nav.settings, icon: Settings },
   ];
 

@@ -71,12 +71,22 @@
 		}
 	}
 
+	# Bibliography file import (4 MiB file; the multipart envelope needs a little more, same 5 MiB as app/main.py).
+	@imports path /api/v1/imports /api/v1/imports/preview
+	handle @imports {
+		import body_limit 5
+		reverse_proxy biblioflow-api:8000 {
+			import upstream_headers
+		}
+	}
+
 	# Rest of the API: straight to FastAPI (no Next.js proxy, so no 30 s proxy timeout).
 	# JSON bodies only; 4 MiB (notes are at most 500k characters).
 	handle /api/* {
 		import body_limit 4
 		reverse_proxy biblioflow-api:8000 {
 			import upstream_headers
+			flush_interval -1  # server-sent events (POST /api/v1/chat) must not be buffered
 		}
 	}
 

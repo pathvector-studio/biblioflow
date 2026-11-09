@@ -59,3 +59,16 @@ async def test_no_secrets_in_the_body(login, monkeypatch):
     r = await c.get(URL)
     assert r.status_code == 200 and r.json()["provider"] == "openai_compatible"
     assert KEY not in r.text and "internal-gpu" not in r.text and "api_base" not in r.text.lower()
+
+
+async def test_incomplete_settings_report_disabled(login, monkeypatch):
+    """LLM_PROVIDER=openai without a key (an old .env): chat is reported off instead of the API failing to start."""
+    from app.api.v1 import chat as chat_api
+    from app.core.config import get_settings
+
+    s = get_settings().model_copy(update={"llm_provider": "openai", "llm_model": "gpt-4o-mini", "llm_api_key": None})
+    monkeypatch.setattr(chat_api, "get_settings", lambda: s)
+    monkeypatch.setattr(llm, "get_client", lambda: llm.build_client(s))
+    _, c = await login("a@example.com")
+    body = (await c.get(URL)).json()
+    assert body["enabled"] is False and body["provider"] == "openai" and body["model"] is None

@@ -1,0 +1,6 @@
+{
+  "name": "biblioflow-clipper",
+  "private": true,
+  "type": "module",
+  "description": "Browser extension (no dependencies). Build: node build.mjs. Test: node --test test/"
+}

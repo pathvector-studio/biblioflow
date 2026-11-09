@@ -64,6 +64,25 @@ export interface WorkspaceInvitation {
   expires_at: string;
 }
 
+export type ExportFormat = "bibtex" | "ris" | "csljson";
+
+export interface AutoExport {
+  id: string;
+  workspace_id: string;
+  filename: string;
+  format: ExportFormat;
+  path: string;
+  q: string | null;
+  tag: string | null;
+  collection_id: string | null;
+  year: number | null;
+  status: PaperStatus | null;
+  paper_count: number | null;
+  last_written_at: string | null;
+  last_error: string | null;
+  created_at: string;
+}
+
 export interface PaperLight {
   id: string;
   identifier: string;
@@ -172,4 +191,129 @@ export interface AnnotationDraft {
   content_text: string | null;
   comment: string;
   color: string;
+}
+
+// ---- AI chat (backend/app/schemas/chat.py) ----
+export interface ChatStatus {
+  enabled: boolean;
+  provider: string;
+  model: string | null;
+  vision_available: boolean;
+  daily_requests_remaining: number | null;
+}
+
+/** PDF のポイント単位、原点は左下（y1 < y2）。width / height はそのページの大きさ */
+export interface PdfBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width: number;
+  height: number;
+}
+
+export interface PaperChunks {
+  paper_id: string;
+  page_from: number;
+  page_to: number;
+  chunks: { id: string; chunk_index: number; page_number: number; section: string | null; text: string; bboxes: PdfBox[] }[];
+}
+
+export interface Citation {
+  ref: number;
+  chunk_id: string;
+  paper_id: string;
+  page_number: number;
+  section: string | null;
+  bboxes: PdfBox[];
+  label: string;
+  /** 論文のタイトル（サーバーが付ける。古い会話にはないことがある） */
+  title?: string;
+}
+
+export interface ChatSource {
+  ref: number;
+  chunk_id: string;
+  paper_id: string;
+  title: string;
+  page_number: number;
+  section: string | null;
+  bboxes: PdfBox[];
+}
+
+export type ChatMessageStatus = "complete" | "error" | "cancelled";
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations: Citation[];
+  meta: Record<string, unknown> | null;
+  status: ChatMessageStatus;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  workspace_id: string;
+  paper_id: string | null;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationDetail extends Conversation {
+  messages: ChatMessage[];
+}
+
+export interface ImportItemResult {
+  ref: string;
+  title: string;
+  status: "new" | "matched" | "unreadable";
+  identifier: string | null;
+  matched_by: "existing" | "file" | null;
+  reason: string | null;
+}
+
+export interface ImportFolder {
+  slug: string;
+  exists: boolean;
+  files: { name: string; size: number; format: ImportSummary["format"] }[];
+}
+
+export interface ImportJob {
+  id: string;
+  workspace_id: string;
+  source: string;
+  status: "queued" | "running" | "done" | "failed";
+  total: number;
+  new: number;
+  matched: number;
+  unreadable: number;
+  with_attachments: number;
+  pdfs_processed: number;
+  pdfs_attached: number;
+  pdfs_failed: number;
+  problems: { ref: string; reason: string; stage: "record" | "pdf" }[];
+  error: string | null;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface ImportSummary {
+  format: "bibtex" | "ris" | "csljson" | "zotero_rdf";
+  dry_run: boolean;
+  total: number;
+  new: number;
+  matched: number;
+  unreadable: number;
+  with_attachments: number;
+  tags_added: number;
+  collections_created: number;
+  collection_links: number;
+  notes_added: number;
+  problems: ImportItemResult[];
+  items: ImportItemResult[];
+  problems_truncated: boolean;
 }

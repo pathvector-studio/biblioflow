@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BiblioFlow</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="options">
+    <h1 data-i18n="opt_title"></h1>
+    <form id="form">
+      <label>
+        <span data-i18n="opt_url"></span>
+        <input id="baseUrl" type="url" required placeholder="https://papers.example.com" autocomplete="off" />
+      </label>
+      <label>
+        <span data-i18n="opt_pat"></span>
+        <input id="pat" type="password" autocomplete="off" spellcheck="false" placeholder="bf_pat_..." />
+        <small data-i18n="opt_pat_help"></small>
+      </label>
+      <details>
+        <summary data-i18n="opt_access"></summary>
+        <p><small data-i18n="opt_access_help"></small></p>
+        <label>
+          <span>CF-Access-Client-Id</span>
+          <input id="cfClientId" type="text" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>
+          <span>CF-Access-Client-Secret</span>
+          <input id="cfClientSecret" type="password" autocomplete="off" spellcheck="false" />
+        </label>
+      </details>
+      <label>
+        <span data-i18n="opt_max_pdf"></span>
+        <input id="maxPdfMb" type="number" min="1" max="500" value="50" />
+      </label>
+      <div class="row">
+        <button id="save" type="submit" data-i18n="btn_save_settings"></button>
+        <button id="test" type="button" data-i18n="btn_test"></button>
+      </div>
+    </form>
+    <p id="msg" role="status"></p>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

@@ -171,6 +171,39 @@ Move the service token from `access-token.txt` into your password manager and de
 - Cloudflare's edge rejects a client-supplied `CF-Connecting-IP` with 403 and a forged `X-Forwarded-For` is ignored; the gateway log and the API see the real client IP.
 - If Web Analytics (RUM) auto-injection is enabled for the zone, Cloudflare inserts a `static.cloudflareinsights.com` script into the HTML. Turn it off in Cloudflare if you do not want it.
 
+### Exporting references
+
+`GET /api/v1/export?format=bibtex|ris|csljson` takes the same filters as `/api/v1/papers/light` (`workspace_id`, `collection_id`, `tag`, `status`, `year`, `q`) and returns a file download; a personal access token needs the `read:papers` scope. The library screen's Export menu uses the current filters.
+
+```bash
+curl -H "Authorization: Bearer bf_pat_..." -o refs.bib "https://papers.example.com/api/v1/export?format=bibtex&tag=networking"
+```
+
+#### Auto-export
+
+Settings > Auto-export keeps a file up to date for LaTeX, Obsidian or any tool that reads a `.bib`, `.ris` or CSL `.json` file. Pick a format, a filename (letters, digits, `.`, `_`, `-`; the extension must match the format) and optional filters (collection, tag, status, year, search). The worker then writes `data/exports/<workspace-slug>/<filename>` and rewrites it within a minute or two of any matching paper being added, edited or deleted (it compares a cheap fingerprint every minute and writes through a temporary file and a rename, so readers never see a half-written file). The content is the same as the download from `/api/v1/export` with the same filters. Adding and deleting needs the editor role; deleting also removes the file, and a write failure is shown next to the entry.
+
+Exports are regenerated from the database, so `scripts/backup.sh` does not copy `data/exports`; after a restore the worker rewrites the files within a minute. The directory is `EXPORT_DIR` (default `/data/exports`, mounted from `./data/exports`).
+
+### Importing references
+
+Add > "Import from a bibliography file" reads a BibTeX (`.bib`), RIS (`.ris`, including Mendeley Reference Manager exports), CSL JSON or Zotero RDF file of up to 4 MiB (the format is detected from the content) and adds the records to the current workspace as wishlist papers without a PDF. A preview shows how many records are new, match a paper you already have (same DOI, arXiv ID or identifier) and could not be read; nothing is saved until you confirm.
+
+- Tags come from `keywords` / `KW` / `dc:subject`, Zotero collections become collections with the same names and nesting, and notes (`note` / `annote`, `N1`, Zotero notes) are appended to the paper's notes. A BibTeX record keeps its original entry text in the BibTeX tab.
+- A matching paper keeps its title, authors and other values; only tags, collections and notes are added. Importing the same file again changes nothing. Records without a DOI or arXiv ID get a `BF-` identifier derived from the title, year and first author, which is what makes that possible.
+- Nothing is looked up on the internet and no link in the file is opened, so the data is exactly what the file says. Records that cannot be read (no title, a broken entry) are listed and skipped; the others are imported. The whole file is one database transaction per import.
+- Editors and owners only. The API is `POST /api/v1/imports/preview` and `POST /api/v1/imports` (multipart `file` and optional `workspace_id`; a token needs `write:papers`), limited to 20 previews and 5 imports per minute. File paths in the records (`file`, `L1`, Zotero attachments) are listed but not imported here; PDFs are not uploaded through the browser; see the next section for importing them from a server folder.
+
+#### With PDFs, from a server folder
+
+To move a library together with its PDFs (for example from Zotero), put the files on the server instead of uploading them: Add > "Import with PDFs from the server folder" reads `data/import/<workspace-slug>/` (the screen shows the exact folder; `IMPORT_DIR` in `.env`, default `/data/import`, mounted from `./data/import`). In Zotero use File > Export Library > Zotero RDF with "Export Files" ticked (or BibTeX with "Export Files"), and copy the whole output folder (the `.rdf` / `.bib` file and its `files/` folder) there. A BibTeX or RIS file whose `file` / `L1` fields point at PDFs under that folder works the same way. Relative paths are taken from the folder of the bibliography file; `file://` links and absolute paths are accepted only when they point inside the workspace folder.
+
+- Pick the file from the list and start the import (editors and owners). It runs in the worker: the references are added exactly as above (matching on DOI, arXiv ID or identifier; tags, nested collections and notes included), and then the first PDF of each record is stored through the same checks as an upload (PDF header, size limit, isolated parser) and indexed. The screen shows progress, the counts, and the records that failed with the reason; a record whose PDF fails still keeps its metadata.
+- A paper that already has a PDF keeps it. A matched wishlist paper gets the PDF attached. Running the same import again therefore creates nothing new and stores no PDF twice. One import runs per workspace at a time.
+- Paths that leave the workspace folder (`..`, absolute paths elsewhere, symbolic links anywhere on the way, anything that is not a regular file) are refused and reported for that record only. The file you pick is chosen from the server listing and checked the same way.
+- The API is `GET /api/v1/workspaces/{id}/import-folder` (listing), `POST /api/v1/workspaces/{id}/import-jobs` with `{"source": "<listed name>"}` (a token needs `write:papers`; 5 per minute) and `GET .../import-jobs[/{job_id}]` (`read:papers`).
+- `data/import` is your input, not BiblioFlow's data: `scripts/backup.sh` does not copy it and nothing in it is deleted after the import. Keep the originals until you have checked the result, and remove them yourself afterwards.
+
 ## Production deployment
 
 Use a dedicated clone for production and update it only with `scripts/deploy.sh`:
@@ -305,6 +338,62 @@ claude mcp add biblioflow \
 
 Behind Cloudflare Access, also pass the service token: `-e CF_ACCESS_CLIENT_ID=... -e CF_ACCESS_CLIENT_SECRET=...`. To develop it: `uv run --directory mcp pytest`.
 
+## AI chat and figure explanations
+
+BiblioFlow can answer questions about a paper or the whole library, and explain a figure, equation or table you select on a PDF page, with a model you choose. It is **off by default** (`LLM_PROVIDER=none`): nothing is sent anywhere, and the chat endpoints answer `503 llm_disabled`. The installer leaves it off, because most providers need an API key.
+
+- `POST /api/v1/chat` with `paper_id`: a question about one paper. Without `paper_id`: a question across every workspace you belong to (or one, with `workspace_id`). The answer streams as server-sent events (`meta`, `delta`, `done`, or `error`). Citations are numbered markers such as `[1]` that the server checks against the passages it actually sent; each comes back with the paper, page and position in the PDF and a label such as `p.4, Sec 3.2`.
+- `POST /api/v1/papers/{id}/explain-region`: a PNG or JPEG cut from a page (up to 1.5 MiB) and the rectangle it came from. The server checks the image, scales it to at most 2048 px, re-encodes it as PNG (dropping metadata) and sends it with the text of that page. It needs a vision-capable model.
+- `GET /api/v1/chat/status`: whether chat is on, the provider and model, whether images are supported and how many requests you have left today. `GET /api/v1/chat/conversations` lists your conversations; only you can read them, and they are deleted `CHAT_RETENTION_DAYS` (default 90) after the last message. Images are never stored.
+- API tokens need the `use:ai` scope for chat and explanations, so a read-only token that leaks cannot spend your LLM budget.
+
+### Providers
+
+Set these in `.env` and run `docker compose up -d`:
+
+| `LLM_PROVIDER` | `LLM_MODEL` (example) | Also needs |
+|---|---|---|
+| `anthropic` | `claude-sonnet-5-5` | `LLM_API_KEY` |
+| `openai` | `gpt-4o-mini` | `LLM_API_KEY` |
+| `gemini` | `gemini-2.5-flash` | `LLM_API_KEY` |
+| `ollama` | `llama3.2` (a vision model such as `llama3.2-vision` for explanations) | `LLM_API_BASE`, e.g. `http://host.docker.internal:11434` |
+| `openai_compatible` | the server's model name (vLLM, LM Studio, ...) | `LLM_API_BASE`, and `LLM_API_KEY` if the server wants one |
+
+If a provider is chosen but its model, key or `LLM_API_BASE` is missing, the API still starts, logs `AI chat is disabled: ...` and keeps chat off. `VISION_MODEL` sets a separate model for explanations; when it is empty, `LLM_MODEL` is used if LiteLLM says it accepts images. Calls go through the [LiteLLM](https://github.com/BerriAI/litellm) SDK (not its proxy). LiteLLM's telemetry and callbacks are turned off, and provider errors are reduced to a fixed message so that a key or URL never ends up in a response or a log.
+
+### What is sent to the provider
+
+| Sent | Not sent |
+|---|---|
+| Your question | The PDF file |
+| Up to `LLM_MAX_CONTEXT_CHUNKS` (default 8) passages found by search, each cut to 1,500 characters | Anything from workspaces you cannot access |
+| The title, authors and year of the papers those passages come from | Your e-mail address, user ID or API tokens |
+| The last 6 exchanges of the conversation (at most 8,000 characters) | Other users' conversations |
+| For explanations: the selected image and the text of that page | |
+
+With `ollama` (or an OpenAI-compatible server you run yourself) nothing leaves your network. Logs record only counts, the model, token numbers and timings, never the question, the answer, the passages or the image.
+
+Text from papers is passed inside `<paper_context>` tags, and the system prompt tells the model to treat it as data, never as instructions. A paper with hidden text such as "ignore the previous instructions" can at worst produce a wrong answer: the model has no tools, the server drops citations that point at nothing, and Markdown images (a way to leak data through a URL) are removed from answers.
+
+### Limits
+
+Per user: 10 chat requests and 5 explanations per minute (and 30 per minute per IP address), at most 2 answers streaming at once, and per day `LLM_DAILY_REQUESTS_PER_USER` requests (default 200) and `LLM_DAILY_TOKENS_PER_USER` tokens (default 200,000). Each answer is capped at `LLM_MAX_OUTPUT_TOKENS` (default 1,024). If search finds nothing, the model is not called at all.
+
+## Browser extension
+
+`extension/` holds a small extension (Chrome and Firefox, plain JavaScript, no dependencies) that saves the paper you are reading with one click, the way Zotero Connector does. It reads the page's meta tags (`citation_*`, `dc.*`, arXiv / DOI / ScienceDirect URLs) only when you press the toolbar button, fetches the PDF with your own browser session (so subscriptions and cookies apply), and sends it to your BiblioFlow server with `POST /api/v1/papers/upload`. If the PDF cannot be fetched, it saves the paper to your wishlist and says so. It never imitates a browser to get around a site's bot protection.
+
+```bash
+node extension/build.mjs     # writes extension/dist/{chrome,firefox}/ and two zips
+```
+
+- **Chrome**: open `chrome://extensions`, turn on Developer mode, "Load unpacked", pick `extension/dist/chrome`.
+- **Firefox**: open `about:debugging#/runtime/this-firefox`, "Load Temporary Add-on", pick `extension/dist/firefox/manifest.json` (Firefox 128 or later).
+- **Settings**: in BiblioFlow, create an API token under Settings with the scopes `read:papers` and `write:papers`. Open the extension's settings, enter your BiblioFlow URL and the token, and press "Test connection" (the browser asks once for permission to contact that one server). The token is kept in the extension's local storage and is never given to web pages.
+- **Cloudflare Access**: if BiblioFlow is behind Access, sign in to Access in the same browser; its cookie is sent automatically. A service token (`CF-Access-Client-Id` / `-Secret`) can be entered instead.
+
+The extension's only permissions are `activeTab`, `scripting` and `storage`, plus the host permission you grant for your own server. Tests: `node --test 'extension/test/*.test.js'`.
+
 ## Tests
 
 Integration tests run against the `biblioflow_test` database and need an image built with `INSTALL_DEV=true`.
@@ -318,20 +407,20 @@ docker compose run --rm biblioflow-api pytest
 
 - `data/library/`: stored PDFs, `{Year}/{Identifier}_{SlugTitle}.pdf` (readable directly from the host)
 - `data/watch/`: watch folder; PDFs dropped in `data/watch/<workspace-slug>/` are imported automatically
+- `data/import/`: files to import with their PDFs, `<workspace-slug>/` (your input; not part of the backup)
+- `data/exports/`: auto-export files, `<workspace-slug>/<filename>` (regenerated by the worker; not part of the backup)
 - `db/init/`: database initialization SQL (runs on first start only)
 
 ## Roadmap
 
 Not implemented yet, roughly in this order (details in `specs/phase3.md` and `specs/roadmap.md`):
 
-- **LLM providers**: OpenAI, Anthropic, Gemini or a local model (Ollama, vLLM) through LiteLLM, with your own API key. The `LLM_*` settings in `.env.example` are placeholders until then.
-- **AI chat about a paper**, with citation badges such as `[p.4, Sec 3.2]` that jump to the page and position in the PDF.
-- **Figure and equation explanations**: drag-select an area of the PDF and ask a Vision LLM about it. (Area selection itself already works, as an annotation.)
+- **AI screens**: an AI tab next to the PDF with citation badges such as `[p.4, Sec 3.2]` that jump to the position in the PDF, and drag-selecting an area to ask about it. The [API](#ai-chat-and-figure-explanations) is ready.
 - **Comparing papers**: questions across several papers and comparison tables of methods.
 - **Browser extension** to save a paper and its PDF from publisher pages in one click.
 - **Export and import**: BibTeX / RIS / CSL JSON for collections and tags, automatic export, notes and annotations as Markdown, and migration from Zotero, Mendeley, BibTeX and RIS.
 
-Until the in-app AI lands, the [MCP server](#search-embeddings-and-mcp) lets an MCP client search and read your library.
+Until the AI screens land, use the [chat API](#ai-chat-and-figure-explanations), or the [MCP server](#search-embeddings-and-mcp) to let an MCP client search and read your library.
 
 ## Sponsoring
 

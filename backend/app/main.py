@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -17,11 +18,16 @@ from app.services.ingest import IngestError
 
 # Every route except the PDF upload takes JSON; notes (<= 500k chars) fit in 4 MiB.
 JSON_BODY_LIMIT = 4 * 1024 * 1024
+IMPORT_BODY_LIMIT = 5 * 1024 * 1024  # 4 MiB file + multipart envelope; same value in deploy/Caddyfile
 UPLOAD_PATH = "/api/v1/papers/upload"
+IMPORT_PATHS = ("/api/v1/imports", "/api/v1/imports/preview")  # bibliography file, see api/v1/imports.py
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    problem = get_settings().llm_config_problem
+    if problem:  # chat stays off (503 llm_disabled) instead of the API refusing to start
+        logging.getLogger("biblioflow.llm").warning("AI chat is disabled: %s (set LLM_PROVIDER=none to silence)", problem)
     yield
     await close_arq_pool()
     await close_redis()
@@ -42,7 +48,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         BodySizeLimitMiddleware,
         max_bytes=min(JSON_BODY_LIMIT, settings.max_upload_bytes),
-        path_limits={UPLOAD_PATH: settings.max_upload_bytes},
+        path_limits={UPLOAD_PATH: settings.max_upload_bytes, **dict.fromkeys(IMPORT_PATHS, IMPORT_BODY_LIMIT)},
     )
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(

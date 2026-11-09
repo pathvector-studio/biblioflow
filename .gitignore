@@ -6,8 +6,12 @@
 .envrc
 data/library/*
 data/watch/*
+data/exports/*
+data/import/*
 !data/library/.gitkeep
 !data/watch/.gitkeep
+!data/exports/.gitkeep
+!data/import/.gitkeep
 node_modules
 .next
 __pycache__
@@ -19,3 +23,6 @@ AGENTS.local.md
 
 # Agent hand-off notes (specs/agent-workflow.md)
 .handoff/
+
+# Browser extension build output
+extension/dist/

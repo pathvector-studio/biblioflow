@@ -14,10 +14,12 @@ import {
   type PdfScaleValue,
   type ScaledPosition,
 } from "react-pdf-highlighter-extended";
-import { BoxSelect, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
+import { BoxSelect, Sparkles, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { version as pdfjsVersion } from "pdfjs-dist";
 import { useI18n } from "@/lib/i18n";
-import type { Annotation, AnnotationDraft } from "@/lib/types";
+import { pdfBoxToScaled, unionScaled } from "@/lib/ai/geometry";
+import { captureRegion, type PageViewLike, type RegionCapture } from "@/lib/ai/crop";
+import type { Annotation, AnnotationDraft, PdfBox } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +30,24 @@ import { ColorSwatches, DEFAULT_COLOR } from "@/components/paper/colors";
 const WORKER_SRC = `/pdf.worker.min.mjs?v=${pdfjsVersion}`;
 
 interface AnnotationHighlight extends Highlight {
-  annotation: Annotation;
+  /** AI の引用の一時ハイライトには注釈がない */
+  annotation?: Annotation;
+}
+
+/** AI の回答の引用。ページと、その範囲（PDF のポイント、原点左下）。nonce が変わるたびに移動する */
+export interface CitationRequest {
+  pageNumber: number;
+  bboxes: PdfBox[];
+  nonce: number;
+}
+
+const CITATION_ID = "bf-citation";
+const CITATION_MS = 6000;
+
+function citationHighlight(req: CitationRequest): AnnotationHighlight | null {
+  if (req.bboxes.length === 0) return null;
+  const rects = req.bboxes.map((b) => pdfBoxToScaled(b, req.pageNumber));
+  return { id: CITATION_ID, type: "text", position: { boundingRect: unionScaled(rects), rects } };
 }
 
 function isScaledPosition(p: unknown): p is ScaledPosition {
@@ -72,6 +91,10 @@ function HighlightContainer({
 }) {
   const { highlight, isScrolledTo, viewportToScaled } = useHighlightContainerContext<AnnotationHighlight>();
   const a = highlight.annotation;
+  if (!a) {
+    // 引用の一時ハイライト。注釈ではないので、ツールチップも編集もない
+    return <TextHighlight highlight={highlight} isScrolledTo={false} style={{ background: "rgba(250,204,21,0.5)" }} />;
+  }
   const color = a.color ?? DEFAULT_COLOR;
   // バックエンドと同じ規則: editor 以上で、作成者本人かワークスペース owner
   const canModify = canEdit && (a.user_id === myUserId || isOwner);
@@ -119,16 +142,33 @@ function HighlightContainer({
   );
 }
 
-function SelectionTip({ onCreate }: { onCreate: (d: AnnotationDraft) => void }) {
+function SelectionTip({
+  canEdit,
+  explainEnabled,
+  onCreate,
+  onExplain,
+}: {
+  canEdit: boolean;
+  explainEnabled: boolean;
+  onCreate: (d: AnnotationDraft) => void;
+  onExplain: (c: RegionCapture, question: string) => void;
+}) {
   const { t } = useI18n();
   const utils = usePdfHighlighterContext();
   const [color, setColor] = useState<string>(DEFAULT_COLOR);
   const [comment, setComment] = useState("");
+  const [question, setQuestion] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const isArea = utils.getCurrentSelection()?.type === "area";
+  // 解説は矩形だけ。閲覧者にはテキスト選択のツールチップを出さない
+  const showExplain = explainEnabled && isArea;
+  if (!canEdit && !showExplain) return null;
 
   function save() {
-    const selection = utils.getCurrentSelection();
-    if (!selection) return;
-    const ghost = selection.makeGhostHighlight();
+    const current = utils.getCurrentSelection();
+    if (!current) return;
+    const ghost = current.makeGhostHighlight();
     utils.removeGhostHighlight();
     utils.setTip(null);
     onCreate({
@@ -141,22 +181,76 @@ function SelectionTip({ onCreate }: { onCreate: (d: AnnotationDraft) => void }) 
     });
   }
 
+  async function explain() {
+    const current = utils.getCurrentSelection();
+    if (!current || busy) return;
+    const scaled = current.position.boundingRect;
+    const pageView = utils.getViewer()?.getPageView(scaled.pageNumber - 1) as PageViewLike | undefined;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const capture = pageView ? await captureRegion(pageView, scaled) : null;
+      if (!capture) {
+        setFailed(true);
+        return;
+      }
+      utils.removeGhostHighlight();
+      utils.setTip(null);
+      onExplain(capture, question.trim());
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="w-60 space-y-2 rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
-      <ColorSwatches value={color} onChange={setColor} />
-      <Textarea
-        className="min-h-[56px] text-xs"
-        placeholder={t.reader.commentPlaceholder}
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-      />
-      <div className="flex justify-end gap-1">
+      {canEdit && (
+        <>
+          <ColorSwatches value={color} onChange={setColor} />
+          <Textarea
+            className="min-h-[56px] text-xs"
+            placeholder={t.reader.commentPlaceholder}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
+        </>
+      )}
+      {showExplain && (
+        <Input
+          className="h-7 text-xs"
+          maxLength={1000}
+          aria-label={t.reader.explainQuestion}
+          placeholder={t.reader.explainQuestion}
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              void explain();
+            }
+          }}
+        />
+      )}
+      {failed && (
+        <p role="alert" className="text-xs text-destructive">
+          {t.reader.explainCaptureFailed}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-end gap-1">
         <Button size="sm" variant="outline" onClick={() => utils.setTip(null)}>
           {t.common.cancel}
         </Button>
-        <Button size="sm" onClick={save}>
-          {t.reader.saveHighlight}
-        </Button>
+        {showExplain && (
+          <Button size="sm" variant={canEdit ? "outline" : "default"} disabled={busy} onClick={() => void explain()}>
+            <Sparkles className="h-3.5 w-3.5" />
+            {t.reader.explainWithAi}
+          </Button>
+        )}
+        {canEdit && (
+          <Button size="sm" onClick={save}>
+            {t.reader.saveHighlight}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -169,13 +263,17 @@ export interface PdfPaneProps {
   myUserId: string | undefined;
   isOwner: boolean;
   focusRequest: { id: string; nonce: number } | null;
+  citationRequest?: CitationRequest | null;
+  /** AI で解説を使えるか（チャットが有効で、モデルが画像に対応している） */
+  explainEnabled?: boolean;
+  onExplain?: (c: RegionCapture, question: string) => void;
   onCreate: (d: AnnotationDraft) => void;
   onEdit: (a: Annotation) => void;
   onDelete: (a: Annotation) => void;
   onMove: (a: Annotation, p: ScaledPosition) => void;
 }
 
-export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focusRequest, onCreate, onEdit, onDelete, onMove }: PdfPaneProps) {
+export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focusRequest, citationRequest, explainEnabled = false, onExplain, onCreate, onEdit, onDelete, onMove }: PdfPaneProps) {
   const { t } = useI18n();
   const utilsRef = useRef<PdfHighlighterUtils | null>(null);
   const [scale, setScale] = useState<PdfScaleValue>("page-width");
@@ -189,9 +287,21 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
     areaModeRef.current = areaMode;
   }, [areaMode]);
   const [error, setError] = useState<string | null>(null);
+  // 編集者は注釈か解説、閲覧者は解説だけのために範囲選択を使う
+  const explainAvailable = explainEnabled && !!onExplain;
+  const areaAvailable = canEdit || explainAvailable;
 
   const source = useMemo(() => ({ url: `/api/v1/papers/${paperId}/file`, withCredentials: true }), [paperId]);
-  const highlights = useMemo(() => toHighlights(annotations), [annotations]);
+  // 引用の一時ハイライトは、要求から導く。数秒たったら（nonce ごとに）消す
+  const [expiredNonce, setExpiredNonce] = useState<number | null>(null);
+  const citation = useMemo(
+    () => (citationRequest && citationRequest.nonce !== expiredNonce ? citationHighlight(citationRequest) : null),
+    [citationRequest, expiredNonce],
+  );
+  const highlights = useMemo(() => {
+    const list = toHighlights(annotations);
+    return citation ? [...list, citation] : list;
+  }, [annotations, citation]);
 
   // ビューアの準備ができたらページ変更イベントを購読する
   useEffect(() => {
@@ -225,6 +335,36 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
     const h = highlights.find((x) => x.id === focusRequest.id);
     if (h) utilsRef.current?.scrollToHighlight(h);
   }, [focusRequest, highlights]);
+
+  // 引用のクリック: そのページへ移り、範囲を数秒だけハイライトする（保存しない）
+  useEffect(() => {
+    if (!citationRequest) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const apply = (): boolean => {
+      // 別画面から開いた直後は、ビューアの準備ができるまで待つ
+      const viewer = utilsRef.current?.getViewer();
+      if (!viewer || viewer.pagesCount === 0) return false;
+      const h = citationHighlight(citationRequest);
+      if (h) {
+        utilsRef.current?.scrollToHighlight(h);
+      } else {
+        viewer.currentPageNumber = Math.min(Math.max(1, citationRequest.pageNumber), viewer.pagesCount);
+      }
+      timer = setTimeout(() => setExpiredNonce(citationRequest.nonce), CITATION_MS);
+      return true;
+    };
+    let poll: ReturnType<typeof setInterval> | undefined;
+    if (!apply()) {
+      let tries = 0;
+      poll = setInterval(() => {
+        if (apply() || ++tries > 100) clearInterval(poll);
+      }, 200);
+    }
+    return () => {
+      clearInterval(poll);
+      clearTimeout(timer);
+    };
+  }, [citationRequest]);
 
   function goToPage(n: number) {
     const viewer = utilsRef.current?.getViewer();
@@ -275,14 +415,14 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
         <Button size="icon" variant="ghost" aria-label={t.reader.zoomIn} onClick={() => zoom(1.2)}>
           <Plus className="h-4 w-4" />
         </Button>
-        {canEdit && (
+        {areaAvailable && (
           <>
             <span className="mx-1 h-4 w-px bg-border" />
             <Button
               size="sm"
               variant={areaMode ? "default" : "ghost"}
               aria-pressed={areaMode}
-              title={t.reader.areaModeHint}
+              title={canEdit ? t.reader.areaModeHint : t.reader.areaModeHintExplain}
               onClick={() => setAreaMode((v) => !v)}
             >
               <BoxSelect className="h-4 w-4" />
@@ -312,10 +452,21 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
                 utilsRef={(u) => {
                   utilsRef.current = u;
                 }}
-                enableAreaSelection={canEdit ? (e) => areaModeRef.current || e.altKey : undefined}
+                enableAreaSelection={areaAvailable ? (e) => areaModeRef.current || e.altKey : undefined}
                 mouseSelectionStyle={{ border: "2px dashed hsl(221 83% 53%)", background: "rgba(59,130,246,0.15)" }}
                 // 新しい要素を渡し続けることで、ライブラリ側のイベント購読が毎回張り直される（ズーム値の追従に必要）
-                selectionTip={canEdit ? <SelectionTip onCreate={onCreate} /> : <></>}
+                selectionTip={
+                  areaAvailable ? (
+                    <SelectionTip
+                      canEdit={canEdit}
+                      explainEnabled={explainAvailable}
+                      onCreate={onCreate}
+                      onExplain={(c, q) => onExplain?.(c, q)}
+                    />
+                  ) : (
+                    <></>
+                  )
+                }
               >
                 <HighlightContainer
                   labels={labels}

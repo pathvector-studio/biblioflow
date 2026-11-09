@@ -10,7 +10,7 @@ import { flattenCollections } from "@/lib/collections";
 import { authorsToText, textToAuthors } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
 import { useCollections, useTags } from "@/lib/queries";
-import { useWorkspace } from "@/lib/session";
+import { useWorkspaceRole } from "@/lib/session";
 import { PAPER_STATUSES, type PaperDetail, type PaperPatch, type PaperStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,10 +29,11 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor: string; c
 
 export function BibliographyTab({ paper }: { paper: PaperDetail }) {
   const { t } = useI18n();
-  const { current, canEdit } = useWorkspace();
+  // タグ・コレクション・権限は論文のワークスペースのもの（ヘッダーで選んでいるワークスペースではない）
+  const { canEdit } = useWorkspaceRole(paper.workspace_id);
   const queryClient = useQueryClient();
-  const tags = useTags(current.id);
-  const collections = useCollections(current.id);
+  const tags = useTags(paper.workspace_id);
+  const collections = useCollections(paper.workspace_id);
   const flat = useMemo(() => flattenCollections(collections.data ?? []), [collections.data]);
 
   const [title, setTitle] = useState(paper.title);

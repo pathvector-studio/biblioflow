@@ -2,23 +2,28 @@
 
 import { Pencil, Trash2 } from "lucide-react";
 import { fmt, useI18n } from "@/lib/i18n";
-import { useMe, useWorkspace } from "@/lib/session";
+import { useMe } from "@/lib/session";
 import type { Annotation } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 
 export function AnnotationsTab({
   annotations,
+  canEdit,
+  isOwner,
   onFocus,
   onEdit,
   onDelete,
 }: {
   annotations: Annotation[];
+  /** 論文のワークスペースで editor 以上 */
+  canEdit: boolean;
+  /** 論文のワークスペースの owner（ほかの人の注釈も直せる） */
+  isOwner: boolean;
   onFocus: (a: Annotation) => void;
   onEdit: (a: Annotation) => void;
   onDelete: (a: Annotation) => void;
 }) {
   const { t } = useI18n();
-  const { canEdit, current } = useWorkspace();
   const me = useMe();
 
   if (annotations.length === 0) return <p className="text-sm text-muted-foreground">{t.reader.noAnnotations}</p>;
@@ -27,7 +32,7 @@ export function AnnotationsTab({
   return (
     <ul className="space-y-2">
       {sorted.map((a) => {
-        const mine = canEdit && (a.user_id === me.data?.user.id || current.role === "owner");
+        const mine = canEdit && (a.user_id === me.data?.user.id || isOwner);
         return (
           <li key={a.id} className="flex gap-2 rounded-md border p-2 text-sm">
             <span className="mt-1 h-3 w-3 shrink-0 rounded-full border border-black/20" style={{ background: a.color ?? "#fde047" }} />

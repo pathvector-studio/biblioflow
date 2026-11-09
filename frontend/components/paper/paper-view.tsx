@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -10,8 +11,9 @@ import type { ScaledPosition } from "react-pdf-highlighter-extended";
 import { api, describeError } from "@/lib/api";
 import { formatAuthors } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import { useMe, useWorkspace } from "@/lib/session";
-import type { Annotation, AnnotationDraft, PaperDetail } from "@/lib/types";
+import { useMe, useWorkspaceRole } from "@/lib/session";
+import type { RegionCapture } from "@/lib/ai/crop";
+import type { Annotation, AnnotationDraft, ChatStatus, Citation, PaperChunks, PaperDetail } from "@/lib/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +25,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnnotationEditDialog } from "@/components/paper/annotation-edit-dialog";
+import { AiTab, type ExplainRequest } from "@/components/paper/ai-tab";
 import { AnnotationsTab } from "@/components/paper/annotations-tab";
 import { BibliographyTab } from "@/components/paper/bibliography-tab";
 import { NotesTab } from "@/components/paper/notes-tab";
 import { UploadBox } from "@/components/paper/upload-box";
+import type { CitationRequest } from "@/components/paper/pdf-pane";
 
 // pdf.js はブラウザ専用のため SSR では読み込まない
 const PdfPane = dynamic(() => import("@/components/paper/pdf-pane").then((m) => m.PdfPane), {
@@ -36,11 +40,12 @@ const PdfPane = dynamic(() => import("@/components/paper/pdf-pane").then((m) => 
 
 export function PaperView({ paperId }: { paperId: string }) {
   const { t } = useI18n();
-  const { canEdit, current } = useWorkspace();
   const me = useMe();
   const queryClient = useQueryClient();
 
   const paper = useQuery({ queryKey: ["paper", paperId], queryFn: () => api.get<PaperDetail>(`/papers/${paperId}`) });
+  // 権限は論文のワークスペースで決める（ヘッダーで選んでいるワークスペースではない）
+  const { canEdit, isOwner } = useWorkspaceRole(paper.data?.workspace_id);
   const annotations = useQuery({
     queryKey: ["annotations", paperId],
     // 論文の取得を待たずに並行して取りに行く（PDF がない論文でも空配列が返るだけ）
@@ -49,9 +54,56 @@ export function PaperView({ paperId }: { paperId: string }) {
 
   const [split, setSplit] = useState(58);
   const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
+  const [citation, setCitation] = useState<CitationRequest | null>(null);
+  const [tab, setTab] = useState("notes");
   const [editing, setEditing] = useState<Annotation | null>(null);
   const [deleting, setDeleting] = useState<Annotation | null>(null);
   const container = useRef<HTMLDivElement>(null);
+
+  // AI で解説は、チャットが有効でモデルが画像に対応しているときだけ出す（AI タブと同じ問い合わせを共有する）
+  const chatStatus = useQuery({
+    queryKey: ["chat-status"],
+    queryFn: () => api.get<ChatStatus>("/chat/status"),
+    retry: false,
+    staleTime: 30_000,
+  });
+  const explainEnabled = chatStatus.data?.enabled === true && chatStatus.data.vision_available;
+  const [explainRequest, setExplainRequest] = useState<ExplainRequest | null>(null);
+  const onExplain = useCallback((capture: RegionCapture, question: string) => {
+    setTab("ai");
+    setExplainRequest({ capture, question, nonce: Date.now() });
+  }, []);
+
+  // 別の画面（AI 画面の引用）から `?page=4&hl=<chunk_id>` で開かれたら、そのページへ移ってハイライトする
+  const searchParams = useSearchParams();
+  const wantPage = Number(searchParams.get("page"));
+  const wantChunk = searchParams.get("hl");
+  const hasPdf = paper.data?.has_pdf === true;
+  const jumped = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasPdf || !Number.isInteger(wantPage) || wantPage < 1) return;
+    const marker = `${paperId}:${wantPage}:${wantChunk ?? ""}`;
+    if (jumped.current === marker) return;
+    jumped.current = marker;
+    let cancelled = false;
+    void (async () => {
+      let bboxes: Citation["bboxes"] = [];
+      if (wantChunk) {
+        try {
+          const r = await api.get<PaperChunks>(`/papers/${paperId}/chunks`, { page_from: wantPage, page_to: wantPage });
+          bboxes = r.chunks.find((c) => c.id === wantChunk)?.bboxes ?? [];
+        } catch {
+          // チャンクが取れなくてもページには移る
+        }
+      }
+      if (!cancelled) setCitation({ pageNumber: wantPage, bboxes, nonce: Date.now() });
+    })();
+    return () => {
+      cancelled = true;
+      // 開発時の StrictMode の再実行で、取り消した分をやり直せるようにする
+      if (jumped.current === marker) jumped.current = null;
+    };
+  }, [hasPdf, paperId, wantPage, wantChunk]);
 
   const key = ["annotations", paperId];
   const replace = (a: Annotation) =>
@@ -86,6 +138,10 @@ export function PaperView({ paperId }: { paperId: string }) {
   );
   const onEdit = useCallback((a: Annotation) => setEditing(a), []);
   const onDelete = useCallback((a: Annotation) => setDeleting(a), []);
+  const onCite = useCallback(
+    (c: Citation) => setCitation({ pageNumber: c.page_number, bboxes: c.bboxes, nonce: Date.now() }),
+    [],
+  );
   const onCreate = useCallback((d: AnnotationDraft) => createAnnotation(d), [createAnnotation]);
 
   function onDividerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
@@ -123,8 +179,11 @@ export function PaperView({ paperId }: { paperId: string }) {
               annotations={annotations.data ?? []}
               canEdit={canEdit}
               myUserId={me.data?.user.id}
-              isOwner={current.role === "owner"}
+              isOwner={isOwner}
               focusRequest={focus}
+              citationRequest={citation}
+              explainEnabled={explainEnabled}
+              onExplain={onExplain}
               onCreate={onCreate}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -154,11 +213,12 @@ export function PaperView({ paperId }: { paperId: string }) {
           }}
           className="hidden w-1.5 shrink-0 cursor-col-resize bg-border hover:bg-primary/40 focus-visible:bg-primary/40 md:block"
         />
-        <Tabs defaultValue="notes" className="flex min-h-0 min-w-0 flex-1 flex-col p-3">
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 min-w-0 flex-1 flex-col p-3">
           <TabsList className="self-start">
             <TabsTrigger value="notes">{t.reader.tabNotes}</TabsTrigger>
             <TabsTrigger value="bibliography">{t.reader.tabBibliography}</TabsTrigger>
             <TabsTrigger value="annotations">{t.reader.tabAnnotations}</TabsTrigger>
+            <TabsTrigger value="ai">{t.reader.tabAi}</TabsTrigger>
           </TabsList>
           <TabsContent value="notes" forceMount className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
             <NotesTab key={p.id} paper={p} canEdit={canEdit} />
@@ -169,10 +229,15 @@ export function PaperView({ paperId }: { paperId: string }) {
           <TabsContent value="annotations" forceMount className="mt-3 min-h-0 flex-1 overflow-auto data-[state=inactive]:hidden">
             <AnnotationsTab
               annotations={annotations.data ?? []}
+              canEdit={canEdit}
+              isOwner={isOwner}
               onFocus={(a) => setFocus({ id: a.id, nonce: Date.now() })}
               onEdit={onEdit}
               onDelete={onDelete}
             />
+          </TabsContent>
+          <TabsContent value="ai" forceMount className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
+            <AiTab key={p.id} paperId={p.id} active={tab === "ai"} onCite={onCite} explainRequest={explainRequest} />
           </TabsContent>
         </Tabs>
       </div>
