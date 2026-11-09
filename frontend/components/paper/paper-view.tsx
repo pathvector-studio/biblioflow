@@ -11,7 +11,7 @@ import type { ScaledPosition } from "react-pdf-highlighter-extended";
 import { api, describeError } from "@/lib/api";
 import { formatAuthors } from "@/lib/format";
 import { useI18n } from "@/lib/i18n";
-import { useMe, useWorkspace } from "@/lib/session";
+import { useMe, useWorkspaceRole } from "@/lib/session";
 import type { RegionCapture } from "@/lib/ai/crop";
 import type { Annotation, AnnotationDraft, ChatStatus, Citation, PaperChunks, PaperDetail } from "@/lib/types";
 import {
@@ -40,11 +40,12 @@ const PdfPane = dynamic(() => import("@/components/paper/pdf-pane").then((m) => 
 
 export function PaperView({ paperId }: { paperId: string }) {
   const { t } = useI18n();
-  const { canEdit, current } = useWorkspace();
   const me = useMe();
   const queryClient = useQueryClient();
 
   const paper = useQuery({ queryKey: ["paper", paperId], queryFn: () => api.get<PaperDetail>(`/papers/${paperId}`) });
+  // 権限は論文のワークスペースで決める（ヘッダーで選んでいるワークスペースではない）
+  const { canEdit, isOwner } = useWorkspaceRole(paper.data?.workspace_id);
   const annotations = useQuery({
     queryKey: ["annotations", paperId],
     // 論文の取得を待たずに並行して取りに行く（PDF がない論文でも空配列が返るだけ）
@@ -178,7 +179,7 @@ export function PaperView({ paperId }: { paperId: string }) {
               annotations={annotations.data ?? []}
               canEdit={canEdit}
               myUserId={me.data?.user.id}
-              isOwner={current.role === "owner"}
+              isOwner={isOwner}
               focusRequest={focus}
               citationRequest={citation}
               explainEnabled={explainEnabled}
@@ -228,6 +229,8 @@ export function PaperView({ paperId }: { paperId: string }) {
           <TabsContent value="annotations" forceMount className="mt-3 min-h-0 flex-1 overflow-auto data-[state=inactive]:hidden">
             <AnnotationsTab
               annotations={annotations.data ?? []}
+              canEdit={canEdit}
+              isOwner={isOwner}
               onFocus={(a) => setFocus({ id: a.id, nonce: Date.now() })}
               onEdit={onEdit}
               onDelete={onDelete}
