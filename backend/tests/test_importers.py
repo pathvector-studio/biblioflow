@@ -253,3 +253,18 @@ def test_csl_json_deep_nesting_is_rejected_not_a_crash():
     r = parse_file(nested_title, "a.json")  # not CSL: reported as an unreadable record
     assert not r.items and [p.reason for p in r.problems] == ["missing title"]
     assert parse_file(b'[{"title": ["Listed"]}]', "a.json").items[0].title == "Listed"
+
+
+def test_bibtex_stored_entry_keeps_the_strings_it_uses():
+    from app.services import export as ex
+    from app.services.ingest import align_bibtex_key
+
+    he = by_title(load("library.bib"), "Deep Residual")
+    assert he.bibtex.startswith('@string{cvpr = "Proceedings of CVPR"}\n@inproceedings{he2016deep,')
+    assert by_title(load("library.bib"), "Attention").bibtex.startswith("@")  # no macro: nothing in front
+    assert "@string" not in by_title(load("library.bib"), "Attention").bibtex
+    # The citekey is replaced in the entry, not in the @string line (even one with a comma in its value).
+    stored = '@string{j = "Journal, The"}\n@article{old, title = {T}, journal = j}\n'
+    assert align_bibtex_key(stored, "new2020") == '@string{j = "Journal, The"}\n@article{new2020, title = {T}, journal = j}\n'
+    rec = ex.ExportRecord("BF-X", IdentifierType.internal, "T", citekey="new2020", bibtex=stored)
+    assert ex.to_bibtex([rec]).startswith('@string{j = "Journal, The"}\n@article{new2020,')

@@ -181,7 +181,7 @@ def parse_file_field(value: str | None) -> list[str]:
     return out
 
 
-def _item(entry: dict[str, str], raw: str, index: int) -> ImportItem | ParseProblem:
+def _item(entry: dict[str, str], raw: str, index: int, strings: str = "") -> ImportItem | ParseProblem:
     key = entry.get("ID", "")
     ref = key or f"entry {index}"
     f = {k.lower(): v for k, v in entry.items()}
@@ -200,7 +200,8 @@ def _item(entry: dict[str, str], raw: str, index: int) -> ImportItem | ParseProb
         arxiv_id=arxiv,
         abstract=_tex_block(f.get("abstract")),
         citekey=key,
-        bibtex=raw.strip() + "\n" if len(raw) <= MAX_STORED_ENTRY else None,
+        # With the @string definitions it uses in front, so the stored text stands on its own.
+        bibtex=strings + raw.strip() + "\n" if len(strings) + len(raw) <= MAX_STORED_ENTRY else None,
         tags=tags,
         notes=notes,
         attachments=parse_file_field(f.get("file")),
@@ -221,8 +222,9 @@ def parse(text: str) -> ParseResult:
     for i, raw in enumerate(entries, 1):
         parser = BibTexParser(common_strings=True, ignore_nonstandard_types=False, homogenize_fields=False)
         parser.customization = None
+        prefix = table.prefix_for(raw)
         try:
-            parsed = bibtexparser.loads(table.prefix_for(raw) + raw, parser).entries
+            parsed = bibtexparser.loads(prefix + raw, parser).entries
         except Exception:  # noqa: BLE001 - pyparsing raises a zoo of exceptions on malformed input
             parsed = []
         km = _KEY.match(raw)
@@ -233,7 +235,7 @@ def parse(text: str) -> ParseResult:
         if _unbalanced(raw):
             result.problems.append(ParseProblem(label, "unbalanced braces (entry cut short)"))
             continue
-        item = _item(parsed[0], raw, i)
+        item = _item(parsed[0], raw, i, prefix)
         if isinstance(item, ParseProblem):
             result.problems.append(item)
         else:
