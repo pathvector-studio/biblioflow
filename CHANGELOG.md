@@ -30,6 +30,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - The paper screen decides who may edit (notes, bibliography, annotations, PDF upload) by the paper's own workspace, not by the workspace picked in the header. Before, a viewer of a shared workspace saw editing tools on its papers when their own workspace was selected (the server still refused the changes), and the bibliography tab offered the header workspace's tags and collections.
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
 
+- Browser extension: IEEE Xplore pages (which have no `citation_*` tags) now give the DOI, title, authors and PDF link, and ACM Digital Library pages give the PDF link and correctly split author names. Checked against the live pages of arXiv, PLOS, Nature, SpringerLink, Wiley, ACM and IEEE.
 - BibTeX export: DOIs, URLs and arXiv ids are written as they are (`10.1007/978-3-030-58452-8_13`, not `…\_13`), a title with unbalanced braces no longer breaks the entry, and an institution or a name containing "and" stays one author (`{World Health Organization}`). Checked with `biber --tool` and `bibtex`; the CSL JSON export passes the official CSL schema.
 - An imported BibTeX entry that uses `@string` abbreviations keeps those definitions, so exporting it again no longer loses the journal or book title.
 

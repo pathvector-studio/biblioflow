@@ -28,7 +28,7 @@ async function inspect() {
     page = null; // restricted page or a built-in PDF viewer
   }
   const url = (page && page.url) || tab.url || "";
-  const meta = extract({ url, metas: page ? page.metas : [], title: page ? page.title : tab.title });
+  const meta = extract({ url, metas: page ? page.metas : [], title: page ? page.title : tab.title, embedded: page ? page.embedded : null });
   const tabIsPdf = (page && /pdf/i.test(page.contentType)) || (!page && looksLikePdfUrl(url));
   const pdfUrl = tabIsPdf ? url : meta.pdfUrl;
   if (tabIsPdf && !meta.title) meta.title = (tab.title || "").replace(/\.pdf$/i, "") || null;

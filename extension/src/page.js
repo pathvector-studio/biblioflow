@@ -8,11 +8,23 @@ export function collectPage() {
     const content = el.getAttribute("content");
     if (name && content) metas.push({ name, content });
   }
+  // IEEE Xplore keeps the record in an inline script instead of <meta> tags (see ieeeMetas in extract.js).
+  let embedded = null;
+  if (/(^|\.)ieeexplore\.ieee\.org$/i.test(location.hostname)) {
+    for (const s of document.scripts) {
+      const text = s.src ? "" : s.textContent || "";
+      if (text.includes("xplGlobal.document.metadata")) {
+        embedded = text.slice(0, 500000);
+        break;
+      }
+    }
+  }
   return {
     url: location.href,
     title: document.title || "",
     contentType: document.contentType || "",
     metas,
+    embedded,
   };
 }
 

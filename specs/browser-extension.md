@@ -40,5 +40,6 @@
 ## 結果（2026-11-08）
 - #42 で実装。`node --test 'extension/test/*.test.js'`（R2 のサイトごとの fixtures を含む）と、manifest・zip の作成を CI の `extension` ジョブで検査する。
 - Chromium（Playwright）で確認したこと: 設定画面の接続テスト（正しい PAT・誤った PAT）、`citation_*` のあるページからの PDF つきの保存、PDF が取れないときの wishlist への保存と表示、既存の wishlist への PDF の紐付け、ワークスペースの選択の記憶。ホスト権限は確認用の manifest であらかじめ許可した。
-- 確認していないこと: Firefox、実際のホスト権限の許可のダイアログ、実際の出版社のサイト（受け入れ基準 2・3）、Cloudflare Access の内側（受け入れ基準 5）。
+- 2026-11-10 に確認: 実際のページのメタタグでの抽出（R2）。arXiv・PLOS は取得した HTML で、Nature・SpringerLink・Wiley・ACM DL・IEEE Xplore は実ブラウザで開いたページで、識別子・タイトル・著者・年・PDF の URL が取れることを確かめた。fixtures と実物が違っていたのは 2 つ: IEEE Xplore には `citation_*` がなく、記事の情報はインラインスクリプトの `xplGlobal.document.metadata` にある（`ieeeMetas` で読む）。ACM DL には `citation_pdf_url` がなく（`/doi/pdf/<doi>` を使う）、`dc.Creator` は姓と名がつながっている（`splitJoinedName`）。Firefox 用のビルドは `web-ext lint` でエラー 0（AMO に出す前に `data_collection_permissions` の宣言が要る、という通知が 1 件）。
+- 確認していないこと: Firefox での実際の動作、実際のホスト権限の許可のダイアログ、実際のサイトでの PDF の取得と保存（受け入れ基準 2・3。IEEE の PDF の URL は購読がないと確かめられない。Wiley は PDF が別のサブドメインにあり、ページからの取得が CORS で拒否される可能性がある）、ScienceDirect（自動操作のブラウザは 403。URL からの PII は取れる）、Cloudflare Access の内側（受け入れ基準 5）。
 - 既知の制約: 結果の「新規」と「既存と一致」は、upload の応答から拡張の側で推定している（作成時刻が 10 秒以内なら新規）。

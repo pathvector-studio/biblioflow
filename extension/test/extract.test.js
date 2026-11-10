@@ -111,3 +111,68 @@ test("normalizeDoi / normalizeArxiv", () => {
   assert.equal(normalizeArxiv("arXiv:2405.12345v4"), "2405.12345");
   assert.equal(normalizeArxiv(""), null);
 });
+
+// ---- shapes seen on the real sites (2026-11), which differ from the tidy fixtures above
+test("extract: IEEE Xplore without citation_* tags reads the embedded record", () => {
+  const record = {
+    userInfo: { institute: false, note: "a }; inside a string" },
+    authors: [{ name: "Kaiming He", firstName: "Kaiming", lastName: "He" }, { name: "Xiangyu Zhang" }, { name: 7 }, null],
+    articleNumber: "7780459",
+    pdfUrl: "/stamp/stamp.jsp?tp=&arnumber=7780459",
+    publicationYear: "2016",
+    publicationTitle: "2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)",
+    title: "Deep Residual Learning for Image Recognition",
+    doi: "10.1109/CVPR.2016.90",
+  };
+  const embedded = `var xplGlobal = xplGlobal || {};\nxplGlobal.document.metadata=${JSON.stringify(record)};\nxplGlobal.other={"a":1};\n`;
+  const r = extract({
+    url: "https://ieeexplore.ieee.org/document/7780459",
+    metas: [{ name: "og:title", content: "Deep Residual Learning for Image Recognition" }],
+    title: "Deep Residual Learning for Image Recognition | IEEE Conference Publication | IEEE Xplore",
+    embedded,
+  });
+  assert.equal(r.identifier, "10.1109/cvpr.2016.90");
+  assert.equal(r.title, "Deep Residual Learning for Image Recognition");
+  assert.deepEqual(r.authors, ["Kaiming He", "Xiangyu Zhang", "7"]);
+  assert.equal(r.year, 2016);
+  assert.equal(r.venue, "2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)");
+  assert.equal(r.pdfUrl, "https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber=7780459&ref=");
+});
+
+test("extract: the embedded record is ignored off IEEE Xplore and when it is not JSON", () => {
+  const embedded = 'xplGlobal.document.metadata={"doi":"10.1109/EVIL.1","title":"Planted"};';
+  assert.equal(extract({ url: "https://example.com/paper", metas: [], embedded }).identifier, null);
+  const broken = extract({ url: "https://ieeexplore.ieee.org/document/1", metas: [], title: "T", embedded: "xplGlobal.document.metadata={oops};" });
+  assert.equal(broken.identifier, null);
+  assert.equal(broken.title, "T");
+  const odd = 'xplGlobal.document.metadata={"doi":"10.1109/X.1","articleNumber":"12&x=1"};';
+  assert.equal(extract({ url: "https://ieeexplore.ieee.org/document/1", metas: [], embedded: odd }).pdfUrl, null);
+});
+
+test("extract: ACM Digital Library (joined author names, no citation_pdf_url)", () => {
+  const r = extract({
+    url: "https://dl.acm.org/doi/10.1145/3065386",
+    metas: [
+      { name: "citation_journal_title", content: "Communications of the ACM" },
+      { name: "dc.Title", content: "ImageNet classification with deep convolutional neural networks" },
+      { name: "dc.Creator", content: "KrizhevskyAlex " },
+      { name: "dc.Creator", content: "SutskeverIlya " },
+      { name: "dc.Creator", content: "HintonGeoffrey E. " },
+      { name: "dc.Date", content: "2017-05-24" },
+      { name: "dc.Identifier", content: "3065386" },
+      { name: "dc.Identifier", content: "10.1145/3065386" },
+    ],
+  });
+  assert.equal(r.identifier, "10.1145/3065386");
+  assert.deepEqual(r.authors, ["Krizhevsky, Alex", "Sutskever, Ilya", "Hinton, Geoffrey E."]);
+  assert.equal(r.pdfUrl, "https://dl.acm.org/doi/pdf/10.1145/3065386");
+});
+
+test("splitJoinedName leaves ordinary names alone", async () => {
+  const { splitJoinedName } = await import("../src/extract.js");
+  assert.equal(splitJoinedName("McDonaldJohn"), "McDonald, John");
+  assert.equal(splitJoinedName("John McDonald"), "John McDonald");
+  assert.equal(splitJoinedName("Carol Tester"), "Carol Tester");
+  assert.equal(splitJoinedName("Tester, Carol"), "Tester, Carol");
+  assert.equal(splitJoinedName("山田太郎"), "山田太郎");
+});
