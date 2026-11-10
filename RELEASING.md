@@ -27,12 +27,20 @@ The public interface is what other people's setups depend on: the HTTP API under
 
 **While the version is 0.x**: a breaking change bumps **MINOR** and must have a "Breaking" line and Upgrade notes in the changelog; features bump MINOR; fixes bump PATCH. 0.x releases are called "preview" in the docs, but they are published as normal GitHub releases (not "Pre-release"), so that the latest one is marked Latest.
 
-**1.0.0** when all of these hold:
-- the in-app AI features (Phase 3d and 4b) are done;
-- `/api/v1` and the MCP tools are documented and frozen (OpenAPI published);
-- CI tests upgrading from the previous release (migrations and `restore.sh` on its data);
-- it has been used by a real lab for at least four weeks without losing data;
-- no known vulnerabilities of high severity or above.
+**1.0.0** when all of these hold (decided 2026-11-11; the status column is updated by the PR that completes an item):
+
+| # | Criterion | How it is checked | Status |
+|---|---|---|---|
+| 1 | **Migration works**: a real Zotero library (Zotero RDF with files) and a real Mendeley export come in completely in one run | Item and PDF counts match the source; no lost tags, collections or notes; recorded in `specs/export-import.md` | Not yet (tests use hand-made fixtures) |
+| 2 | **Citations out**: a bibliography in a CSL style can be produced (track D, output only; Word / Google Docs add-ins are not required) | API and UI; the output checked against citeproc for a few common styles | Not yet |
+| 3 | **Compatibility promise**: `/api/v1`, PAT scopes, the MCP tools, `.env` keys and the storage layout are documented and frozen under semver | OpenAPI published with the release; CI installs the previous tag, upgrades it, and runs `restore.sh --check` on its backup | Not yet (the upgrade is a manual checklist item) |
+| 4 | **Security process**: `SECURITY.md`, private vulnerability reporting, code scanning and container image scanning run; no open finding of high severity or above | GitHub settings and CI; the security section of this file | Not yet |
+| 5 | **Proven in use**: at least four weeks of daily use on the maintainer's production instance without losing data; one real restore from a backup; at least three users outside the maintainer | Notes in `STATUS.md`; restore done with `scripts/restore.sh --yes` on production data | Not yet |
+| 6 | **Installable clients**: the browser extension is in the Chrome Web Store and on AMO, and `biblioflow-mcp` is on PyPI | Store and PyPI pages | Not yet |
+
+Already done and kept as conditions: the in-app AI features (Phase 3d and 4b).
+
+A 1.0 release also follows the normal checklist below. After 1.0, a breaking change of anything in criterion 3 is a MAJOR release.
 
 **Pre-releases**: no alpha or beta. Use `vX.Y.Z-rc.N` only for a release that changes migrations or the install flow. The installer skips rc tags, so testers opt in with `BIBLIOFLOW_REF=vX.Y.Z-rc.N`. An rc is published as a GitHub "Pre-release".
 
