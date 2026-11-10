@@ -1,6 +1,6 @@
 # STATUS
 
-親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-10
+親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-11
 
 ## 進行中
 - なし
@@ -12,15 +12,21 @@
 - 次に着手（ユーザー判断 2026-11-09、両方進める）:
   - トラック D（`specs/roadmap.md`）の spec: 引用スタイル（CSL）での参考文献の生成と、Word / Google Docs 連携
   - PDF の翻訳の spec（案: 選んだ文章の翻訳と、ページ単位の対訳）: 範囲は spec の中で決める
-- 未確認の検証: ブラウザ拡張（Firefox、実際の権限のダイアログ、実際の出版社のサイト、Cloudflare Access の内側）、エクスポート・インポート（`biber --tool` / `bibtex` での読み込み、CSL JSON の公式スキーマ、実際の Zotero・Mendeley の書き出し）
+- 未確認の検証（ユーザーの操作が要る）: ブラウザ拡張（Firefox での実動作、実際の権限のダイアログ、出版社のサイトでの PDF の取得と保存、ScienceDirect、Cloudflare Access の内側）、実際の Zotero・Mendeley の書き出しの取り込み
+- v1.0 の基準: `RELEASING.md` に 6 項目（移行・CSL の出力・互換性の約束・セキュリティの体制・本番での常用・クライアントの配布）。順番は合意済み（掃除と検証 → v0.3.0 → セキュリティの基盤の PR → コミュニティのファイルと README → D と翻訳の spec）
 - 次のリリース: v0.2.0 以降の main に 4b・B・C・PDF の SHA-256（#25）・#47 が入っている。タグ・リリース・本番更新はユーザーの承認が要る
-- 依存関係: #22（frontend の minor・patch）は main を取り込んでからマージ。メジャー更新（TypeScript 7、tailwind-merge 3、Tailwind 4、ESLint 10）と mcp SDK 2.x は進め方をユーザーに聞く
+- 依存関係: メジャー更新（TypeScript 7、tailwind-merge 3、Tailwind 4、ESLint 10）と mcp SDK 2.x は進め方をユーザーに聞く
 - biblioflow-mcp を外部の MCP カタログ（HOL Guard）に登録する: v1.0 になってから（PyPI に出すのが前提。それまでは見送りと回答する）
 
 ## 詰まり
 - なし（Remote Control 経由では子セッションを起動できないので、子は subagent を既定にした）
 
 ## 直近の完了
+- v1.0 の基準を `RELEASING.md` に書く
+- 拡張が実際の IEEE Xplore・ACM DL のページを読めるようにする（#51。arXiv・PLOS・Nature・Springer・Wiley も実ページで抽出を確認）
+- BibTeX の書き出しを `biber` / `bibtex` で読める形にする（#50。CSL JSON は公式スキーマを通過）
+- 書誌ファイルの解析を制限つきの子プロセスに移す。細工したファイルによる API の停止を防ぐ。拡張は URL を変えたらトークンを再入力させる（#49）
+- frontend の minor・patch（#22）
 - 論文の画面の編集可否を、ヘッダーのワークスペースではなく論文のワークスペースで決める（#47）
 - B・C の締めのドキュメント（#46）
 - C 完了: エクスポート・インポート（#41 まとめて書き出し、#43 自動エクスポート、#44 ファイルからの取り込み、#45 サーバーのフォルダからの PDF つきの移行）
