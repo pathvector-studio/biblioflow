@@ -9,14 +9,17 @@ const msg = (text, cls = "") => {
   $("msg").className = cls;
 };
 
-// Secrets are never written back into the form: an empty field keeps the stored value.
-async function current() {
+// Secrets are never written back into the form: an empty field keeps the stored value, but only for the server
+// they were saved for. After the URL changes they have to be typed again, so a stored token is never sent to a
+// different host.
+async function current(origin) {
   const s = await loadSettings();
+  const same = s.baseUrl === origin;
   return {
     baseUrl: $("baseUrl").value.trim(),
-    pat: $("pat").value.trim() || s.pat,
+    pat: $("pat").value.trim() || (same ? s.pat : ""),
     cfClientId: $("cfClientId").value.trim(),
-    cfClientSecret: $("cfClientSecret").value.trim() || s.cfClientSecret,
+    cfClientSecret: $("cfClientSecret").value.trim() || (same ? s.cfClientSecret : ""),
     maxPdfMb: Math.max(1, Number($("maxPdfMb").value) || 50),
   };
 }
@@ -52,7 +55,11 @@ async function onSave(ev) {
   ev.preventDefault();
   const o = await origin();
   if (!o) return;
-  const v = await current();
+  const v = await current(o);
+  if (!v.pat) {
+    msg(t("opt_token_needed"), "error");
+    return;
+  }
   await saveSettings({ ...v, baseUrl: o });
   $("baseUrl").value = o;
   $("pat").value = "";
@@ -64,9 +71,9 @@ async function onTest() {
   const o = await origin();
   if (!o) return;
   msg(t("opt_testing"));
-  const v = await current();
+  const v = await current(o);
   if (!v.pat) {
-    msg(errorText("bad_token"), "error");
+    msg(t("opt_token_needed"), "error");
     return;
   }
   const r = await send({ type: "testConnection", ...v, baseUrl: o });

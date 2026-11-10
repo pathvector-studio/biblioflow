@@ -52,6 +52,7 @@
   "btn_test": { "message": "接続を試す" },
   "opt_permission_denied": { "message": "このサーバーへの通信が許可されませんでした。" },
   "opt_saved": { "message": "保存しました。" },
+  "opt_token_needed": { "message": "このサーバーの API トークンを入力してください（保存済みのトークンは、保存したときの URL にだけ使います）。" },
   "opt_testing": { "message": "確認しています..." },
   "opt_connected": { "message": "接続できました。見えるワークスペースは $1 件です。", "placeholders": { "1": { "content": "$1" } } }
 }

@@ -52,6 +52,7 @@
   "btn_test": { "message": "Test connection" },
   "opt_permission_denied": { "message": "Permission to contact this server was not granted." },
   "opt_saved": { "message": "Saved." },
+  "opt_token_needed": { "message": "Enter the API token for this server (a stored token is only used for the URL it was saved with)." },
   "opt_testing": { "message": "Testing..." },
   "opt_connected": { "message": "Connected. $1 workspace(s) visible.", "placeholders": { "1": { "content": "$1" } } }
 }

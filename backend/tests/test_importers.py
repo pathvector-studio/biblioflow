@@ -191,3 +191,65 @@ def test_to_metadata_precedence_and_deterministic_internal_id():
     assert internal_identifier(plain) == m.identifier == internal_identifier(load("library.bib").items[3])
     plain.year = 2022
     assert internal_identifier(plain) != m.identifier
+
+
+# ------------------------------------------------------------------ hostile or oversized input
+_RDF_NS = (
+    'xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:z="http://www.zotero.org/namespaces/export#" '
+    'xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/"'
+)
+
+
+def rdf_fanout(width, layers):
+    """Every collection of a layer lists every collection of the next one: width ** layers paths to the item."""
+    out = [f"<rdf:RDF {_RDF_NS}>"]
+    out.append('<rdf:Description rdf:about="#item_1"><z:itemType>journalArticle</z:itemType><dc:title>T</dc:title></rdf:Description>')
+    for layer in range(layers):
+        for i in range(width):
+            if layer + 1 < layers:
+                parts = "".join(f'<dcterms:hasPart rdf:resource="#c_{layer + 1}_{j}"/>' for j in range(width))
+            else:
+                parts = '<dcterms:hasPart rdf:resource="#item_1"/>'
+            out.append(f'<z:Collection rdf:about="#c_{layer}_{i}"><dc:title>c{layer}_{i}</dc:title>{parts}</z:Collection>')
+    out.append("</rdf:RDF>")
+    return "".join(out).encode()
+
+
+def test_rdf_collection_fanout_is_bounded():
+    import time
+
+    t = time.monotonic()
+    r = parse_file(rdf_fanout(6, 12), "x.rdf")  # 6 ** 12 paths without the limits
+    assert time.monotonic() - t < 20
+    assert len(r.items) == 1 and 1 <= len(r.items[0].collections) <= 50
+
+
+def test_bibtex_uses_only_the_strings_an_entry_needs():
+    import time
+
+    strings = "".join(f'@string{{s{i} = "Journal number {i}"}}\n' for i in range(3000))
+    strings += '@string{base = "Proceedings of"}\n@string{conf = base # " the Thing"}\n'
+    entries = "".join(f"@article{{k{i}, title = {{T {i}}}, journal = s{i}, year = 2020}}\n" for i in range(300))
+    entries += "@inproceedings{c1, title = {Nested}, booktitle = conf, year = 2021}\n"
+    t = time.monotonic()
+    r = parse_file((strings + entries).encode(), "x.bib")
+    assert time.monotonic() - t < 20  # quadratic before: every entry re-read all 3000 definitions
+    assert len(r.items) == 301 and not r.problems
+    assert by_title(r, "T 7").venue == "Journal number 7"
+    assert by_title(r, "Nested").venue == "Proceedings of the Thing"  # a string that refers to another string
+
+
+def test_bibtex_oversized_entry_text_is_not_stored():
+    big = "@article{big, title = {Big}, abstract = {" + "x " * 60_000 + "}}\n@article{small, title = {Small}}\n"
+    r = parse_file(big.encode(), "x.bib")
+    assert by_title(r, "Big").bibtex is None  # the exporter writes a fresh entry instead
+    assert by_title(r, "Small").bibtex.startswith("@article{small")
+
+
+def test_csl_json_deep_nesting_is_rejected_not_a_crash():
+    with pytest.raises(ImportFormatError):
+        parse_file(b"[" * 100_000 + b"]" * 100_000, "a.json")
+    nested_title = b'[{"title": ' + b"[" * 5000 + b'"x"' + b"]" * 5000 + b"}]"
+    r = parse_file(nested_title, "a.json")  # not CSL: reported as an unreadable record
+    assert not r.items and [p.reason for p in r.problems] == ["missing title"]
+    assert parse_file(b'[{"title": ["Listed"]}]', "a.json").items[0].title == "Listed"

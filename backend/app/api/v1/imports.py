@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -15,7 +14,8 @@ from app.db.session import get_db
 from app.models.workspace import WorkspaceRole
 from app.schemas.imports import ImportItemOut, ImportSummary
 from app.services import import_apply
-from app.services.importers import ImportFormatError, parse_file
+from app.services.importers import ImportFormatError
+from app.services.importers.isolated import parse_file_isolated
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 
@@ -28,6 +28,23 @@ MAX_LISTED = 100
 SAMPLE_SIZE = 20
 PREVIEW_RATE_LIMIT = 20  # per minute per user
 COMMIT_RATE_LIMIT = 5
+PARSE_SLOT_TTL = 120  # a slot that is never released (crash) frees itself after this many seconds
+
+
+async def _acquire_parse_slot(user_id: uuid.UUID) -> None:
+    """One file at a time per user: parsing costs CPU (in a child process, see ``importers.isolated``)."""
+    redis, key = get_redis(), f"bf:import:parsing:{user_id}"
+    count = await redis.incr(key)
+    await redis.expire(key, PARSE_SLOT_TTL)
+    if count > 1:
+        await _release_parse_slot(user_id)
+        raise HTTPException(status_code=429, detail="Another file of yours is still being read. Try again in a moment.")
+
+
+async def _release_parse_slot(user_id: uuid.UUID) -> None:
+    redis, key = get_redis(), f"bf:import:parsing:{user_id}"
+    if await redis.decr(key) <= 0:
+        await redis.delete(key)
 
 
 async def _read_file(file: UploadFile) -> bytes:
@@ -55,10 +72,13 @@ async def _run(
     )
     ws = await _workspace(db, principal, workspace_id, WorkspaceRole.editor)
     data = await _read_file(file)
+    await _acquire_parse_slot(principal.user.id)
     try:
-        parsed = await asyncio.to_thread(parse_file, data, file.filename)
+        parsed = await parse_file_isolated(data, file.filename)
     except ImportFormatError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
+    finally:
+        await _release_parse_slot(principal.user.id)
     if len(parsed.items) + len(parsed.problems) > MAX_ITEMS:
         raise HTTPException(status_code=422, detail=f"Too many records (at most {MAX_ITEMS} per file)")
 

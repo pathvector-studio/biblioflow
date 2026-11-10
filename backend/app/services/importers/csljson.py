@@ -20,10 +20,12 @@ from app.services.importers.common import (
 
 
 def _text(v: Any) -> str:
+    for _ in range(8):  # ["title"] and the like; deeper nesting is not CSL
+        if not isinstance(v, list):
+            break
+        v = v[0] if v else ""
     if isinstance(v, str):
         return v
-    if isinstance(v, list):
-        return _text(v[0]) if v else ""
     if isinstance(v, (int, float)) and not isinstance(v, bool):
         return str(v)
     return ""
@@ -61,6 +63,8 @@ def parse(text: str) -> ParseResult:
         data = json.loads(text.lstrip("﻿"))
     except ValueError as exc:
         raise ImportFormatError(f"Invalid JSON: {exc}") from None
+    except RecursionError:
+        raise ImportFormatError("Invalid JSON: nested too deeply") from None
     if isinstance(data, dict):
         data = data.get("items") if isinstance(data.get("items"), list) else [data]
     if not isinstance(data, list) or not data:
