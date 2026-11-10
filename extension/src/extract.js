@@ -1,4 +1,4 @@
-// Pure metadata extraction. Input: { url, metas: [{name, content}], title? } or a document-like object
+// Pure metadata extraction. Input: { url, metas: [{name, content}], title?, embedded? } or a document-like object
 // (anything with querySelectorAll and location.href). No DOM or browser APIs are used, so Node can test it.
 
 const DOI_RE = /10\.\d{4,9}\/[^\s"'<>?#]+/i;
@@ -127,9 +127,61 @@ function cleanAuthors(list) {
   return out.slice(0, 100);
 }
 
+function hostIs(url, domain) {
+  const u = safeUrl(url);
+  return Boolean(u) && (u.hostname.toLowerCase() === domain || u.hostname.toLowerCase().endsWith(`.${domain}`));
+}
+
+// IEEE Xplore has no citation_* tags. The record is a JSON object assigned in an inline script
+// (`xplGlobal.document.metadata={...};`); `script` is that script's text. Returns the same shape as <meta> tags.
+export function ieeeMetas(script) {
+  if (typeof script !== "string") return [];
+  const at = script.indexOf("xplGlobal.document.metadata");
+  const start = at < 0 ? -1 : script.indexOf("{", at);
+  if (start < 0) return [];
+  let md = null;
+  let end = script.lastIndexOf("};");
+  for (let tries = 0; tries < 20 && end > start && md === null; tries++) {
+    try {
+      md = JSON.parse(script.slice(start, end + 1));
+    } catch {
+      end = script.lastIndexOf("};", end - 1); // "};" inside a string, or more code after the object
+    }
+  }
+  if (!md || typeof md !== "object") return [];
+  const str = (v) => (typeof v === "string" || typeof v === "number" ? String(v).trim() : "");
+  const out = [];
+  const add = (name, v) => {
+    if (str(v)) out.push({ name, content: str(v) });
+  };
+  add("citation_title", md.title || md.displayDocTitle);
+  add("citation_doi", md.doi);
+  add("citation_publication_date", md.publicationYear);
+  add("citation_journal_title", md.publicationTitle || md.displayPublicationTitle);
+  for (const a of Array.isArray(md.authors) ? md.authors.slice(0, 100) : []) add("citation_author", a && a.name);
+  const number = str(md.articleNumber);
+  if (/^\d{1,12}$/.test(number)) {
+    add("citation_pdf_url", `https://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&arnumber=${number}&ref=`);
+  }
+  return out;
+}
+
+// The ACM Digital Library writes dc.Creator as family name + given name with nothing between ("HintonGeoffrey E.").
+// Split at the last lowercase-uppercase boundary, but only when the family name is a single word: "John McDonald"
+// (a normal name) has a space before its boundary and is left alone.
+export function splitJoinedName(name) {
+  if (name.includes(",")) return name;
+  let cut = -1;
+  for (const m of name.matchAll(/\p{Ll}(?=\p{Lu})/gu)) cut = m.index + 1;
+  if (cut < 0 || /\s/.test(name.slice(0, cut))) return name;
+  return `${name.slice(0, cut)}, ${name.slice(cut).trim()}`;
+}
+
 export function extract(input) {
   const url = input.url || (input.location && input.location.href) || "";
-  const idx = indexMetas(metasOf(input));
+  // Real <meta> tags come first, so they win over values read from the embedded record.
+  const idx = indexMetas([...metasOf(input), ...(hostIs(url, "ieeexplore.ieee.org") ? ieeeMetas(input.embedded) : [])]);
+  const acm = hostIs(url, "dl.acm.org");
 
   const title =
     pick(idx, "citation_title", "dc.title", "prism.title", "og:title", "twitter:title") ||
@@ -137,7 +189,7 @@ export function extract(input) {
     null;
   const authors = cleanAuthors(
     pickAll(idx, "citation_author", "dc.creator", "dc.contributor", "citation_authors", "article:author"),
-  );
+  ).map((a) => (acm ? splitJoinedName(a) : a));
   const year = parseYear(
     pick(
       idx,
@@ -177,6 +229,8 @@ export function extract(input) {
     if (abs && (abs.protocol === "https:" || abs.protocol === "http:")) pdfUrl = abs.href;
   } else if (arxivId && arxivFromUrl(url)) {
     pdfUrl = `https://arxiv.org/pdf/${arxivId}`;
+  } else if (acm && doi) {
+    pdfUrl = `https://dl.acm.org/doi/pdf/${doi}`; // the page has no citation_pdf_url; this is its own PDF link
   }
 
   const identifier = arxivId || doi || pii || null;
