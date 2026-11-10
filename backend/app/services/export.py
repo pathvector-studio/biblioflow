@@ -17,7 +17,7 @@ FORMATS = {
     "csljson": ("application/vnd.citationstyles.csl+json", "json"),
 }
 
-_ENTRY_HEAD = re.compile(r"(@[A-Za-z]+\s*\{)[^,\s{}]*,")
+_ENTRY_HEAD = re.compile(r"(@(?!string\b)[A-Za-z]+\s*\{)[^,\s{}]*,", re.IGNORECASE)  # not an @string definition
 _KEY_CLEAN = re.compile(r"[^A-Za-z0-9_:.\-]")
 
 

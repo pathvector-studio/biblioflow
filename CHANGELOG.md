@@ -30,6 +30,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - The paper screen decides who may edit (notes, bibliography, annotations, PDF upload) by the paper's own workspace, not by the workspace picked in the header. Before, a viewer of a shared workspace saw editing tools on its papers when their own workspace was selected (the server still refused the changes), and the bibliography tab offered the header workspace's tags and collections.
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
 
+- BibTeX export: DOIs, URLs and arXiv ids are written as they are (`10.1007/978-3-030-58452-8_13`, not `…\_13`), a title with unbalanced braces no longer breaks the entry, and an institution or a name containing "and" stays one author (`{World Health Organization}`). Checked with `biber --tool` and `bibtex`; the CSL JSON export passes the official CSL schema.
+- An imported BibTeX entry that uses `@string` abbreviations keeps those definitions, so exporting it again no longer loses the journal or book title.
+
 ### Security
 - Imported bibliography files (BibTeX, RIS, CSL JSON, Zotero RDF) are now read in a separate, resource-limited process (60 s for an upload, 10 min for a file in the import folder, 1 GiB of memory) and one file at a time per user. Before, a small crafted file (a Zotero RDF with collections listed under many parents, or a BibTeX file with thousands of `@string` lines) could keep the server busy indefinitely. This only affected unreleased code (file import was added after 0.2.0).
 - Browser extension: a stored API token or Cloudflare Access secret is no longer reused after you change the server URL in the settings; type it again for the new server.

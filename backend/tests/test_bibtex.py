@@ -61,3 +61,46 @@ def test_escaping_and_control_chars() -> None:
     assert r"title = {50\% of A\&B\_c \#1 \$x\$ \textasciitilde{}y \textasciicircum{}z \textbackslash{}q \{w\}}" in out
     assert "\x00" not in out
     assert make_bibtex(_meta(), "k") == make_bibtex(_meta(), "k")
+
+
+def test_doi_and_url_are_verbatim() -> None:
+    # Springer chapter DOIs have underscores; "\_" in a doi / url field breaks the link.
+    out = make_bibtex(_meta(doi="10.1007/978-3-030-58452-8_13", identifier="10.1007/978-3-030-58452-8_13"), "k")
+    assert "doi = {10.1007/978-3-030-58452-8_13}" in out
+    assert "url = {https://doi.org/10.1007/978-3-030-58452-8_13}" in out
+    arxiv = make_bibtex(_meta(identifier="cs/0101_1", identifier_type=IdentifierType.arxiv, arxiv_id=None, doi="10.1/a%b"), "k")
+    assert "eprint = {cs/0101_1}" in arxiv and "doi = {10.1/a%b}" in arxiv
+    assert "{" not in make_bibtex(_meta(doi="10.1/a}b{c", venue=None), "k").split("doi = {")[1].split("}")[0]
+
+
+def _balanced(text: str) -> bool:
+    depth = 0
+    for ch in text:
+        depth += (ch == "{") - (ch == "}")
+        if depth < 0:
+            return False
+    return depth == 0
+
+
+def test_braces_in_a_title_never_unbalance_the_entry() -> None:
+    # BibTeX counts braces even after a backslash: "\}" would close the field early.
+    for title in ("Unbalanced } brace { in title", "Only open {", "Only close }", "Fine {nested {pair}} here"):
+        out = make_bibtex(_meta(title=title), "k")
+        assert _balanced(out), title
+    assert r"\textbraceright{} brace \textbraceleft{}" in make_bibtex(_meta(title="Unbalanced } brace { in title"), "k")
+    assert r"Fine \{nested \{pair\}\} here" in make_bibtex(_meta(title="Fine {nested {pair}} here"), "k")
+
+
+def test_names_that_bibtex_would_split() -> None:
+    authors = [
+        Author(family="World Health Organization"),
+        Author(family="Barnes and Noble"),
+        Author(family="Müller"),
+        Author(family="van der Berg", given="Jan"),
+        Author(family="Smith, Jr.", given="A and B"),
+    ]
+    out = make_bibtex(_meta(authors=authors), "k")
+    assert (
+        "author = {{World Health Organization} and {Barnes and Noble} and Müller and van der Berg, Jan and {Smith, Jr.}, {A and B}}"
+        in out
+    )

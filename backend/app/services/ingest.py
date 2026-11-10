@@ -468,7 +468,7 @@ async def create_metadata_only(
     return created
 
 
-_BIBTEX_HEAD = re.compile(r"(@[A-Za-z]+\s*\{)[^,\s{}]*,")
+_BIBTEX_HEAD = re.compile(r"(@(?!string\b)[A-Za-z]+\s*\{)[^,\s{}]*,", re.IGNORECASE)  # not an @string definition
 
 
 def align_bibtex_key(bibtex: str, citekey: str) -> str:
