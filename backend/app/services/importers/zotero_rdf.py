@@ -48,6 +48,8 @@ RDF_ABOUT, RDF_RESOURCE, RDF_VALUE = _q("rdf:about"), _q("rdf:resource"), _q("rd
 _SKIP_TOP = {_q("z:Collection"), _q("z:Attachment"), _q("bib:Memo")}
 _PEOPLE = ("bib:authors", "bib:editors", "z:translators", "bib:contributors")
 _MAX_ITEM_NOTES = 50
+_MAX_PATHS_PER_ITEM = 50
+_MAX_WALK_STEPS = 2_000_000  # collections visited + memberships read; far above any real library
 
 
 def looks_like_rdf(text: str) -> bool:
@@ -167,16 +169,28 @@ def _collection_tree(root: Element) -> tuple[dict[str, str], dict[str, list[str]
 
 
 def _collection_paths(root: Element) -> dict[str, list[list[str]]]:
-    """item id -> collection paths (root-first names). Cycles and absurd depth are cut off."""
+    """item id -> collection paths (root-first names). Cycles and absurd depth are cut off.
+
+    A collection may be listed under several parents, so the number of root-to-collection paths can grow
+    exponentially with the depth. The walk has a step budget and keeps at most ``_MAX_PATHS_PER_ITEM`` paths per
+    item; a file that runs into either limit loses the paths beyond it, nothing else."""
     names, children, members = _collection_tree(root)
     nested = {c for kids in children.values() for c in kids}
     out: dict[str, list[list[str]]] = {}
 
+    steps = 0
+
     def walk(cid: str, path: list[str], seen: frozenset[str]) -> None:
+        nonlocal steps
+        steps += 1 + len(members[cid])
+        if steps > _MAX_WALK_STEPS:
+            return
         path = [*path, names[cid]]
         for m in members[cid]:
             if m not in names:
-                out.setdefault(m, []).append(path)
+                paths = out.setdefault(m, [])
+                if len(paths) < _MAX_PATHS_PER_ITEM and path not in paths:
+                    paths.append(path)
         if len(path) >= MAX_COLLECTION_DEPTH:
             return
         for child in children[cid]:

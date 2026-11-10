@@ -266,3 +266,19 @@ async def test_rate_limit(login, monkeypatch):
     _, c = await login("a@example.com")
     codes = [(await post(c, "", b"@article{k, title={T}, doi={10.3000/t}}")).status_code for _ in range(7)]
     assert codes[:5] == [200] * 5 and codes[5] == 429
+
+
+async def test_one_file_at_a_time_per_user(login):
+    from app.api.v1 import imports
+    from app.core.redis import get_redis
+
+    user, c = await login("a@example.com")
+    key = f"bf:import:parsing:{user.id}"
+    await get_redis().set(key, 1)  # another request of this user is parsing
+    r = await post(c, "/preview", fixture("library.bib"), "library.bib")
+    assert r.status_code == 429
+    assert int(await get_redis().get(key)) == 1  # the refused request gave its slot back
+    await get_redis().delete(key)
+    assert (await post(c, "/preview", fixture("library.bib"), "library.bib")).status_code == 200
+    assert await get_redis().get(key) is None  # released after a normal request
+    assert imports.PARSE_SLOT_TTL > 60  # longer than the parse timeout

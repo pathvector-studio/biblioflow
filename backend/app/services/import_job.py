@@ -28,7 +28,8 @@ from app.models.workspace import Workspace
 from app.schemas.metadata import MetadataResolver
 from app.services import import_apply
 from app.services.import_folder import UnsafePath, resolve_in_folder, workspace_folder
-from app.services.importers import ImportFormatError, parse_file
+from app.services.importers import ImportFormatError
+from app.services.importers.isolated import FOLDER_TIMEOUT_SECONDS, parse_file_isolated
 from app.services.ingest import IngestError, ingest_pdf, safe_original_name
 from app.services.pdf import InvalidPdf
 from app.services.storage.files import TooLarge, receive_stream
@@ -220,7 +221,7 @@ async def _run(
     if not data.strip():
         raise _JobFailed("The bibliography file is empty")
     try:
-        parsed = await asyncio.to_thread(parse_file, data, path.name)
+        parsed = await parse_file_isolated(data, path.name, timeout=FOLDER_TIMEOUT_SECONDS)
     except ImportFormatError as exc:
         raise _JobFailed(str(exc)) from None
     if len(parsed.items) + len(parsed.problems) > MAX_RECORDS:

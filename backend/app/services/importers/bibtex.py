@@ -33,6 +33,9 @@ _VENUE_FIELDS = ("journal", "journaltitle", "booktitle", "container-title", "how
 _FILE_MIME = re.compile(r"^(?P<rest>.*?):(?:application|text|image)/[\w.+-]+$")
 _DRIVE = re.compile(r"^[A-Za-z]:[\\/]")
 _AND = re.compile(r"\s+and\s+", re.IGNORECASE)
+_STRING_NAME = re.compile(r"@string[ \t\r\n]*[{(][ \t\r\n]*([^\s=]+)[ \t\r\n]*=", re.IGNORECASE)
+_WORD = re.compile(r"[A-Za-z_][^\s{}\"#,=()]*")
+MAX_STORED_ENTRY = 100_000  # characters of the original entry kept in ``Paper.bibtex``
 
 
 def looks_like_bibtex(text: str) -> bool:
@@ -80,6 +83,39 @@ def _entry_end(text: str, open_at: int, opener: str) -> int:
         elif m.start() > open_at:  # "\n@type{" inside an unclosed entry
             return m.start()
     return len(text)
+
+
+class _Strings:
+    """``@string`` definitions, looked up per entry.
+
+    Each entry is parsed on its own, so it needs the definitions it uses in front of it. Prepending all of them
+    to every entry is quadratic (a file with thousands of ``@string`` lines and thousands of entries never
+    finishes); only the ones whose name occurs in the entry, plus the ones those refer to, are used.
+    """
+
+    def __init__(self, raws: list[str]) -> None:
+        self.raw: dict[str, str] = {}
+        for raw in raws:
+            m = _STRING_NAME.match(raw)
+            if m:
+                self.raw.setdefault(m.group(1).lower(), raw)
+        self.order = {name: i for i, name in enumerate(self.raw)}
+        self.deps = {name: self._names_in(raw) - {name} for name, raw in self.raw.items()}
+
+    def _names_in(self, text: str) -> set[str]:
+        return {w for w in (x.lower() for x in _WORD.findall(text)) if w in self.raw}
+
+    def prefix_for(self, entry: str) -> str:
+        if not self.raw:
+            return ""
+        needed: set[str] = set()
+        stack = list(self._names_in(entry))
+        while stack:
+            name = stack.pop()
+            if name not in needed:
+                needed.add(name)
+                stack.extend(self.deps[name])
+        return "".join(self.raw[n] + "\n" for n in sorted(needed, key=self.order.__getitem__))
 
 
 def _tex(value: str | None) -> str:
@@ -164,7 +200,7 @@ def _item(entry: dict[str, str], raw: str, index: int) -> ImportItem | ParseProb
         arxiv_id=arxiv,
         abstract=_tex_block(f.get("abstract")),
         citekey=key,
-        bibtex=raw.strip() + "\n",
+        bibtex=raw.strip() + "\n" if len(raw) <= MAX_STORED_ENTRY else None,
         tags=tags,
         notes=notes,
         attachments=parse_file_field(f.get("file")),
@@ -180,13 +216,13 @@ def parse(text: str) -> ParseResult:
     entries, strings = split_entries(text)
     if not entries:
         raise ImportFormatError("No BibTeX entries found")
-    prefix = "\n".join(strings) + "\n" if strings else ""
+    table = _Strings(strings)
     result = ParseResult(format="bibtex")
     for i, raw in enumerate(entries, 1):
         parser = BibTexParser(common_strings=True, ignore_nonstandard_types=False, homogenize_fields=False)
         parser.customization = None
         try:
-            parsed = bibtexparser.loads(prefix + raw, parser).entries
+            parsed = bibtexparser.loads(table.prefix_for(raw) + raw, parser).entries
         except Exception:  # noqa: BLE001 - pyparsing raises a zoo of exceptions on malformed input
             parsed = []
         km = _KEY.match(raw)
