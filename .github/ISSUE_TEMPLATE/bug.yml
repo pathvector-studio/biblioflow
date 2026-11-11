@@ -1,0 +1,72 @@
+name: Bug report
+description: Something does not work as described in the README.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Do not paste secrets**: no `.env` values, tokens (`bf_pat_…`), cookies, passwords or private paper contents. Security problems go to [SECURITY.md](https://github.com/pathvector-studio/biblioflow/security/policy) instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release (`cat VERSION` in the install directory) or the commit.
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: How it is reached
+      options:
+        - On the same machine (localhost)
+        - LAN
+        - Tailscale
+        - Cloudflare Tunnel
+        - Other reverse proxy
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Install / update
+        - Library, metadata, upload
+        - PDF reader, annotations, notes
+        - Search
+        - AI chat / explanations
+        - Export / import
+        - Browser extension
+        - MCP server
+        - Workspaces, accounts, tokens
+        - Backup / restore / deploy
+        - Other
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        For example `docker compose logs --tail 100 biblioflow-api biblioflow-worker` and the browser console. Check them for secrets and personal data before pasting.
+      render: text
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Docker / Compose version, browser (and extension browser) if relevant.

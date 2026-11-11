@@ -1,0 +1,30 @@
+name: Feature request
+description: Something BiblioFlow should do but does not.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [roadmap](https://github.com/pathvector-studio/biblioflow/blob/main/specs/roadmap.md) first; it lists what Zotero does that BiblioFlow does not yet. For open questions, [Discussions](https://github.com/pathvector-studio/biblioflow/discussions) is a better place.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: How it could work. Mention another tool that does it well, if any.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead today
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to work on this (see CONTRIBUTING.md; we agree on the approach in this issue first).
