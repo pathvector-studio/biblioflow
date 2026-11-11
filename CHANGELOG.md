@@ -6,6 +6,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Security
+- CI checks that the browser extension still has no dependencies and that its Chrome and Firefox packages contain only the extension's own files.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added
