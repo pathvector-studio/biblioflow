@@ -13,6 +13,7 @@ from app.api.v1 import (
     invitations,
     papers,
     search,
+    system,
     tokens,
     workspaces,
 )
@@ -33,3 +34,4 @@ api_router.include_router(annotations.router)
 api_router.include_router(search.router)
 api_router.include_router(chat.router)
 api_router.include_router(chat.explain_router)
+api_router.include_router(system.router)

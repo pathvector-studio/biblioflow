@@ -6,6 +6,12 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Added
+- Optional update notice: with `UPDATE_CHECK=true` the worker asks GitHub once a day for the latest release, and administrators see under Settings > Updates when a newer version exists and whether it contains security fixes (`GET /api/v1/system/update-status`, admin and session only). Off by default; nothing identifying is sent.
+
+### Upgrade notes
+- New optional `.env` key `UPDATE_CHECK` (default `false`). Add it to your `.env` only if you want the update notice.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added
