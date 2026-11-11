@@ -6,6 +6,8 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-12
+
 ### Added
 - Import references from a BibTeX, RIS (Mendeley Reference Manager included), CSL JSON or Zotero RDF file (up to 4 MiB) on the Add screen, or with `POST /api/v1/imports/preview` and `POST /api/v1/imports`: a preview of new, already-present and unreadable records, then wishlist papers with their tags, collections (Zotero nesting kept) and notes. Existing papers are never overwritten, and importing a file twice adds nothing. Nothing is fetched from the internet.
 - Export the library (or any filtered view: workspace, collection, tag, status, year, search) as BibTeX, RIS or CSL JSON from the library screen, or with `GET /api/v1/export?format=bibtex|ris|csljson` and a token with `read:papers`. BibTeX citekeys match the ones shown in the app and are unique within the file.
@@ -29,7 +31,6 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ### Fixed
 - The paper screen decides who may edit (notes, bibliography, annotations, PDF upload) by the paper's own workspace, not by the workspace picked in the header. Before, a viewer of a shared workspace saw editing tools on its papers when their own workspace was selected (the server still refused the changes), and the bibliography tab offered the header workspace's tags and collections.
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
-
 - Browser extension: IEEE Xplore pages (which have no `citation_*` tags) now give the DOI, title, authors and PDF link, and ACM Digital Library pages give the PDF link and correctly split author names. Checked against the live pages of arXiv, PLOS, Nature, SpringerLink, Wiley, ACM and IEEE.
 - BibTeX export: DOIs, URLs and arXiv ids are written as they are (`10.1007/978-3-030-58452-8_13`, not `…\_13`), a title with unbalanced braces no longer breaks the entry, and an institution or a name containing "and" stays one author (`{World Health Organization}`). Checked with `biber --tool` and `bibtex`; the CSL JSON export passes the official CSL schema.
 - An imported BibTeX entry that uses `@string` abbreviations keeps those definitions, so exporting it again no longer loses the journal or book title.
@@ -74,6 +75,7 @@ First public preview.
 ### Security
 - Untrusted PDFs are parsed in a resource-limited child process; SSRF guard on outgoing requests; Origin check for cookie-authenticated writes; rate limits on login; containers run as non-root.
 
-[Unreleased]: https://github.com/pathvector-studio/biblioflow/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/pathvector-studio/biblioflow/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/pathvector-studio/biblioflow/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/pathvector-studio/biblioflow/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/pathvector-studio/biblioflow/releases/tag/v0.1.0
