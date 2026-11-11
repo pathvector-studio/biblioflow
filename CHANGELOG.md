@@ -6,10 +6,11 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
-### Changed
-- The README starts with what BiblioFlow does, a three-line quick start and screenshots, and the export / import instructions have their own section. New `CONTRIBUTING.md`, issue forms (bug, feature) and a pull request template; questions go to GitHub Discussions.
 ### Added
 - Optional update notice: with `UPDATE_CHECK=true` the worker asks GitHub once a day for the latest release, and administrators see under Settings > Updates when a newer version exists and whether it contains security fixes (`GET /api/v1/system/update-status`, admin and session only). Off by default; nothing identifying is sent.
+
+### Changed
+- The README starts with what BiblioFlow does, a three-line quick start and screenshots, and the export / import instructions have their own section. New `CONTRIBUTING.md`, issue forms (bug, feature) and a pull request template; questions go to GitHub Discussions.
 
 ### Upgrade notes
 - New optional `.env` key `UPDATE_CHECK` (default `false`). Add it to your `.env` only if you want the update notice.
