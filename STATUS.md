@@ -3,8 +3,10 @@
 親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-12
 
 ## 進行中
-- セキュリティの基盤（`specs/security-baseline.md`、承認 2026-11-12）: R1・R7 の手順（SECURITY.md、RELEASING の Security の節）の PR。続けて R2 の有効化、R5 の SHA 固定と zizmor、R3 CodeQL、R4 イメージの検査、R6、R8
-- v0.3.0: タグ前のチェックは通った（新規インストール〔semantic search: yes、モデルの取得と検索まで〕、v0.2.0 からのアップグレード〔セッション・migration 0009・PDF・検索・書き出し・`restore.sh --check`〕）。インストーラのメッセージの修正（#63）と SECURITY.md を 0.3.0 に含める。タグ・Release・本番更新はユーザーが行う
+- コミュニティ（`specs/community.md`）: CONTRIBUTING・issue / PR のテンプレート・README の刷新（スクリーンショット）の PR。Code of Conduct は専用の連絡先のアドレスをユーザーが用意してから別の PR。マージのときに Discussions の有効化と説明文・トピックの更新（承認済み）
+- セキュリティの基盤: R1〜R7 はマージ済み（#65・#66・#68・#69）。private vulnerability reporting を有効化。R8 更新の通知（#71）は CI 待ち
+- 次: D（CSL、`specs/csl-bibliography.md`）→ 翻訳（`specs/translate-selection.md`）。Zotero の実データでの確認（承認済み）
+- v0.3.0: タグ前のチェックは通った。タグは #66 のマージ（1a46a61）か、それ以降の main に。タグ・Release・本番更新はユーザーが行う
 
 ## 承認待ち
 - なし

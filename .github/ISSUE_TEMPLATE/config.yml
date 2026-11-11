@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/pathvector-studio/biblioflow/security/advisories/new
+    about: Report it privately (see SECURITY.md). Never in a public issue.
+  - name: Question or idea
+    url: https://github.com/pathvector-studio/biblioflow/discussions
+    about: Ask how to do something, or discuss an idea before it becomes a feature request.

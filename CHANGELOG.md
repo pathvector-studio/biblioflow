@@ -6,6 +6,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Changed
+- The README starts with what BiblioFlow does, a three-line quick start and screenshots, and the export / import instructions have their own section. New `CONTRIBUTING.md`, issue forms (bug, feature) and a pull request template; questions go to GitHub Discussions.
+
 ### Security
 - The API, worker and frontend images install the base system's security updates when they are built, and the frontend image no longer contains npm (it is not used at runtime). Every pull request and a weekly run now scan the images and the code for known vulnerabilities.
 
