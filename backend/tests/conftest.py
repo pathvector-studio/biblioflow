@@ -14,7 +14,8 @@ def _redis_test_url() -> str:
     if not base:
         return "redis://localhost:6379/15"
     parts = urlsplit(base)
-    return urlunsplit(parts._replace(path="/15"))
+    # scripts/loop-test.sh uses another DB so a loop run and a dev run can't flush each other's keys.
+    return urlunsplit(parts._replace(path="/" + os.environ.get("TEST_REDIS_DB", "15")))
 
 
 # Must be configured before `app` modules are imported (Settings is cached).

@@ -1,0 +1,9 @@
+# Used only by scripts/loop-test.sh: build the worktree's backend under its own image name,
+# so the dev stack's biblioflow-api image is never replaced by a loop run.
+services:
+  biblioflow-api:
+    image: biblioflow-loop-api:dev
+    build:
+      context: ${LOOP_BACKEND:?run this through scripts/loop-test.sh}
+      args:
+        INSTALL_DEV: "true"

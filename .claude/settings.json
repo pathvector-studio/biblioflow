@@ -1,5 +1,11 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(scripts/loop-test.sh*)",
+      "Bash(gh pr checks*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr list*)"
+    ],
     "ask": [
       "Bash(gh release*)",
       "Bash(gh workflow run*)",
