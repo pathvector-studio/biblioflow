@@ -12,6 +12,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ### Upgrade notes
 - New optional `.env` key `UPDATE_CHECK` (default `false`). Add it to your `.env` only if you want the update notice.
 
+### Security
+- The API, worker and frontend images install the base system's security updates when they are built, and the frontend image no longer contains npm (it is not used at runtime). Every pull request and a weekly run now scan the images and the code for known vulnerabilities.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added

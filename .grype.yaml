@@ -1,0 +1,8 @@
+# Grype settings for .github/workflows/image-scan.yml (our own images).
+# Only add an entry when a fixable high/critical finding cannot be fixed yet. Each entry needs a reason and a
+# date to look again; remove it as soon as the fix is in. Example:
+#   - vulnerability: CVE-2026-12345
+#     package:
+#       name: zlib
+#     # reason: fixed in alpine 3.23 only, the node image moves there in December; look again 2026-12-15
+ignore: []
