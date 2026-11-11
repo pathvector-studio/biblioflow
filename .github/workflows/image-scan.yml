@@ -1,0 +1,105 @@
+# Known vulnerabilities in the container images (specs/security-baseline.md R4), with Grype run from its image
+# pinned by digest (no action). The vulnerability database is downloaded at run time, so the weekly run notices
+# advisories published after a merge.
+#
+# - Our images (api, frontend) are built from this commit and FAIL on any high or critical finding that has a
+#   fixed version: fix it here (base image, `apt-get upgrade` / `apk upgrade`, a dependency) or, if it cannot be
+#   fixed yet, add it to .grype.yaml with the reason and a date to look again.
+# - The third-party images pinned in docker-compose.yml are scanned and reported to code scanning, but do not fail:
+#   we cannot rebuild them, and Dependabot proposes their new tags. Review their alerts when merging those updates.
+name: Image scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRYPE_IMAGE: anchore/grype:v0.121.0@sha256:621d56d1d68106b787022c81546f7e0a36202a25d1239f0c20195fab8c16f7ea
+
+jobs:
+  own:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload the results
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [backend, frontend]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: docker build --pull -t "biblioflow-scan-$IMAGE:ci" "$IMAGE"
+      - name: Scan (fails on fixable high or critical)
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/sarif"
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD/.grype.yaml:/.grype.yaml:ro" \
+            -v "$RUNNER_TEMP/sarif:/out" "$GRYPE_IMAGE" "biblioflow-scan-$IMAGE:ci" -c /.grype.yaml \
+            --only-fixed --fail-on high -o table -o "sarif=/out/$IMAGE.sarif"
+      - name: Upload to code scanning
+        if: always() && hashFiles(format('{0}/sarif/{1}.sarif', runner.temp, matrix.image)) != ''
+        continue-on-error: true # pull requests from forks cannot upload
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: ${{ runner.temp }}/sarif/${{ matrix.image }}.sarif
+          category: image-${{ matrix.image }}
+
+  pinned-list:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.list.outputs.images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: list
+        run: |
+          images="$(grep -E '^\s+image:\s' docker-compose.yml | awk '{print $2}' | sort -u | jq -R . | jq -sc .)"
+          echo "$images"
+          test "$images" != "[]"
+          echo "images=$images" >> "$GITHUB_OUTPUT"
+
+  pinned:
+    needs: pinned-list
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload the results
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.pinned-list.outputs.images) }}
+    steps:
+      - name: Scan (report only)
+        id: scan
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/sarif"
+          name="$(printf '%s' "$IMAGE" | tr -c 'A-Za-z0-9._-' '-')"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          docker run --rm -v "$RUNNER_TEMP/sarif:/out" "$GRYPE_IMAGE" "registry:$IMAGE" \
+            --only-fixed -o table -o "sarif=/out/$name.sarif"
+      - name: Upload to code scanning
+        continue-on-error: true # pull requests from forks cannot upload
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          sarif_file: ${{ runner.temp }}/sarif/${{ steps.scan.outputs.name }}.sarif
+          category: image-${{ steps.scan.outputs.name }}
