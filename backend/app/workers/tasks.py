@@ -442,6 +442,15 @@ async def purge_old_conversations(ctx: dict[str, Any]) -> int:
     return n
 
 
+# ------------------------------------------------------------------ update notice
+async def check_for_update(ctx: dict[str, Any]) -> bool:
+    """Daily and at startup: with ``UPDATE_CHECK=true``, store the latest GitHub release; otherwise do nothing."""
+    from app.core.redis import get_redis
+    from app.services.update_check import run_update_check
+
+    return await run_update_check(get_redis(), enabled=get_settings().update_check)
+
+
 # ------------------------------------------------------------------ auto-export
 async def auto_export_sync(ctx: dict[str, Any]) -> dict[str, int]:
     """Every minute: rewrite each auto-export file whose papers changed (see ``services.auto_export``)."""

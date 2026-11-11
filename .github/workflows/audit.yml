@@ -75,3 +75,18 @@ jobs:
         run: |
           uv sync --frozen --no-dev --no-install-project -q
           uv run --no-sync python ../scripts/check-licenses.py python
+
+  # The browser extension has no dependencies by design; keep it that way, and ship only the files we mean to.
+  audit-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - run: node extension/build.mjs
+      - name: No dependencies; the zips contain only shipped files
+        run: node scripts/check-extension.mjs

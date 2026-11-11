@@ -12,6 +12,7 @@ from app.workers.tasks import (
     IMPORT_JOB_TIMEOUT,
     auto_export_sync,
     backfill_embeddings,
+    check_for_update,
     embed_paper,
     process_paper,
     purge_old_conversations,
@@ -65,6 +66,8 @@ class WorkerSettings:
         cron(auto_export_sync, second={0}, run_at_startup=True, unique=True, timeout=110),
         # Daily at 03:17 UTC: drop chat conversations past CHAT_RETENTION_DAYS (0 = keep forever).
         cron(purge_old_conversations, hour={3}, minute={17}, second={0}, unique=True, timeout=300),
+        # Daily at 04:23 UTC and at startup: only with UPDATE_CHECK=true does this contact anyone (GitHub, via safe_client).
+        cron(check_for_update, hour={4}, minute={23}, second={0}, run_at_startup=True, unique=True, timeout=60),
     ]
     on_startup = on_startup
     on_shutdown = on_shutdown

@@ -4,6 +4,7 @@ import { PasswordForm } from "@/components/settings/password-form";
 import { WorkspacesPanel } from "@/components/settings/workspaces-panel";
 import { AutoExportPanel } from "@/components/settings/auto-export-panel";
 import { TokensPanel } from "@/components/settings/tokens-panel";
+import { UpdatesPanel } from "@/components/settings/updates-panel";
 
 export default function SettingsPage() {
   return (
@@ -12,6 +13,7 @@ export default function SettingsPage() {
       <WorkspacesPanel />
       <AutoExportPanel />
       <TokensPanel />
+      <UpdatesPanel />
     </div>
   );
 }

@@ -8,9 +8,15 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ### Changed
 - The README starts with what BiblioFlow does, a three-line quick start and screenshots, and the export / import instructions have their own section. New `CONTRIBUTING.md`, issue forms (bug, feature) and a pull request template; questions go to GitHub Discussions.
+### Added
+- Optional update notice: with `UPDATE_CHECK=true` the worker asks GitHub once a day for the latest release, and administrators see under Settings > Updates when a newer version exists and whether it contains security fixes (`GET /api/v1/system/update-status`, admin and session only). Off by default; nothing identifying is sent.
+
+### Upgrade notes
+- New optional `.env` key `UPDATE_CHECK` (default `false`). Add it to your `.env` only if you want the update notice.
 
 ### Security
 - The API, worker and frontend images install the base system's security updates when they are built, and the frontend image no longer contains npm (it is not used at runtime). Every pull request and a weekly run now scan the images and the code for known vulnerabilities.
+- CI checks that the browser extension still has no dependencies and that its Chrome and Firefox packages contain only the extension's own files.
 
 ## [0.3.0] - 2026-11-12
 

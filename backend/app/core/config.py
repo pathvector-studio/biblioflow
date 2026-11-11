@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     external_http_timeout: float = Field(10.0, gt=0, le=120)
     watch_poll_seconds: int = Field(10, ge=1, le=3600)
     url_import_enabled: bool = False
+    update_check: bool = False  # opt-in: once a day, ask GitHub for the latest release (admin sees it in Settings)
 
     # Chat / vision (Phase 3d). Off by default (`none`): chat and explain-region answer 503 `llm_disabled`.
     # The model string handed to LiteLLM is built from the provider (see `app.services.llm`).
