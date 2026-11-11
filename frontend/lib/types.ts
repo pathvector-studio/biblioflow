@@ -317,3 +317,13 @@ export interface ImportSummary {
   items: ImportItemResult[];
   problems_truncated: boolean;
 }
+
+export interface UpdateStatus {
+  enabled: boolean;
+  current: string;
+  latest: string | null;
+  update_available: boolean;
+  security: boolean;
+  url: string | null;
+  checked_at: string | null;
+}

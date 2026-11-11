@@ -40,6 +40,8 @@ curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
 
 To go back, restore that backup on the previous release (see [Backup and restore](#backup-and-restore)). A production clone is updated with `scripts/deploy.sh` instead, which takes the backup itself (see below).
 
+**Update notice (optional, off by default).** Set `UPDATE_CHECK=true` in `.env` and restart, and the worker asks GitHub's public "latest release" API for `pathvector-studio/biblioflow` once a day. Administrators then see a short note under Settings > Updates when a newer release exists, and whether its changelog has a `### Security` section. The request is a plain HTTPS GET with a generic `User-Agent: BiblioFlow`: no version, instance identifier or usage data is sent, and it goes through the same SSRF guard as every other outgoing request. With the default (`false`) the instance contacts nobody. Updating stays manual, as above.
+
 Or by hand:
 
 ```bash
