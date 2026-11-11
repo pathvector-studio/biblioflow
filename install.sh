@@ -139,6 +139,7 @@ main() {
   ok "Source ready at $(pwd)"
 
   # 3. .env
+  local created_env=0
   if [ -f .env ]; then
     ok ".env already exists, leaving it untouched"
   else
@@ -146,6 +147,7 @@ main() {
     case "$port" in ''|*[!0-9]*) die "BIBLIOFLOW_PORT must be a number." ;; esac
     cp .env.example .env
     chmod 600 .env
+    created_env=1
     set_env POSTGRES_PASSWORD "$(gen_secret)"
     set_env REDIS_PASSWORD "$(gen_secret)"
     set_env JWT_SECRET "$(gen_secret)"
@@ -212,13 +214,19 @@ main() {
     || die "Some services did not become healthy. See: cd ${dir} && docker compose ps && docker compose logs"
 
   printf '\n%s🎉 BiblioFlow is running:%s http://localhost:%s\n\n' "$GRN$BOLD" "$RST" "$port"
-  printf 'Create your first user (asks for a password):\n'
-  printf '  cd %s && docker compose exec biblioflow-api python -m app.cli create-user --email you@example.com --admin\n\n' "$dir"
+  if [ "$created_env" = "1" ]; then
+    printf 'Create your first user (asks for a password):\n'
+    printf '  cd %s && docker compose exec biblioflow-api python -m app.cli create-user --email you@example.com --admin\n\n' "$dir"
+  fi
   printf 'Remote access (Cloudflare Tunnel, Tailscale) and backups: https://github.com/pathvector-studio/biblioflow#readme\n'
   if [ "$(get_env EMBEDDING_PROVIDER)" = "local" ]; then
     printf '%sThe search model downloads in the background (about 0.6 GB); semantic search switches on by itself when it is done.%s\n' "$DIM" "$RST"
   fi
-  printf '%sAI chat is on the roadmap; today an MCP client can search your library (see the README).%s\n' "$DIM" "$RST"
+  local llm
+  llm="$(get_env LLM_PROVIDER)"
+  if [ -z "$llm" ] || [ "$llm" = "none" ]; then
+    printf '%sAI chat is off: set LLM_PROVIDER in .env to turn it on (README, "AI chat and figure explanations"). An MCP client can search your library without it.%s\n' "$DIM" "$RST"
+  fi
   printf '%sEnjoying it? https://biblioflow.pathvector.dev/#sponsor ☕%s\n\n' "$DIM" "$RST"
 }
 
