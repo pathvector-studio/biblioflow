@@ -37,6 +37,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - An imported BibTeX entry that uses `@string` abbreviations keeps those definitions, so exporting it again no longer loses the journal or book title.
 
 ### Security
+- The gateway image is now Caddy 2.11.9. The 2.11.7 image carried a critical, actively exploited brotli vulnerability and several curl ones (found by scanning the images; the gateway is the only service exposed to the host). Update to get it.
 - `SECURITY.md`: report vulnerabilities privately through GitHub (Security → Report a vulnerability), with response times and what is in scope. The README has a short Security section.
 - Imported bibliography files (BibTeX, RIS, CSL JSON, Zotero RDF) are now read in a separate, resource-limited process (60 s for an upload, 10 min for a file in the import folder, 1 GiB of memory) and one file at a time per user. Before, a small crafted file (a Zotero RDF with collections listed under many parents, or a BibTeX file with thousands of `@string` lines) could keep the server busy indefinitely. This only affected unreleased code (file import was added after 0.2.0).
 - Browser extension: a stored API token or Cloudflare Access secret is no longer reused after you change the server URL in the settings; type it again for the new server.
