@@ -6,6 +6,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Fixed
+- Importing a Zotero RDF export from Zotero 7 or later now brings the PDFs along and keeps the articles' DOIs. Before, such an export came in without any PDF and with internal `BF-` identifiers instead of DOIs (found with a real Zotero 10 export; the BibTeX export was not affected).
+
 ### Added
 - Optional update notice: with `UPDATE_CHECK=true` the worker asks GitHub once a day for the latest release, and administrators see under Settings > Updates when a newer version exists and whether it contains security fixes (`GET /api/v1/system/update-status`, admin and session only). Off by default; nothing identifying is sent.
 
