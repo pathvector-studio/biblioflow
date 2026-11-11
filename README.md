@@ -6,7 +6,7 @@ A self-hosted paper manager and AI research assistant that runs entirely on Dock
 
 Website: https://biblioflow.pathvector.dev
 
-> **Status: early preview (v0.2.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, hybrid keyword + semantic search, MCP server) and semantic search work today. The in-app AI features are not implemented yet; see [Roadmap](#roadmap). Changes per release are in [CHANGELOG.md](CHANGELOG.md); how releases are made is in [RELEASING.md](RELEASING.md).
+> **Status: early preview (v0.3.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, hybrid keyword + semantic search, MCP server), the in-app AI (chat with citations that jump into the PDF, explaining a selected figure), the browser extension, and export / import (BibTeX, RIS, CSL JSON, Zotero RDF) work today; see [Roadmap](#roadmap) for what is next. Changes per release are in [CHANGELOG.md](CHANGELOG.md); how releases are made is in [RELEASING.md](RELEASING.md).
 
 - Read, highlight and take Markdown notes on PDFs in the browser; share them in lab workspaces.
 - PDFs are stored as plain files you can open from the host (`{Year}/{Identifier}_{SlugTitle}.pdf`).
@@ -413,14 +413,12 @@ docker compose run --rm biblioflow-api pytest
 
 ## Roadmap
 
-Not implemented yet, roughly in this order (details in `specs/phase3.md` and `specs/roadmap.md`):
+Not implemented yet (details in `specs/roadmap.md`; the conditions for 1.0 are in [RELEASING.md](RELEASING.md#versioning)):
 
-- **AI screens**: an AI tab next to the PDF with citation badges such as `[p.4, Sec 3.2]` that jump to the position in the PDF, and drag-selecting an area to ask about it. The [API](#ai-chat-and-figure-explanations) is ready.
-- **Comparing papers**: questions across several papers and comparison tables of methods.
-- **Browser extension** to save a paper and its PDF from publisher pages in one click.
-- **Export and import**: BibTeX / RIS / CSL JSON for collections and tags, automatic export, notes and annotations as Markdown, and migration from Zotero, Mendeley, BibTeX and RIS.
-
-Until the AI screens land, use the [chat API](#ai-chat-and-figure-explanations), or the [MCP server](#search-embeddings-and-mcp) to let an MCP client search and read your library.
+- **Citation styles**: a bibliography in a CSL style (APA, IEEE, …) from a collection, tag or selection.
+- **Translation** of selected text in the PDF.
+- **More of what Zotero does**: books and other non-PDF items, duplicate detection and merging, open-access PDFs (Unpaywall), trash and restore, saved searches, notes and annotations exported as Markdown.
+- **Published clients**: the browser extension in the Chrome Web Store and on AMO, and `biblioflow-mcp` on PyPI. Until then, load the extension from `extension/` and run the MCP server from `mcp/`.
 
 ## Sponsoring
 
