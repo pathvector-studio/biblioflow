@@ -15,6 +15,15 @@ updates:
       # Lift this when the highlighter supports pdfjs-dist >= 6.2.108.
       - dependency-name: pdfjs-dist
         update-types: ["version-update:semver-major"]
+      # Deferred until the 1.0 criteria are done (maintainer decision 2026-11-12); each gets its own spec then.
+      # Tailwind 4 changes the config format and needs tailwind-merge 3 at the same time; TypeScript 7 is
+      # the native compiler and needs Next / typescript-eslint support checked first.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      - dependency-name: tailwindcss
+        update-types: ["version-update:semver-major"]
+      - dependency-name: tailwind-merge
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   - package-ecosystem: uv
@@ -39,6 +48,11 @@ updates:
       mcp-minor-patch:
         update-types: [minor, patch]
     open-pull-requests-limit: 5
+    ignore:
+      # mcp SDK 2.x changes the server API. Deferred until the 1.0 criteria are done (maintainer decision
+      # 2026-11-12), and best done together with publishing biblioflow-mcp on PyPI.
+      - dependency-name: mcp
+        update-types: ["version-update:semver-major"]
 
   # Base images in backend/Dockerfile and frontend/Dockerfile
   - package-ecosystem: docker
