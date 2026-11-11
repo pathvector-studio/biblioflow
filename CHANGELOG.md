@@ -6,6 +6,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Fixed
+- The installer's closing message no longer says AI chat is on the roadmap (it says how to turn it on when it is off), and it no longer tells you to create your first user when it updated an existing install.
+
 ## [0.3.0] - 2026-11-12
 
 ### Added
