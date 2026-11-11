@@ -37,6 +37,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 ### Security
 - Imported bibliography files (BibTeX, RIS, CSL JSON, Zotero RDF) are now read in a separate, resource-limited process (60 s for an upload, 10 min for a file in the import folder, 1 GiB of memory) and one file at a time per user. Before, a small crafted file (a Zotero RDF with collections listed under many parents, or a BibTeX file with thousands of `@string` lines) could keep the server busy indefinitely. This only affected unreleased code (file import was added after 0.2.0).
 - Browser extension: a stored API token or Cloudflare Access secret is no longer reused after you change the server URL in the settings; type it again for the new server.
+- AI answers no longer show clickable external links (the URL is shown as text), so text hidden in a paper cannot get the model to build a link that sends your question elsewhere. Notes no longer load remote images automatically (they appear as a link), so an image added by another workspace member or through MCP cannot tell an outside server when you open the note.
 
 ## [0.2.0] - 2026-11-07
 
