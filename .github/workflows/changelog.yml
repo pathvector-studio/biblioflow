@@ -12,9 +12,10 @@ jobs:
   changelog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       # Decided in a step, not with a job-level if: a skipped job does not replace the failure of the run
       # that started before the label was added (gh pr create --label adds it after opening).
       - name: CHANGELOG.md is updated
