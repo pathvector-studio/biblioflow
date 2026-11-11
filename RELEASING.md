@@ -10,6 +10,7 @@ Roles: whoever prepares the release (a person or an agent session) opens the rel
 - [3. Tag and publish](#3-tag-and-publish)
 - [4. After publishing](#4-after-publishing)
 - [Rolling back](#rolling-back)
+- [Security](#security)
 - [If a secret or personal detail was published](#if-a-secret-or-personal-detail-was-published)
 - [Changelog](#changelog)
 
@@ -97,6 +98,17 @@ Do not move or delete a published tag. A mistake is fixed in the next PATCH.
 ## Rolling back
 
 Deploy the previous tag: `scripts/deploy.sh vX.Y.(Z-1)`. Migrations are not undone by rolling back the code. If the new version migrated the database, restore the backup that `deploy.sh` took (`scripts/restore.sh --yes <backup>`). Then fix the problem and release a PATCH.
+
+## Security
+
+Reports arrive through GitHub's private vulnerability reporting ([SECURITY.md](SECURITY.md) sets the response times: acknowledge within 7 days, assess within 14, a fixed release within 30 for high or critical).
+
+1. **Triage** in the draft advisory GitHub creates for the report: reproduce, set the severity (CVSS), the affected versions (`< X.Y.Z`) and the patched version. Reply to the reporter.
+2. **Fix privately**: from the advisory, create a temporary private fork and fix it there, with a test that fails before the fix. Do not push the fix to a public branch or describe it in a public PR, issue or commit message before the release.
+3. **Release**: merge the fix from the private fork into `main` and release a PATCH as usual (release PR, checklist, tag). The changelog line goes under `### Security` and says what was affected and who should update, without a working exploit.
+4. **Publish the advisory** once the release is out, request a CVE from GitHub when the issue has one, and credit the reporter unless they declined. Production is updated with `scripts/deploy.sh` like any release.
+
+If the issue is being exploited or is already public, skip the wait: release the fix as soon as it is ready and publish the advisory with it.
 
 ## If a secret or personal detail was published
 

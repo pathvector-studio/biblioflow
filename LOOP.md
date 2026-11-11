@@ -17,6 +17,8 @@
 | community | コミュニティのファイル（CONTRIBUTING・CODE_OF_CONDUCT・issue / PR テンプレート）と README の刷新 | spec | GitHub Sponsors の設定・リポジトリの説明文の変更は外部の設定なのでユーザーが行う |
 | d-csl | トラック D: 引用スタイル（CSL）での参考文献の出力のみ | spec | `specs/roadmap.md` |
 | translate | PDF の翻訳: 選んだ文章の翻訳のみ | spec | |
+| dep-pypdf7 | pypdf 6 → 7（Dependabot #61）: 変更点の調査、PDF の検査・チャンク抽出（`pdf.py`・`chunking.py` の `visitor_text`、1 文字ずつの行の処理）への影響、移行の計画 | spec | #61 は CI が通っている。メジャー更新なのでマージは spec の承認後 |
+| dep-bibtexparser2 | bibtexparser 1.x → 2（Dependabot #62）: 2 系の API への移行（取り込みのパーサ、`@string` の保持、子プロセスでの解析）の計画 | spec | #62 は compose のジョブが落ちる。AGENTS.md 6.2 の「`bibtexparser` 1.x」の記述も更新が要る |
 
 ## ユーザー待ち（ループの対象外）
 - v0.3.0 のタグ・Release・本番の更新（タグ前のチェックは通った。インストーラのメッセージの修正 #63 をマージしてから）

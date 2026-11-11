@@ -420,6 +420,10 @@ Not implemented yet (details in `specs/roadmap.md`; the conditions for 1.0 are i
 - **More of what Zotero does**: books and other non-PDF items, duplicate detection and merging, open-access PDFs (Unpaywall), trash and restore, saved searches, notes and annotations exported as Markdown.
 - **Published clients**: the browser extension in the Chrome Web Store and on AMO, and `biblioflow-mcp` on PyPI. Until then, load the extension from `extension/` and run the MCP server from `mcp/`.
 
+## Security
+
+Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md); do not open a public issue. Only the gateway is published to the host; the database, Valkey, the API and the embedder stay on an internal network, and the containers run as non-root. Uploaded PDFs and bibliography files are parsed in resource-limited child processes, outgoing requests refuse private addresses, and text from papers is passed to language models as data inside `<paper_context>`, never as instructions.
+
 ## Sponsoring
 
 If BiblioFlow is useful to you, you can support its development through [GitHub Sponsors](https://github.com/sponsors/pathvector-studio).
