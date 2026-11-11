@@ -20,10 +20,13 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+          package-manager-cache: false
       # Reads package-lock.json only; dev-only findings (eslint etc.) never ship in the image.
       - run: npm audit --omit=dev --audit-level=high
       - name: Licenses of production dependencies (THIRD_PARTY_NOTICES.md)
@@ -35,10 +38,13 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           version: "0.12.3"
+          enable-cache: false
       - name: pip-audit (production dependencies from uv.lock)
         run: |
           uv export --frozen --no-dev --no-hashes --no-emit-project -q > requirements.txt
@@ -54,10 +60,13 @@ jobs:
       run:
         working-directory: mcp
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           version: "0.12.3"
+          enable-cache: false
       - name: pip-audit (production dependencies from uv.lock)
         run: |
           uv export --frozen --no-dev --no-hashes --no-emit-project -q > requirements.txt
