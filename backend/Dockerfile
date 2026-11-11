@@ -19,6 +19,10 @@ ARG GID=1000
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
+# Security updates of the base packages, so a fix does not wait for the next python image (image scan in CI).
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 RUN groupadd --gid "${GID}" app \
  && useradd --uid "${UID}" --gid "${GID}" --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin app \
  && mkdir -p /data/library /data/watch /data/exports /data/import /models \

@@ -6,6 +6,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Security
+- The API, worker and frontend images install the base system's security updates when they are built, and the frontend image no longer contains npm (it is not used at runtime). Every pull request and a weekly run now scan the images and the code for known vulnerabilities.
+
 ### Fixed
 - The installer's closing message no longer says AI chat is on the roadmap (it says how to turn it on when it is off), and it no longer tells you to create your first user when it updated an existing install.
 

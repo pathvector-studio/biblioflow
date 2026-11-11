@@ -34,6 +34,8 @@ v1 の基準 4（`RELEASING.md`）を満たすため。脆弱性の報告先と�
 ## 決めたこと
 - **新しく入るもの（依存の追加として承認が要る）**: `github/codeql-action`（init / analyze / upload-sarif）、イメージスキャナ、`zizmor`（`uvx` で固定版。新しい action は足さない）。新しいワークフローは `codeql.yml` と `image-scan.yml` の 2 つ。
 - **イメージスキャナは Grype（Anchore、Apache-2.0）**: Trivy は 2026 年 3 月に配布物（action のタグとリリース）の改ざん事件があったため避ける。Grype はコンテナイメージを SHA で固定して `docker run` で使い（gitleaks と同じ方式。action は足さない）、脆弱性 DB の取得は実行時に行う。
+- **自前のイメージ（api・frontend）だけを失敗の条件にし、compose に固定した他者のイメージは報告だけ**（実装時に変更、2026-11-12）: 他者のイメージは作り直せず、最初の検査で 5 つすべてに修正版のある high 以上があった（ベースの zlib など）。失敗にすると、上流の再ビルドを待つ間 CI が止まり続ける。結果は code scanning に出し、Dependabot がタグを上げる PR で確かめる。最初の検査で見つけた Caddy 2.11.7 の悪用済み（KEV）の brotli は、Dependabot の 2.11.9（#59）で解消した。
+- 自前のイメージは、ビルド時に OS のパッケージを更新する（`apt-get upgrade` / `apk upgrade`）。frontend の実行用イメージからは npm・corepack を消す（`node server.js` だけで動き、npm 同梱の undici・brace-expansion が検査に出るため）。
 - **失敗の条件は「修正版がある high 以上」**: 修正版のないものまで落とすと、ベースイメージの更新待ちで CI が止まり続けるため。修正版のない high 以上は code scanning に残して見えるようにする。
 - **更新の通知は既定オフ**: 自己ホストの利用者に、黙って外へ通信させないため（embedding・LLM と同じ「設定すること自体が同意」の方針）。
 - **SECURITY.md の目安（7 日・30 日）**: 個人の保守なので、守れる数字にする。

@@ -22,6 +22,11 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 
+# Security updates of the base packages, and no npm / corepack at runtime (the server is `node server.js`;
+# npm's bundled dependencies only add findings to the image scan).
+RUN apk upgrade --no-cache \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 # alpine の node イメージには UID/GID 1000 の node ユーザーが既にあるため先に削除する
 RUN (deluser --remove-home node 2>/dev/null || true) \
  && (delgroup node 2>/dev/null || true) \
