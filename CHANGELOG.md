@@ -6,9 +6,6 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
-### Fixed
-- The installer's closing message no longer says AI chat is on the roadmap (it says how to turn it on when it is off), and it no longer tells you to create your first user when it updated an existing install.
-
 ## [0.3.0] - 2026-11-12
 
 ### Added
@@ -32,6 +29,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - Importing from a server folder needs a new `./data/import` directory, created and owned like `data/exports` (`mkdir -p data/import`, `chown` to `APP_UID` if the host user differs). `IMPORT_DIR` (default `/data/import`) is optional in `.env`. Its contents are not part of the backup.
 
 ### Fixed
+- The installer's closing message no longer says AI chat is on the roadmap (it says how to turn it on when it is off), and it no longer tells you to create your first user when it updated an existing install.
 - The paper screen decides who may edit (notes, bibliography, annotations, PDF upload) by the paper's own workspace, not by the workspace picked in the header. Before, a viewer of a shared workspace saw editing tools on its papers when their own workspace was selected (the server still refused the changes), and the bibliography tab offered the header workspace's tags and collections.
 - An old `.env` that still has `LLM_PROVIDER=openai` without `LLM_API_KEY` (the former `.env.example` placeholder) no longer stops the API from starting: AI chat stays off and a warning is logged naming the missing setting.
 - Browser extension: IEEE Xplore pages (which have no `citation_*` tags) now give the DOI, title, authors and PDF link, and ACM Digital Library pages give the PDF link and correctly split author names. Checked against the live pages of arXiv, PLOS, Nature, SpringerLink, Wiley, ACM and IEEE.
@@ -39,6 +37,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - An imported BibTeX entry that uses `@string` abbreviations keeps those definitions, so exporting it again no longer loses the journal or book title.
 
 ### Security
+- `SECURITY.md`: report vulnerabilities privately through GitHub (Security → Report a vulnerability), with response times and what is in scope. The README has a short Security section.
 - Imported bibliography files (BibTeX, RIS, CSL JSON, Zotero RDF) are now read in a separate, resource-limited process (60 s for an upload, 10 min for a file in the import folder, 1 GiB of memory) and one file at a time per user. Before, a small crafted file (a Zotero RDF with collections listed under many parents, or a BibTeX file with thousands of `@string` lines) could keep the server busy indefinitely. This only affected unreleased code (file import was added after 0.2.0).
 - Browser extension: a stored API token or Cloudflare Access secret is no longer reused after you change the server URL in the settings; type it again for the new server.
 - AI answers no longer show clickable external links (the URL is shown as text), so text hidden in a paper cannot get the model to build a link that sends your question elsewhere. Notes no longer load remote images automatically (they appear as a link), so an image added by another workspace member or through MCP cannot tell an outside server when you open the note.
