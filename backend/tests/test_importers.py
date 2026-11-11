@@ -143,6 +143,39 @@ def test_zotero_rdf_items_collections_notes_attachments():
     assert book.item_type == "book" and book.collections == [["Networking"]] and book.year == 2001
 
 
+def test_zotero_10_export():
+    """A real export from Zotero 10.0.9 (File > Export Library > Zotero RDF, Export Files and Notes): attachments are
+    <z:path>, and an article's DOI sits on its journal (<dcterms:isPartOf><bib:Journal><dc:identifier>DOI ...)."""
+    r = load("zotero10.rdf")
+    assert r.format == "zotero_rdf" and len(r.items) == 7 and not r.problems
+    sandve = by_title(r, "Ten Simple Rules for Reproducible")
+    assert sandve.doi == "10.1371/journal.pcbi.1003285" and sandve.year == 2013
+    assert sandve.attachments == ["files/3/pcbi.1003285.pdf"]  # the linked URL attachment is not a path
+    assert sandve.tags == ["methods", "reproducibility", "to cite"]
+    assert sorted(sandve.collections) == [["Reading group 2026"], ["Thesis", "Related work"]]
+    assert len(sandve.notes) == 1
+    good = by_title(r, "Good enough")
+    assert good.doi == "10.1371/journal.pcbi.1005510" and good.attachments == ["files/10/pcbi.1005510.pdf"]
+    assert ["Thesis", "Related work", "Methods & tools"] in good.collections and len(good.notes) == 2
+    assert {i.doi for i in r.items if i.attachments} == {
+        "10.1371/journal.pcbi.1003285", "10.1371/journal.pbio.1001745", "10.1371/journal.pcbi.1005510",
+        "10.1371/journal.pcbi.1005412",
+    }
+    assert by_title(r, "Attention").arxiv_id == "1706.03762"
+    thesis = by_title(r, "計算再現性")
+    assert thesis.item_type == "thesis" and thesis.tags == ["日本語"] and thesis.attachments == []
+
+
+def test_zotero_rdf_journal_issn_is_not_a_doi():
+    rdf = b"""<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:z="http://www.zotero.org/namespaces/export#"
+ xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:bib="http://purl.org/net/biblio#">
+ <bib:Article rdf:about="#item_1"><z:itemType>journalArticle</z:itemType><dc:title>T</dc:title>
+  <dcterms:isPartOf><bib:Journal><dc:identifier>ISSN 1553-7358</dc:identifier><dc:title>J</dc:title></bib:Journal></dcterms:isPartOf>
+ </bib:Article></rdf:RDF>"""
+    item = parse_file(rdf, "x.rdf").items[0]
+    assert item.doi is None and item.venue == "J"
+
+
 def test_zotero_rdf_rejects_dtd_and_entities():
     evil = b'<?xml version="1.0"?><!DOCTYPE r [<!ENTITY x "boom">]><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/>'
     with pytest.raises(ImportFormatError):

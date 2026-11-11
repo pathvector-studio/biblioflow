@@ -182,6 +182,31 @@ async def test_zotero_export_with_pdfs(login, resolver, storage, enqueued):
     assert cols["BGP"]["parent_id"] == cols["Networking"]["id"]
 
 
+async def test_zotero_10_export_with_pdfs(login, resolver, storage, enqueued):
+    """The RDF of a real Zotero 10.0.9 export (<z:path> attachments, DOIs on the journal node), with stand-in PDFs."""
+    _, c = await login("a@example.com")
+    wid, slug = await personal(c)
+    root = storage.imports / slug / "Zotero RDF export"
+    root.mkdir(parents=True)
+    shutil.copy(FIX.parent / "zotero10.rdf", root / "Zotero RDF export.rdf")
+    for n, name in [(3, "pcbi.1003285"), (6, "pbio.1001745"), (10, "pcbi.1005510"), (12, "pcbi.1005412")]:
+        write_pdf(root / f"files/{n}/{name}.pdf", f"{name} full text")
+
+    job = await import_once(c, wid, resolver, storage, source="Zotero RDF export/Zotero RDF export.rdf")
+    assert job["status"] == "done" and job["problems"] == []
+    assert (job["total"], job["new"], job["with_attachments"], job["pdfs_attached"], job["pdfs_failed"]) == (7, 7, 4, 4, 0)
+    rows = await papers(c, wid)
+    with_pdf = {p["identifier"] for p in rows.values() if p["has_pdf"]}
+    assert with_pdf == {
+        "10.1371/journal.pcbi.1003285", "10.1371/journal.pbio.1001745", "10.1371/journal.pcbi.1005510",
+        "10.1371/journal.pcbi.1005412",
+    }
+    cols = {x["name"]: x for x in (await c.get(f"{API}/collections", params={"workspace_id": wid})).json()}
+    assert set(cols) == {"Thesis", "Related work", "Methods & tools", "Reading group 2026"}
+    assert cols["Methods & tools"]["parent_id"] == cols["Related work"]["id"]
+    assert cols["Related work"]["parent_id"] == cols["Thesis"]["id"]
+
+
 async def test_second_run_is_idempotent_and_never_replaces_a_pdf(login, resolver, storage, enqueued):
     _, c = await login("a@example.com")
     wid, slug = await personal(c)
