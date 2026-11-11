@@ -13,7 +13,7 @@
 ## キュー
 | ID | 内容 | 状態 | メモ |
 |---|---|---|---|
-| security-baseline | セキュリティの基盤（SECURITY.md、CodeQL、イメージの脆弱性検査、audit.yml の extension ジョブ、Actions の SHA 固定と zizmor、RELEASING のセキュリティの節、任意の更新通知） | `waiting` | spec 承認済み（`specs/security-baseline.md`、2026-11-12。private vulnerability reporting の有効化も承認）。親セッションが実装中なので、ループは触らない |
+| security-baseline | セキュリティの基盤（SECURITY.md、CodeQL、イメージの脆弱性検査、audit.yml の extension ジョブ、Actions の SHA 固定と zizmor、RELEASING のセキュリティの節、任意の更新通知） | waiting | spec 承認済み（`specs/security-baseline.md`、2026-11-12。private vulnerability reporting の有効化も承認）。親セッションが実装中なので、ループは触らない |
 | community | コミュニティのファイル（CONTRIBUTING・CODE_OF_CONDUCT・issue / PR テンプレート）と README の刷新 | spec | GitHub Sponsors の設定・リポジトリの説明文の変更は外部の設定なのでユーザーが行う |
 | d-csl | トラック D: 引用スタイル（CSL）での参考文献の出力のみ | spec | `specs/roadmap.md` |
 | translate | PDF の翻訳: 選んだ文章の翻訳のみ | spec | |
