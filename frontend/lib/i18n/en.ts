@@ -261,6 +261,7 @@ export const en: Dict = {
     preview: "Preview",
     placeholder: "Write notes in Markdown (autosaved)",
     empty: "No notes yet.",
+    image: "Image",
     saved: "Saved",
     unsaved: "Unsaved changes",
     saving: "Saving...",

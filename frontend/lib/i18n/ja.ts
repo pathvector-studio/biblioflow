@@ -259,6 +259,7 @@ export const ja = {
     preview: "プレビュー",
     placeholder: "Markdown でメモを書けます（自動保存）",
     empty: "ノートはまだありません。",
+    image: "画像",
     saved: "保存済み",
     unsaved: "未保存の変更あり",
     saving: "保存中...",

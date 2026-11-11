@@ -9,6 +9,7 @@ import type { Citation } from "@/lib/types";
 
 /**
  * AI の回答の Markdown 表示。画像と生 HTML は出さない（画像は URL を読み込むだけでデータが外に出せるため）。
+ * 外部リンクも押せる形にせず、URL を文字で出す。
  * `citations` にある `[n]` はラベルのバッジになり、クリックで `onCite` が呼ばれる。
  */
 function MarkdownAnswerBase({
@@ -48,10 +49,15 @@ function MarkdownAnswerBase({
           );
         }
         if (ref !== null) return <>{children}</>;
+        // 引用以外のリンクは押せる形にしない。論文に仕込まれた指示で、質問や回答の内容を URL に入れたリンクを
+        // 作られうるため。宛先は文字で見せる（必要ならコピーして開ける）。
+        const url = typeof href === "string" && href && !href.startsWith("#") ? href : null;
+        const sameAsText = typeof children === "string" && children === url;
         return (
-          <a href={href} target="_blank" rel="noopener noreferrer">
+          <span>
             {children}
-          </a>
+            {url && !sameAsText && <span className="break-all text-muted-foreground"> ({url})</span>}
+          </span>
         );
       },
     };

@@ -96,7 +96,20 @@ export function NotesTab({ paper, canEdit }: { paper: PaperDetail; canEdit: bool
       {preview ? (
         <div className="markdown min-h-0 flex-1 overflow-auto rounded-md border p-3">
           {text.trim() ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeSanitize]}
+              components={{
+                // 外部の画像は自動で読み込まない（共有ワークスペースのほかの人や MCP が書いた画像の URL で、
+                // 開いた人の IP やアクセスした時刻が外に伝わるため）。押せば開けるリンクにする。
+                img: ({ src, alt }) =>
+                  typeof src === "string" && src ? (
+                    <a href={src} target="_blank" rel="noopener noreferrer">
+                      [{t.notes.image}: {alt || src}]
+                    </a>
+                  ) : null,
+              }}
+            >
               {text}
             </ReactMarkdown>
           ) : (
