@@ -13,13 +13,13 @@
 ## キュー
 | ID | 内容 | 状態 | メモ |
 |---|---|---|---|
-| security-baseline | セキュリティの基盤（SECURITY.md、CodeQL、イメージの脆弱性検査、audit.yml の extension ジョブ、Actions の SHA 固定と zizmor、RELEASING のセキュリティの節、任意の更新通知） | spec | 新しい Actions・ワークフローは依存の追加なので、spec の承認が要る。private vulnerability reporting の有効化はリポジトリ設定なので毎回承認 |
+| security-baseline | セキュリティの基盤（SECURITY.md、CodeQL、イメージの脆弱性検査、audit.yml の extension ジョブ、Actions の SHA 固定と zizmor、RELEASING のセキュリティの節、任意の更新通知） | waiting | spec 承認済み（`specs/security-baseline.md`、2026-11-12。private vulnerability reporting の有効化も承認）。親セッションが実装中なので、ループは触らない |
 | community | コミュニティのファイル（CONTRIBUTING・CODE_OF_CONDUCT・issue / PR テンプレート）と README の刷新 | spec | GitHub Sponsors の設定・リポジトリの説明文の変更は外部の設定なのでユーザーが行う |
 | d-csl | トラック D: 引用スタイル（CSL）での参考文献の出力のみ | spec | `specs/roadmap.md` |
 | translate | PDF の翻訳: 選んだ文章の翻訳のみ | spec | |
 
 ## ユーザー待ち（ループの対象外）
-- v0.3.0 のタグ・Release・本番の更新（#54 のマージ後）
-- v1 の基準 1: Zotero をインストールして実際の書き出しで確かめるか（ダウンロードの承認）
-- Dependabot のメジャー更新（#2・#5・#6・#7）の進め方
+- v0.3.0 のタグ・Release・本番の更新（タグ前のチェックは通った。インストーラのメッセージの修正 #63 をマージしてから）
+- v1 の基準 1: Zotero をインストールして実際の書き出しで確かめる（承認済み 2026-11-12。親セッションが行う。Mendeley は v1 の条件から外した）
+- Dependabot のメジャー更新: v1 の基準を終えてから 1 つずつ spec を書く（ユーザー判断 2026-11-12、#55）。新しく来た pypdf 7（#61）・bibtexparser 2（#62）の扱いはユーザーに聞く
 - 開発環境の `EMBEDDING_PROVIDER`
