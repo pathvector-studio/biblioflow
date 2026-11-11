@@ -12,9 +12,9 @@
 - 次に着手（ユーザー判断 2026-11-09、両方進める）:
   - トラック D（`specs/roadmap.md`）の spec: 引用スタイル（CSL）での参考文献の生成と、Word / Google Docs 連携
   - PDF の翻訳の spec（案: 選んだ文章の翻訳と、ページ単位の対訳）: 範囲は spec の中で決める
-- 未確認の検証（ユーザーの操作が要る）: ブラウザ拡張（Firefox での実動作、実際の権限のダイアログ、出版社のサイトでの PDF の取得と保存、ScienceDirect、Cloudflare Access の内側）、実際の Zotero・Mendeley の書き出しの取り込み
+- 未確認の検証（ユーザーの操作が要る）: ブラウザ拡張（Firefox での実動作、実際の権限のダイアログ、出版社のサイトでの PDF の取得と保存、ScienceDirect、Cloudflare Access の内側）、実際の Zotero の書き出しの取り込み（Zotero をインストールして確かめる。ユーザー承認 2026-11-12。Mendeley は v1 の条件から外した）
 - v1.0 の基準: `RELEASING.md` に 6 項目（移行・CSL の出力・互換性の約束・セキュリティの体制・本番での常用・クライアントの配布）。順番は合意済み（掃除と検証 → v0.3.0 → セキュリティの基盤の PR → コミュニティのファイルと README → D と翻訳の spec）
-- 依存関係: メジャー更新（TypeScript 7、tailwind-merge 3、Tailwind 4、ESLint 10）と mcp SDK 2.x は進め方をユーザーに聞く
+- 依存関係: メジャー更新（TypeScript 7、tailwind-merge 3、Tailwind 4）と mcp SDK 2.x は v1 の基準を終えてから 1 つずつ spec を書く（ユーザー判断 2026-11-12。`dependabot.yml` の ignore に記載）
 - biblioflow-mcp を外部の MCP カタログ（HOL Guard）に登録する: v1.0 になってから（PyPI に出すのが前提。それまでは見送りと回答する）
 
 ## 詰まり
