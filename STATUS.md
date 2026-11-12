@@ -3,27 +3,32 @@
 親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-12
 
 ## 進行中
-- コミュニティ（`specs/community.md`）: CONTRIBUTING・issue / PR のテンプレート・README の刷新（スクリーンショット）の PR。Code of Conduct は専用の連絡先のアドレスをユーザーが用意してから別の PR。マージのときに Discussions の有効化と説明文・トピックの更新（承認済み）
-- セキュリティの基盤: R1〜R7 はマージ済み（#65・#66・#68・#69）。private vulnerability reporting を有効化。R8 更新の通知（#71）は CI 待ち
-- D（CSL）は #74 で完了（v1 の基準 2）。翻訳の PR。Zotero の実データでの確認は #73 で完了（v1 の基準 1）
-- v0.3.0: タグ前のチェックは通った。タグは #66 のマージ（1a46a61）か、それ以降の main に。タグ・Release・本番更新はユーザーが行う
-
-## 承認待ち
 - なし
 
+## 承認待ち（ユーザー）
+- v0.3.0 のタグ・GitHub Release・本番の更新・本番のバックアップの cron。タグ前のチェック（新規インストール・v0.2.0 からのアップグレード・`restore.sh --check`）は 2026-11-12 に通った。タグは #66 のマージ（1a46a61）。それ以降の変更は `[Unreleased]`（次の 0.4.0）
+- CODE_OF_CONDUCT.md の連絡先（専用のアドレス。個人のメールは書かない）。文面は用意済み
+- GitHub Sponsors の tier（文案は `specs/community.md` の末尾）
+- Dependabot のメジャー更新 pypdf 7（#61）・bibtexparser 2（#62）の扱い（`LOOP.md` に spec の項目として載っている）
+
 ## 予定
-- 次に着手（ユーザー判断 2026-11-09、両方進める）:
-  - トラック D（`specs/roadmap.md`）の spec: 引用スタイル（CSL）での参考文献の生成と、Word / Google Docs 連携
-  - PDF の翻訳の spec（案: 選んだ文章の翻訳と、ページ単位の対訳）: 範囲は spec の中で決める
-- 未確認の検証（ユーザーの操作が要る）: ブラウザ拡張（Firefox での実動作、実際の権限のダイアログ、出版社のサイトでの PDF の取得と保存、ScienceDirect、Cloudflare Access の内側）、実際の Zotero の書き出しの取り込み（Zotero をインストールして確かめる。ユーザー承認 2026-11-12。Mendeley は v1 の条件から外した）
-- v1.0 の基準: `RELEASING.md` に 6 項目（移行・CSL の出力・互換性の約束・セキュリティの体制・本番での常用・クライアントの配布）。順番は合意済み（掃除と検証 → v0.3.0 → セキュリティの基盤の PR → コミュニティのファイルと README → D と翻訳の spec）
+- v1.0 の基準（`RELEASING.md`）: 1 移行・2 CSL・4 セキュリティは完了（2026-11-12）。残りは 3 互換性の約束（OpenAPI の公開と、前のタグからのアップグレードを CI で）、5 本番での常用（4 週間・実際の復元・外の利用者 3 人）、6 クライアントの配布（Chrome Web Store・AMO・PyPI。公開は毎回ユーザーの承認）
+- 未確認の検証（ユーザーの操作が要る）: ブラウザ拡張（Firefox での実動作、実際の権限のダイアログ、出版社のサイトでの PDF の取得と保存、ScienceDirect、Cloudflare Access の内側）、CSL の出力を Word / Google Docs に実際に貼ること、長く使われた大きな Zotero のライブラリ
 - 依存関係: メジャー更新（TypeScript 7、tailwind-merge 3、Tailwind 4）と mcp SDK 2.x は v1 の基準を終えてから 1 つずつ spec を書く（ユーザー判断 2026-11-12。`dependabot.yml` の ignore に記載）
-- biblioflow-mcp を外部の MCP カタログ（HOL Guard）に登録する: v1.0 になってから（PyPI に出すのが前提。それまでは見送りと回答する）
+- biblioflow-mcp を外部の MCP カタログ（HOL Guard）に登録する: v1.0 になってから（PyPI に出すのが前提）
 
 ## 詰まり
 - なし（Remote Control 経由では子セッションを起動できないので、子は subagent を既定にした）
 
 ## 直近の完了
+- 選んだ文章の翻訳（#76。ヘッドレスの Chromium と Ollama で、選択 → 翻訳 → 日本語 → ノートに追加まで確認）
+- CodeQL の指摘: ScienceDirect のホストの判定を厳密に（#75）。残り 3 件は理由を書いて閉じた（誤検知 2・意図どおり 1）
+- 引用スタイル（CSL）での参考文献（#74、v1 の基準 2）。citeproc-py、6 スタイル、citeproc-js との照合
+- Zotero 7 以降の RDF の取り込み（#73、v1 の基準 1）。Zotero 10.0.9 の実際の書き出しで PDF が付かず DOI が落ちる不具合を見つけて直した
+- コミュニティのファイル・README の刷新（#72）、Discussions の有効化、説明文とトピックの更新
+- 更新の通知（#71、`UPDATE_CHECK`、既定オフ）
+- セキュリティの基盤（v1 の基準 4）: SECURITY.md（#65）、private vulnerability reporting、Actions の SHA 固定と zizmor（#66）、CodeQL とイメージの検査（#68）、拡張の監査（#69）。Caddy 2.11.7 の悪用済みの脆弱性は 2.11.9 で解消
+- v0.3.0 のリリース PR（#54）とインストーラのメッセージ（#63）
 - v1.0 の基準を `RELEASING.md` に書く
 - 拡張が実際の IEEE Xplore・ACM DL のページを読めるようにする（#51。arXiv・PLOS・Nature・Springer・Wiley も実ページで抽出を確認）
 - BibTeX の書き出しを `biber` / `bibtex` で読める形にする（#50。CSL JSON は公式スキーマを通過）
