@@ -82,6 +82,12 @@ export const api = {
     a.remove();
     URL.revokeObjectURL(url);
   },
+  /** テキスト（整形済みの参考文献など）の取得。件数は X-Total-Count */
+  async getText(path: string, query: RequestOptions["query"]): Promise<{ text: string; total: number }> {
+    const res = await send(path, { query });
+    const text = await res.text();
+    return { text, total: Number(res.headers.get("X-Total-Count") ?? 0) };
+  },
   /** 件数ヘッダ付きの一覧取得 */
   async getWithTotal<T>(path: string, query: RequestOptions["query"]): Promise<{ items: T[]; total: number }> {
     const res = await send(path, { query });

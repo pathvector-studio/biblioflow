@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { BibliographyPanel } from "@/components/bibliography/bibliography-panel";
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (
@@ -151,6 +152,12 @@ export function BibliographyTab({ paper }: { paper: PaperDetail }) {
           {canEdit && <Button type="submit">{t.common.save}</Button>}
         </fieldset>
       </form>
+
+      <div className="space-y-1.5">
+        <Label>{t.bibliography.citation}</Label>
+        {/* 保存済みの書誌を整形する。保存して updated_at が変わると取り直す */}
+        <BibliographyPanel query={{ ids: paper.id }} idPrefix="paper-bib" version={paper.updated_at} />
+      </div>
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">

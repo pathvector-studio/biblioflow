@@ -187,6 +187,21 @@ Settings > Auto-export keeps a file up to date for LaTeX, Obsidian or any tool t
 
 Exports are regenerated from the database, so `scripts/backup.sh` does not copy `data/exports`; after a restore the worker rewrites the files within a minute. The directory is `EXPORT_DIR` (default `/data/exports`, mounted from `./data/exports`).
 
+### Bibliography in a citation style
+
+`GET /api/v1/bibliography?style=apa&format=text` returns a formatted reference list (one entry per line; `format=html` returns a fragment with the italics and so on) for the papers matching the same filters as the export (`workspace_id`, `collection_id`, `tag`, `status`, `year`, `q`), or for the papers named in `ids=<uuid>,<uuid>` (ids you cannot see are left out, as in the list API). A token needs `read:papers`. At most 1,000 papers per request (422 beyond that), 30 requests per minute.
+
+```bash
+curl -H "Authorization: Bearer bf_pat_..." "https://papers.example.com/api/v1/bibliography?style=apa&format=text&collection_id=<id>"
+curl -H "Authorization: Bearer bf_pat_..." "https://papers.example.com/api/v1/bibliography/styles"   # id, title, kind
+```
+
+- **Styles** (bundled, nothing is downloaded): `apa` (APA 7th), `ieee`, `chicago-author-date`, `nature`, `vancouver` (NLM/Vancouver), `acm-sig-proceedings`. `locale=en-US` (default) or `ja-JP` sets the language of the terms ("and", "pp.", dates).
+- **Order**: papers are listed by title. APA, Chicago and ACM then sort as the style says (by author); IEEE, Nature and Vancouver number the entries in the title order. There are no in-text citations, so that is the only order there is.
+- **In the app**: Export > "Bibliography (citation style)" shows the formatted list for the current filters (or the papers you ticked), with "Copy as HTML" (keeps italics when pasted into Word or Google Docs; plain text goes along for editors that want it), "Copy as text" and `.html` / `.txt` downloads. A paper's Bibliography tab shows its own citation in the style you used last (remembered in your browser).
+- **How it works**: the stored metadata is turned into CSL JSON (the same as the CSL JSON export) and formatted by citeproc-py in a child process with CPU, memory and time limits, because bibliographic data can come from imported files and from other members; a record that takes too long gives a 422 and the server carries on. The HTML is escaped field by field on the server. Papers carry only title, authors, year, venue and DOI / arXiv ID, so entries are journal articles or preprints; a missing value is left out rather than looked up.
+- **Accuracy**: the output is checked in CI against citeproc-js (the engine Zotero uses) for the six styles and eight sample records. The few known differences (APA's "(eds.)" capitalization, a stray "(Publication)" on theses, Japanese-language spacing) are listed with reasons in `backend/tests/test_csl_reference.py`. The CSL style and locale files come from the CSL project (CC BY-SA 3.0); see `backend/app/services/csl/README.md` and `THIRD_PARTY_NOTICES.md`.
+
 ### Importing references
 
 Add > "Import from a bibliography file" reads a BibTeX (`.bib`), RIS (`.ris`, including Mendeley Reference Manager exports), CSL JSON or Zotero RDF file of up to 4 MiB (the format is detected from the content) and adds the records to the current workspace as wishlist papers without a PDF. A preview shows how many records are new, match a paper you already have (same DOI, arXiv ID or identifier) and could not be read; nothing is saved until you confirm.
@@ -329,7 +344,7 @@ docker compose exec biblioflow-api python -m app.cli reindex --all --embeddings-
 
 Without `--embeddings-only`, `reindex` extracts the text again (`--all`, or `--paper <paper-id>` for one paper).
 
-`mcp/` contains `biblioflow-mcp`, an MCP server (stdio) for Claude Code and other MCP clients. It is a thin client of the HTTP API: it needs a personal access token (Settings > API tokens; `read:papers`, plus `write:papers` for `add_note`) and no LLM key. Tools: `search_library` (with `mode`; results show which lists matched and whether semantic search was unavailable), `list_papers`, `get_paper`, `read_pages`, `list_annotations`, `add_note`. Text that comes from papers is wrapped in `<paper_context>` tags, which the client is told to treat as data, not instructions.
+`mcp/` contains `biblioflow-mcp`, an MCP server (stdio) for Claude Code and other MCP clients. It is a thin client of the HTTP API: it needs a personal access token (Settings > API tokens; `read:papers`, plus `write:papers` for `add_note`) and no LLM key. Tools: `search_library` (with `mode`; results show which lists matched and whether semantic search was unavailable), `list_papers`, `get_paper`, `read_pages`, `list_annotations`, `format_bibliography` (a reference list in a citation style for chosen papers or filters), `add_note`. Text that comes from papers is wrapped in `<paper_context>` tags, which the client is told to treat as data, not instructions.
 
 ```bash
 claude mcp add biblioflow \

@@ -1,0 +1,101 @@
+[
+  {
+    "id": "smith2021routing",
+    "type": "article-journal",
+    "title": "Scalable BGP routing in Clos fabrics",
+    "author": [{"family": "Smith", "given": "John A."}],
+    "issued": {"date-parts": [[2021]]},
+    "container-title": "IEEE/ACM Transactions on Networking",
+    "volume": "29",
+    "issue": "3",
+    "page": "1012-1025",
+    "DOI": "10.1109/TNET.2021.3051234",
+    "URL": "https://doi.org/10.1109/TNET.2021.3051234"
+  },
+  {
+    "id": "lee2019congestion",
+    "type": "paper-conference",
+    "title": "Congestion control for datacenter transports",
+    "author": [{"family": "Lee", "given": "Min-Jun"}, {"family": "van der Berg", "given": "Anna"}],
+    "issued": {"date-parts": [[2019]]},
+    "container-title": "Proceedings of the 2019 ACM SIGCOMM Conference",
+    "publisher": "ACM",
+    "publisher-place": "New York, NY",
+    "page": "211-224",
+    "DOI": "10.1145/3341302.3342080"
+  },
+  {
+    "id": "garcia2024attention",
+    "type": "article",
+    "title": "Efficient attention for long documents: a survey",
+    "author": [
+      {"family": "Garcia", "given": "Maria"},
+      {"family": "Chen", "given": "Wei"},
+      {"family": "Okafor", "given": "Chidi"},
+      {"family": "Novak", "given": "Petra"},
+      {"family": "Ivanov", "given": "Dmitri"},
+      {"family": "Santos", "given": "Luis"},
+      {"family": "Kim", "given": "Soo-Yeon"},
+      {"family": "Muller", "given": "Hans"}
+    ],
+    "issued": {"date-parts": [[2024]]},
+    "archive": "arXiv",
+    "number": "2405.12345",
+    "URL": "https://arxiv.org/abs/2405.12345"
+  },
+  {
+    "id": "tanenbaum2010networks",
+    "type": "book",
+    "title": "Computer Networks",
+    "author": [{"family": "Tanenbaum", "given": "Andrew S."}],
+    "issued": {"date-parts": [[2010]]},
+    "edition": "5",
+    "publisher": "Pearson",
+    "publisher-place": "Boston"
+  },
+  {
+    "id": "brown2018memory",
+    "type": "chapter",
+    "title": "Memory systems in modern processors",
+    "author": [{"family": "Brown", "given": "Emily"}, {"family": "Wilson", "given": "Robert"}],
+    "editor": [{"family": "Hennessy", "given": "John L."}, {"family": "Patterson", "given": "David A."}],
+    "issued": {"date-parts": [[2018]]},
+    "container-title": "Advances in Computer Architecture",
+    "publisher": "Morgan Kaufmann",
+    "publisher-place": "Cambridge, MA",
+    "page": "45-78",
+    "DOI": "10.1016/B978-0-12-811111-0.00003-1"
+  },
+  {
+    "id": "nguyen2016thesis",
+    "type": "thesis",
+    "title": "Verification of distributed protocols",
+    "author": [{"family": "Nguyen", "given": "Thanh"}],
+    "issued": {"date-parts": [[2016]]},
+    "genre": "PhD thesis",
+    "publisher": "Massachusetts Institute of Technology",
+    "publisher-place": "Cambridge, MA"
+  },
+  {
+    "id": "yamada2022japanese",
+    "type": "article-journal",
+    "title": "データセンターにおける経路制御の研究",
+    "author": [{"family": "山田", "given": "太郎"}],
+    "issued": {"date-parts": [[2022]]},
+    "container-title": "情報処理学会論文誌",
+    "volume": "63",
+    "issue": "4",
+    "page": "801-810"
+  },
+  {
+    "id": "unknown-year",
+    "type": "article-journal",
+    "title": "A note on routing & policy",
+    "author": [
+      {"family": "Adams", "given": "Rachel"},
+      {"family": "Baker", "given": "Tom"},
+      {"family": "Clark", "given": "Susan"}
+    ],
+    "container-title": "Journal of Network Studies"
+  }
+]
