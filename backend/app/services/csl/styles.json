@@ -1,0 +1,8 @@
+[
+  {"id": "apa", "title": "APA 7th edition", "kind": "author-date", "file": "apa.csl"},
+  {"id": "ieee", "title": "IEEE", "kind": "numeric", "file": "ieee.csl"},
+  {"id": "chicago-author-date", "title": "Chicago (author-date)", "kind": "author-date", "file": "chicago-author-date.csl"},
+  {"id": "nature", "title": "Nature", "kind": "numeric", "file": "nature.csl"},
+  {"id": "vancouver", "title": "Vancouver (NLM)", "kind": "numeric", "file": "nlm-citation-sequence.csl"},
+  {"id": "acm-sig-proceedings", "title": "ACM (SIG Proceedings)", "kind": "numeric", "file": "acm-sig-proceedings.csl"}
+]

@@ -28,6 +28,8 @@ dependencies = [
     "litellm>=1.103.10,<1.104",  # 1.104–1.109 pin filelock<4, which has open CVEs (fixed in 4.2.1)
     "pillow>=11.0",
     "bibtexparser>=1.4,<2",
+    "citeproc-py==0.12.1",  # 0.12.2 is from 2026-11-11; stay on the release that has had time to settle
+    "lxml>=5",
 ]
 
 [dependency-groups]

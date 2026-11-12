@@ -35,6 +35,9 @@ EMAIL_ALLOWED = re.compile(
     r"^noreply@|@dev-host\.local$",  # dev-host.local: placeholder left by the 2026-11-05 history rewrite
     re.I,
 )
+# Third-party files whose own header lists the public e-mail addresses of their authors. The CC BY-SA 3.0 license of
+# the CSL styles requires keeping that attribution unchanged (see THIRD_PARTY_NOTICES.md).
+EMAIL_ALLOWED_FILES = ["backend/app/services/csl/styles/*.csl"]
 PUBLIC_HOSTS = {"biblioflow.pathvector.dev"}
 MDNS_ALLOWED = {"dev-host.local"}
 HOME_PLACEHOLDERS = {"you", "me", "user", "username", "runner", "example", "<you>"}
@@ -68,6 +71,7 @@ def git(*args: str) -> str:
 def problems_in(text: str, path: str) -> list[str]:
     out: list[str] = []
     ip_ok = any(fnmatch.fnmatch(path, p) for p in IP_ALLOWED_FILES)
+    email_ok = any(fnmatch.fnmatch(path, p) for p in EMAIL_ALLOWED_FILES)
     for n, line in enumerate(text.splitlines(), 1):
         where = f"{path}:{n}"
         for m in IPV4.finditer(line):
@@ -85,7 +89,7 @@ def problems_in(text: str, path: str) -> list[str]:
             if m.group(1).lower() not in HOME_PLACEHOLDERS:
                 out.append(f"{where}: home directory path {m.group(0)} (use ~ or a placeholder)")
         for m in EMAIL.finditer(line):
-            if not EMAIL_ALLOWED.search(m.group(0)):
+            if not email_ok and not EMAIL_ALLOWED.search(m.group(0)):
                 out.append(f"{where}: e-mail address {m.group(0)} (use you@example.com)")
         for m in TAILNET.finditer(line):
             out.append(f"{where}: tailnet hostname {m.group(0)} (use <host>.<tailnet>.ts.net)")

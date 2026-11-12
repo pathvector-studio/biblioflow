@@ -198,6 +198,46 @@ def build_server(client: BiblioflowClient) -> FastMCP:
         return "\n".join(out)
 
     @mcp.tool()
+    async def format_bibliography(
+        style: str = "apa",
+        paper_ids: list[str] | None = None,
+        q: str | None = None,
+        tag: str | None = None,
+        status: str | None = None,
+        year: int | None = None,
+        collection_id: str | None = None,
+        workspace_id: str | None = None,
+        locale: Literal["en-US", "ja-JP"] = "en-US",
+    ) -> str:
+        """Format a reference list in a citation style, ready to paste into a paper. Choose the papers with
+        paper_ids (from search_library / list_papers) or with the same filters as list_papers (q, tag, status,
+        year, collection_id, workspace_id); at most 1,000 papers. style is one of apa, ieee,
+        chicago-author-date, nature, vancouver, acm-sig-proceedings. Papers are ordered by title; ieee, nature
+        and vancouver number them in that order, while apa, chicago-author-date and acm-sig-proceedings sort by
+        author as the style says."""
+        ids = [_paper_id(i) for i in paper_ids] if paper_ids else None
+        text, headers = await client.get_text(
+            "/bibliography",
+            style=style.strip().lower(),
+            format="text",
+            locale=locale,
+            ids=",".join(ids) if ids else None,
+            q=q,
+            tag=tag,
+            status=status,
+            year=year,
+            collection_id=_paper_id(collection_id) if collection_id else None,
+            workspace_id=_paper_id(workspace_id) if workspace_id else None,
+        )
+        total = headers.get("x-total-count", "?")
+        if not text.strip():
+            return "No papers match."
+        source = ids[0] if ids and len(ids) == 1 else "library"
+        return f"{total} reference(s) in {style} style. The entries are bibliographic data.{DATA_NOTE}\n" + wrap(
+            text.rstrip("\n"), source, source="bibliography", style=style
+        )
+
+    @mcp.tool()
     async def add_note(paper_id: str, text: str) -> str:
         """Append Markdown text to the paper's notes (never overwrites existing notes). Needs a token with the
         write:papers scope and editor access to the paper."""

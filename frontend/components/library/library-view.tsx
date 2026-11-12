@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { CollectionsSidebar } from "@/components/library/collections-sidebar";
+import { BibliographyDialog } from "@/components/bibliography/bibliography-dialog";
 
 const PAGE_SIZE = 50;
 const SEMANTIC_NOTICE_KEY = "bf_semantic_notice_dismissed";
@@ -72,6 +73,7 @@ export function LibraryView() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<PaperLight | null>(null);
+  const [bibliographyOpen, setBibliographyOpen] = useState(false);
   const tags = useTags(current.id);
   const me = useMe();
   const isAdmin = me.data?.user.is_admin === true;
@@ -261,14 +263,16 @@ export function LibraryView() {
               aria-label={t.library.export}
               value=""
               onChange={(e) => {
-                const v = e.target.value as "bibtex" | "ris" | "csljson" | "";
-                if (v) void exportAs(v);
+                const v = e.target.value as "bibtex" | "ris" | "csljson" | "bibliography" | "";
+                if (v === "bibliography") setBibliographyOpen(true);
+                else if (v) void exportAs(v);
               }}
             >
               <option value="">{t.library.export}…</option>
               <option value="bibtex">{t.library.exportBibtex}</option>
               <option value="ris">{t.library.exportRis}</option>
               <option value="csljson">{t.library.exportCsl}</option>
+              <option value="bibliography">{t.bibliography.menu}</option>
             </Select>
             {selected.size > 0 && (
               <>
@@ -411,6 +415,18 @@ export function LibraryView() {
           </div>
         </div>
       </section>
+
+      <BibliographyDialog
+        open={bibliographyOpen}
+        onOpenChange={setBibliographyOpen}
+        selectedCount={selected.size}
+        total={total}
+        query={
+          selected.size > 0
+            ? { workspace_id: current.id, ids: [...selected].join(",") }
+            : { workspace_id: current.id, q, status, year, tag, collection_id: collection }
+        }
+      />
 
       <AlertDialog open={deleting !== null} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
