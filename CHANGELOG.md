@@ -6,6 +6,9 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Security
+- A URL on a look-alike host (such as `evilsciencedirect.com`) is no longer read as a ScienceDirect link when looking up a paper's identifier (found by code scanning; nothing was fetched from such hosts).
+
 ### Fixed
 - Importing a Zotero RDF export from Zotero 7 or later now brings the PDFs along and keeps the articles' DOIs. Before, such an export came in without any PDF and with internal `BF-` identifiers instead of DOIs (found with a real Zotero 10 export; the BibTeX export was not affected).
 
