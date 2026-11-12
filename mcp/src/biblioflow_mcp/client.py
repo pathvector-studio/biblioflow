@@ -68,7 +68,7 @@ class BiblioflowClient:
         await self._http.aclose()
 
     async def _send(
-        self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None
+        self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None, text: bool = False
     ) -> tuple[Any, httpx.Headers]:
         clean = {k: v for k, v in (params or {}).items() if v is not None}
         try:
@@ -81,13 +81,13 @@ class BiblioflowClient:
             raise ApiError(
                 f"Could not reach the BiblioFlow server: {type(exc).__name__} (サーバーに接続できません)."
             ) from None
-        return self._check(response), response.headers
+        return self._check(response, text=text), response.headers
 
     async def request(self, method: str, path: str, *, params: dict[str, Any] | None = None, json: Any = None) -> Any:
         return (await self._send(method, path, params=params, json=json))[0]
 
     @staticmethod
-    def _check(response: httpx.Response) -> Any:
+    def _check(response: httpx.Response, *, text: bool = False) -> Any:
         status = response.status_code
         if 300 <= status < 400:
             raise ApiError(
@@ -120,6 +120,13 @@ class BiblioflowClient:
             raise ApiError(f"Invalid request: {detail or 'validation failed'} (リクエストが不正です).")
         if status >= 400:
             raise ApiError(f"BiblioFlow returned HTTP {status} (サーバーエラー).")
+        if text:
+            if not response.headers.get("content-type", "").startswith("text/plain"):
+                raise ApiError(
+                    "The server did not answer with text; check BIBLIOFLOW_URL "
+                    "(テキストではない応答です。BIBLIOFLOW_URL を確認してください)."
+                )
+            return response.text
         if "json" not in response.headers.get("content-type", ""):
             raise ApiError(
                 "The server did not answer with JSON; check BIBLIOFLOW_URL "
@@ -133,6 +140,10 @@ class BiblioflowClient:
     async def get_with_headers(self, path: str, **params: Any) -> tuple[Any, httpx.Headers]:
         """Like ``get`` but also returns the response headers (search reports degraded mode there)."""
         return await self._send("GET", path, params=params)
+
+    async def get_text(self, path: str, **params: Any) -> tuple[str, httpx.Headers]:
+        """A ``text/plain`` answer (a formatted bibliography) and its headers."""
+        return await self._send("GET", path, params=params, text=True)
 
     async def post(self, path: str, json: Any) -> Any:
         return await self.request("POST", path, json=json)

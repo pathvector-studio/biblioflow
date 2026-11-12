@@ -1,0 +1,857 @@
+{
+ "engine": "citeproc-js 2.4.63",
+ "cases": {
+  "apa": {
+   "en-US": {
+    "html": [
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">Adams, R., Baker, T., &#38; Clark, S. (n.d.). A note on routing &#38; policy. <i>Journal of Network Studies</i>.</div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">Brown, E., &#38; Wilson, R. (2018). Memory systems in modern processors. In J. L. Hennessy &#38; D. A. Patterson (Eds.), <i>Advances in Computer Architecture</i> (pp. 45–78). Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1</div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">Garcia, M., Chen, W., Okafor, C., Novak, P., Ivanov, D., Santos, L., Kim, S.-Y., &#38; Muller, H. (2024). <i>Efficient attention for long documents: a survey</i> (2405.12345). arXiv. https://arxiv.org/abs/2405.12345</div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">Lee, M.-J., &#38; van der Berg, A. (2019). Congestion control for datacenter transports. <i>Proceedings of the 2019 ACM SIGCOMM Conference</i>, 211–224. https://doi.org/10.1145/3341302.3342080</div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">Nguyen, T. (2016). <i>Verification of distributed protocols</i> [PhD thesis]. Massachusetts Institute of Technology.</div>\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">Smith, J. A. (2021). Scalable BGP routing in Clos fabrics. <i>IEEE/ACM Transactions on Networking</i>, <i>29</i>(3), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234</div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">Tanenbaum, A. S. (2010). <i>Computer Networks</i> (5th ed.). Pearson.</div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">山田太郎. (2022). データセンターにおける経路制御の研究. <i>情報処理学会論文誌</i>, <i>63</i>(4), 801–810.</div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "unknown-year",
+      "out": "Adams, R., Baker, T., & Clark, S. (n.d.). A note on routing & policy. Journal of Network Studies.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "Brown, E., & Wilson, R. (2018). Memory systems in modern processors. In J. L. Hennessy & D. A. Patterson (Eds.), Advances in Computer Architecture (pp. 45–78). Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "Garcia, M., Chen, W., Okafor, C., Novak, P., Ivanov, D., Santos, L., Kim, S.-Y., & Muller, H. (2024). Efficient attention for long documents: a survey (2405.12345). arXiv. https://arxiv.org/abs/2405.12345\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "Lee, M.-J., & van der Berg, A. (2019). Congestion control for datacenter transports. Proceedings of the 2019 ACM SIGCOMM Conference, 211–224. https://doi.org/10.1145/3341302.3342080\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "Nguyen, T. (2016). Verification of distributed protocols [PhD thesis]. Massachusetts Institute of Technology.\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "Smith, J. A. (2021). Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking, 29(3), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "Tanenbaum, A. S. (2010). Computer Networks (5th ed.). Pearson.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "山田太郎. (2022). データセンターにおける経路制御の研究. 情報処理学会論文誌, 63(4), 801–810.\n"
+     }
+    ]
+   },
+   "ja-JP": {
+    "html": [
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">Adams, R., Baker, T., &#38; Clark, S. (日付なし). A note on routing &#38; policy. <i>Journal of Network Studies</i>.</div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">Brown, E., &#38; Wilson, R. (2018年). Memory systems in modern processors. J. L. Hennessy &#38; D. A. Patterson (編), <i>Advances in Computer Architecture</i> (ページ 45–78). Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1</div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">Garcia, M., Chen, W., Okafor, C., Novak, P., Ivanov, D., Santos, L., Kim, S.-Y., &#38; Muller, H. (2024年). <i>Efficient attention for long documents: a survey</i> (2405.12345). arXiv. https://arxiv.org/abs/2405.12345</div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">Lee, M.-J., &#38; van der Berg, A. (2019年). Congestion control for datacenter transports. <i>Proceedings of the 2019 ACM SIGCOMM Conference</i>, 211–224. https://doi.org/10.1145/3341302.3342080</div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">Nguyen, T. (2016年). <i>Verification of distributed protocols</i> [PhD thesis]. Massachusetts Institute of Technology.</div>\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">Smith, J. A. (2021年). Scalable BGP routing in Clos fabrics. <i>IEEE/ACM Transactions on Networking</i>, <i>29</i>(3), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234</div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">Tanenbaum, A. S. (2010年). <i>Computer Networks</i> (5番目 版). Pearson.</div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">山田太郎. (2022年). データセンターにおける経路制御の研究. <i>情報処理学会論文誌</i>, <i>63</i>(4), 801–810.</div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "unknown-year",
+      "out": "Adams, R., Baker, T., & Clark, S. (日付なし). A note on routing & policy. Journal of Network Studies.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "Brown, E., & Wilson, R. (2018年). Memory systems in modern processors. J. L. Hennessy & D. A. Patterson (編), Advances in Computer Architecture (ページ 45–78). Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "Garcia, M., Chen, W., Okafor, C., Novak, P., Ivanov, D., Santos, L., Kim, S.-Y., & Muller, H. (2024年). Efficient attention for long documents: a survey (2405.12345). arXiv. https://arxiv.org/abs/2405.12345\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "Lee, M.-J., & van der Berg, A. (2019年). Congestion control for datacenter transports. Proceedings of the 2019 ACM SIGCOMM Conference, 211–224. https://doi.org/10.1145/3341302.3342080\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "Nguyen, T. (2016年). Verification of distributed protocols [PhD thesis]. Massachusetts Institute of Technology.\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "Smith, J. A. (2021年). Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking, 29(3), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "Tanenbaum, A. S. (2010年). Computer Networks (5番目 版). Pearson.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "山田太郎. (2022年). データセンターにおける経路制御の研究. 情報処理学会論文誌, 63(4), 801–810.\n"
+     }
+    ]
+   }
+  },
+  "ieee": {
+   "en-US": {
+    "html": [
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[1]</div><div class=\"csl-right-inline\">J. A. Smith, “Scalable BGP routing in Clos fabrics,” <i>IEEE/ACM Transactions on Networking</i>, vol. 29, no. 3, pp. 1012–1025, 2021, doi: 10.1109/TNET.2021.3051234.</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[2]</div><div class=\"csl-right-inline\">M.-J. Lee and A. van der Berg, “Congestion control for datacenter transports,” in <i>Proceedings of the 2019 ACM SIGCOMM Conference</i>, New York, NY: ACM, 2019, pp. 211–224. doi: 10.1145/3341302.3342080.</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[3]</div><div class=\"csl-right-inline\">M. Garcia <i>et al.</i>, “Efficient attention for long documents: a survey,” 2024, 2405.12345. [Online]. Available: https://arxiv.org/abs/2405.12345</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[4]</div><div class=\"csl-right-inline\">A. S. Tanenbaum, <i>Computer Networks</i>, 5th ed. Boston: Pearson, 2010.</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[5]</div><div class=\"csl-right-inline\">E. Brown and R. Wilson, “Memory systems in modern processors,” in <i>Advances in Computer Architecture</i>, J. L. Hennessy and D. A. Patterson, Eds., Cambridge, MA: Morgan Kaufmann, 2018, pp. 45–78. doi: 10.1016/B978-0-12-811111-0.00003-1.</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[6]</div><div class=\"csl-right-inline\">T. Nguyen, “Verification of distributed protocols,” PhD thesis, Massachusetts Institute of Technology, Cambridge, MA, 2016.</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[7]</div><div class=\"csl-right-inline\">山田太郎, “データセンターにおける経路制御の研究,” 情報処理学会論文誌, vol. 63, no. 4, pp. 801–810, 2022.</div>\n  </div>\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[8]</div><div class=\"csl-right-inline\">R. Adams, T. Baker, and S. Clark, “A note on routing &#38; policy,” <i>Journal of Network Studies</i>.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "smith2021routing",
+      "out": "[1] J. A. Smith, “Scalable BGP routing in Clos fabrics,” IEEE/ACM Transactions on Networking, vol. 29, no. 3, pp. 1012–1025, 2021, doi: 10.1109/TNET.2021.3051234.\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "[2] M.-J. Lee and A. van der Berg, “Congestion control for datacenter transports,” in Proceedings of the 2019 ACM SIGCOMM Conference, New York, NY: ACM, 2019, pp. 211–224. doi: 10.1145/3341302.3342080.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "[3] M. Garcia et al., “Efficient attention for long documents: a survey,” 2024, 2405.12345. [Online]. Available: https://arxiv.org/abs/2405.12345\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "[4] A. S. Tanenbaum, Computer Networks, 5th ed. Boston: Pearson, 2010.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "[5] E. Brown and R. Wilson, “Memory systems in modern processors,” in Advances in Computer Architecture, J. L. Hennessy and D. A. Patterson, Eds., Cambridge, MA: Morgan Kaufmann, 2018, pp. 45–78. doi: 10.1016/B978-0-12-811111-0.00003-1.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "[6] T. Nguyen, “Verification of distributed protocols,” PhD thesis, Massachusetts Institute of Technology, Cambridge, MA, 2016.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "[7] 山田太郎, “データセンターにおける経路制御の研究,” 情報処理学会論文誌, vol. 63, no. 4, pp. 801–810, 2022.\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "[8] R. Adams, T. Baker, and S. Clark, “A note on routing & policy,” Journal of Network Studies.\n"
+     }
+    ]
+   },
+   "ja-JP": {
+    "html": [
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[1]</div><div class=\"csl-right-inline\">J. A. Smith, 「Scalable BGP routing in Clos fabrics」, <i>IEEE/ACM Transactions on Networking</i>, 巻 29, 号 3, ページ 1012–1025, 2021, doi: 10.1109/TNET.2021.3051234.</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[2]</div><div class=\"csl-right-inline\">M.-J. LeeとA. van der Berg, 「Congestion control for datacenter transports」, <i>Proceedings of the 2019 ACM SIGCOMM Conference</i>, New York, NY: ACM, 2019, ページ 211–224. doi: 10.1145/3341302.3342080.</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[3]</div><div class=\"csl-right-inline\">M. Garciaほか, 「Efficient attention for long documents: a survey」, 2024年, 2405.12345. [オンライン]. 入手先: https://arxiv.org/abs/2405.12345</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[4]</div><div class=\"csl-right-inline\">A. S. Tanenbaum, <i>Computer Networks</i>, 5番目 版. Boston: Pearson, 2010.</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[5]</div><div class=\"csl-right-inline\">E. BrownとR. Wilson, 「Memory systems in modern processors」, <i>Advances in Computer Architecture</i>, J. L. HennessyとD. A. Patterson, 編, Cambridge, MA: Morgan Kaufmann, 2018, ページ 45–78. doi: 10.1016/B978-0-12-811111-0.00003-1.</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[6]</div><div class=\"csl-right-inline\">T. Nguyen, 「Verification of distributed protocols」, PhD thesis, Massachusetts Institute of Technology, Cambridge, MA, 2016.</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[7]</div><div class=\"csl-right-inline\">山田太郎, 「データセンターにおける経路制御の研究」, 情報処理学会論文誌, 巻 63, 号 4, ページ 801–810, 2022.</div>\n  </div>\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[8]</div><div class=\"csl-right-inline\">R. Adams, T. BakerとS. Clark, 「A note on routing &#38; policy」, <i>Journal of Network Studies</i>.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "smith2021routing",
+      "out": "[1] J. A. Smith, 「Scalable BGP routing in Clos fabrics」, IEEE/ACM Transactions on Networking, 巻 29, 号 3, ページ 1012–1025, 2021, doi: 10.1109/TNET.2021.3051234.\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "[2] M.-J. LeeとA. van der Berg, 「Congestion control for datacenter transports」, Proceedings of the 2019 ACM SIGCOMM Conference, New York, NY: ACM, 2019, ページ 211–224. doi: 10.1145/3341302.3342080.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "[3] M. Garciaほか, 「Efficient attention for long documents: a survey」, 2024年, 2405.12345. [オンライン]. 入手先: https://arxiv.org/abs/2405.12345\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "[4] A. S. Tanenbaum, Computer Networks, 5番目 版. Boston: Pearson, 2010.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "[5] E. BrownとR. Wilson, 「Memory systems in modern processors」, Advances in Computer Architecture, J. L. HennessyとD. A. Patterson, 編, Cambridge, MA: Morgan Kaufmann, 2018, ページ 45–78. doi: 10.1016/B978-0-12-811111-0.00003-1.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "[6] T. Nguyen, 「Verification of distributed protocols」, PhD thesis, Massachusetts Institute of Technology, Cambridge, MA, 2016.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "[7] 山田太郎, 「データセンターにおける経路制御の研究」, 情報処理学会論文誌, 巻 63, 号 4, ページ 801–810, 2022.\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "[8] R. Adams, T. BakerとS. Clark, 「A note on routing & policy」, Journal of Network Studies.\n"
+     }
+    ]
+   }
+  },
+  "chicago-author-date": {
+   "en-US": {
+    "html": [
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">Adams, Rachel, Tom Baker, and Susan Clark. n.d. “A Note on Routing &#38; Policy.” <i>Journal of Network Studies</i>.</div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">Brown, Emily, and Robert Wilson. 2018. “Memory Systems in Modern Processors.” In <i>Advances in Computer Architecture</i>, edited by John L. Hennessy and David A. Patterson. Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1.</div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">Garcia, Maria, Wei Chen, Chidi Okafor, et al. 2024. “Efficient Attention for Long Documents: A Survey.” 2405.12345. Preprint. arXiv (2405.12345). https://arxiv.org/abs/2405.12345.</div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">Lee, Min-Jun, and Anna van der Berg. 2019. “Congestion Control for Datacenter Transports.” <i>Proceedings of the 2019 ACM SIGCOMM Conference</i> (New York, NY), 211–24. https://doi.org/10.1145/3341302.3342080.</div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">Nguyen, Thanh. 2016. “Verification of Distributed Protocols.” PhD thesis, Massachusetts Institute of Technology.</div>\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">Smith, John A. 2021. “Scalable BGP Routing in Clos Fabrics.” <i>IEEE/ACM Transactions on Networking</i> 29 (3): 1012–25. https://doi.org/10.1109/TNET.2021.3051234.</div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">Tanenbaum, Andrew S. 2010. <i>Computer Networks</i>. 5th ed. Pearson.</div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">山田太郎. 2022. “データセンターにおける経路制御の研究.” 情報処理学会論文誌 63 (4): 801–10.</div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "unknown-year",
+      "out": "Adams, Rachel, Tom Baker, and Susan Clark. n.d. “A Note on Routing & Policy.” Journal of Network Studies.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "Brown, Emily, and Robert Wilson. 2018. “Memory Systems in Modern Processors.” In Advances in Computer Architecture, edited by John L. Hennessy and David A. Patterson. Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "Garcia, Maria, Wei Chen, Chidi Okafor, et al. 2024. “Efficient Attention for Long Documents: A Survey.” 2405.12345. Preprint. arXiv (2405.12345). https://arxiv.org/abs/2405.12345.\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "Lee, Min-Jun, and Anna van der Berg. 2019. “Congestion Control for Datacenter Transports.” Proceedings of the 2019 ACM SIGCOMM Conference (New York, NY), 211–24. https://doi.org/10.1145/3341302.3342080.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "Nguyen, Thanh. 2016. “Verification of Distributed Protocols.” PhD thesis, Massachusetts Institute of Technology.\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "Smith, John A. 2021. “Scalable BGP Routing in Clos Fabrics.” IEEE/ACM Transactions on Networking 29 (3): 1012–25. https://doi.org/10.1109/TNET.2021.3051234.\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "Tanenbaum, Andrew S. 2010. Computer Networks. 5th ed. Pearson.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "山田太郎. 2022. “データセンターにおける経路制御の研究.” 情報処理学会論文誌 63 (4): 801–10.\n"
+     }
+    ]
+   },
+   "ja-JP": {
+    "html": [
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">Adams, Rachel, Tom BakerとSusan Clark. 日付なし. 「A note on routing &#38; policy」. <i>Journal of Network Studies</i>.</div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">Brown, Emily, とRobert Wilson. 2018年. 「Memory systems in modern processors」. <i>Advances in Computer Architecture</i>, 編集者:  John L. HennessyとDavid A. Patterson. Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1.</div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">Garcia, Maria, Wei Chen, Chidi Okafor, ほか. 2024年. 「Efficient attention for long documents: a survey」. 2405.12345. 査読前原稿. arXiv (2405.12345). https://arxiv.org/abs/2405.12345.</div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">Lee, Min-Jun, とAnna van der Berg. 2019年. 「Congestion control for datacenter transports」. <i>Proceedings of the 2019 ACM SIGCOMM Conference</i> (New York, NY), 211–24. https://doi.org/10.1145/3341302.3342080.</div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">Nguyen, Thanh. 2016年. 「Verification of distributed protocols」. PhD thesis, Massachusetts Institute of Technology.</div>\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">Smith, John A. 2021年. 「Scalable BGP routing in Clos fabrics」. <i>IEEE/ACM Transactions on Networking</i> 29 (3): 1012–25. https://doi.org/10.1109/TNET.2021.3051234.</div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">Tanenbaum, Andrew S. 2010年. <i>Computer Networks</i>. 5番目 版. Pearson.</div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">山田太郎. 2022年. 「データセンターにおける経路制御の研究」. 情報処理学会論文誌 63 (4): 801–10.</div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "unknown-year",
+      "out": "Adams, Rachel, Tom BakerとSusan Clark. 日付なし. 「A note on routing & policy」. Journal of Network Studies.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "Brown, Emily, とRobert Wilson. 2018年. 「Memory systems in modern processors」. Advances in Computer Architecture, 編集者:  John L. HennessyとDavid A. Patterson. Morgan Kaufmann. https://doi.org/10.1016/B978-0-12-811111-0.00003-1.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "Garcia, Maria, Wei Chen, Chidi Okafor, ほか. 2024年. 「Efficient attention for long documents: a survey」. 2405.12345. 査読前原稿. arXiv (2405.12345). https://arxiv.org/abs/2405.12345.\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "Lee, Min-Jun, とAnna van der Berg. 2019年. 「Congestion control for datacenter transports」. Proceedings of the 2019 ACM SIGCOMM Conference (New York, NY), 211–24. https://doi.org/10.1145/3341302.3342080.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "Nguyen, Thanh. 2016年. 「Verification of distributed protocols」. PhD thesis, Massachusetts Institute of Technology.\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "Smith, John A. 2021年. 「Scalable BGP routing in Clos fabrics」. IEEE/ACM Transactions on Networking 29 (3): 1012–25. https://doi.org/10.1109/TNET.2021.3051234.\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "Tanenbaum, Andrew S. 2010年. Computer Networks. 5番目 版. Pearson.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "山田太郎. 2022年. 「データセンターにおける経路制御の研究」. 情報処理学会論文誌 63 (4): 801–10.\n"
+     }
+    ]
+   }
+  },
+  "nature": {
+   "en-US": {
+    "html": [
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">1.</div><div class=\"csl-right-inline\">Smith, J. A. Scalable BGP routing in Clos fabrics. <i>IEEE/ACM Transactions on Networking</i> <b>29</b>, 1012–1025 (2021).</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">2.</div><div class=\"csl-right-inline\">Lee, M.-J. &#38; van der Berg, A. Congestion control for datacenter transports. in <i>Proceedings of the 2019 ACM SIGCOMM Conference</i> 211–224 (ACM, New York, NY, 2019). doi:10.1145/3341302.3342080.</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">3.</div><div class=\"csl-right-inline\">Garcia, M. <i>et al.</i> Efficient attention for long documents: a survey. Preprint at https://arxiv.org/abs/2405.12345 (2024).</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">4.</div><div class=\"csl-right-inline\">Tanenbaum, A. S. <i>Computer Networks</i>. (Pearson, Boston, 2010).</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">5.</div><div class=\"csl-right-inline\">Brown, E. &#38; Wilson, R. Memory systems in modern processors. in <i>Advances in Computer Architecture</i> (eds. Hennessy, J. L. &#38; Patterson, D. A.) 45–78 (Morgan Kaufmann, Cambridge, MA, 2018). doi:10.1016/B978-0-12-811111-0.00003-1.</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">6.</div><div class=\"csl-right-inline\">Nguyen, T. Verification of distributed protocols. (Massachusetts Institute of Technology, Cambridge, MA, 2016).</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">7.</div><div class=\"csl-right-inline\">山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌 <b>63</b>, 801–810 (2022).</div>\n  </div>\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">8.</div><div class=\"csl-right-inline\">Adams, R., Baker, T. &#38; Clark, S. A note on routing &#38; policy. <i>Journal of Network Studies</i>.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "smith2021routing",
+      "out": "1. Smith, J. A. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking 29, 1012–1025 (2021).\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "2. Lee, M.-J. & van der Berg, A. Congestion control for datacenter transports. in Proceedings of the 2019 ACM SIGCOMM Conference 211–224 (ACM, New York, NY, 2019). doi:10.1145/3341302.3342080.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "3. Garcia, M. et al. Efficient attention for long documents: a survey. Preprint at https://arxiv.org/abs/2405.12345 (2024).\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "4. Tanenbaum, A. S. Computer Networks. (Pearson, Boston, 2010).\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "5. Brown, E. & Wilson, R. Memory systems in modern processors. in Advances in Computer Architecture (eds. Hennessy, J. L. & Patterson, D. A.) 45–78 (Morgan Kaufmann, Cambridge, MA, 2018). doi:10.1016/B978-0-12-811111-0.00003-1.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "6. Nguyen, T. Verification of distributed protocols. (Massachusetts Institute of Technology, Cambridge, MA, 2016).\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "7. 山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌 63, 801–810 (2022).\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "8. Adams, R., Baker, T. & Clark, S. A note on routing & policy. Journal of Network Studies.\n"
+     }
+    ]
+   },
+   "ja-JP": {
+    "html": [
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">1.</div><div class=\"csl-right-inline\">Smith, J. A. Scalable BGP routing in Clos fabrics. <i>IEEE/ACM Transactions on Networking</i> <b>29</b>, 1012–1025 (2021年).</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">2.</div><div class=\"csl-right-inline\">Lee, M.-J. &#38; van der Berg, A. Congestion control for datacenter transports. <i>Proceedings of the 2019 ACM SIGCOMM Conference</i> 211–224 (ACM, New York, NY, 2019). doi:10.1145/3341302.3342080.</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">3.</div><div class=\"csl-right-inline\">Garcia, M.ほか. Efficient attention for long documents: a survey. 査読前原稿 にて https://arxiv.org/abs/2405.12345 (2024年).</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">4.</div><div class=\"csl-right-inline\">Tanenbaum, A. S. <i>Computer Networks</i>. (Pearson, Boston, 2010).</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">5.</div><div class=\"csl-right-inline\">Brown, E. &#38; Wilson, R. Memory systems in modern processors. <i>Advances in Computer Architecture</i> (編 Hennessy, J. L. &#38; Patterson, D. A.) 45–78 (Morgan Kaufmann, Cambridge, MA, 2018). doi:10.1016/B978-0-12-811111-0.00003-1.</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">6.</div><div class=\"csl-right-inline\">Nguyen, T. Verification of distributed protocols. (Massachusetts Institute of Technology, Cambridge, MA, 2016).</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">7.</div><div class=\"csl-right-inline\">山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌 <b>63</b>, 801–810 (2022年).</div>\n  </div>\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">8.</div><div class=\"csl-right-inline\">Adams, R., Baker, T. &#38; Clark, S. A note on routing &#38; policy. <i>Journal of Network Studies</i>.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "smith2021routing",
+      "out": "1. Smith, J. A. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking 29, 1012–1025 (2021年).\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "2. Lee, M.-J. & van der Berg, A. Congestion control for datacenter transports. Proceedings of the 2019 ACM SIGCOMM Conference 211–224 (ACM, New York, NY, 2019). doi:10.1145/3341302.3342080.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "3. Garcia, M.ほか. Efficient attention for long documents: a survey. 査読前原稿 にて https://arxiv.org/abs/2405.12345 (2024年).\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "4. Tanenbaum, A. S. Computer Networks. (Pearson, Boston, 2010).\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "5. Brown, E. & Wilson, R. Memory systems in modern processors. Advances in Computer Architecture (編 Hennessy, J. L. & Patterson, D. A.) 45–78 (Morgan Kaufmann, Cambridge, MA, 2018). doi:10.1016/B978-0-12-811111-0.00003-1.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "6. Nguyen, T. Verification of distributed protocols. (Massachusetts Institute of Technology, Cambridge, MA, 2016).\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "7. 山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌 63, 801–810 (2022年).\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "8. Adams, R., Baker, T. & Clark, S. A note on routing & policy. Journal of Network Studies.\n"
+     }
+    ]
+   }
+  },
+  "vancouver": {
+   "en-US": {
+    "html": [
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">1.</div><div class=\"csl-right-inline\">Smith JA. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking. 2021;29(3):1012–25. doi:10.1109/TNET.2021.3051234</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">2.</div><div class=\"csl-right-inline\">Lee MJ, van der Berg A. Congestion control for datacenter transports. In: Proceedings of the 2019 ACM SIGCOMM Conference. New York, NY: ACM; 2019. p. 211–24. doi:10.1145/3341302.3342080</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">3.</div><div class=\"csl-right-inline\">Garcia M, Chen W, Okafor C, Novak P, Ivanov D, Santos L, et al. Efficient attention for long documents: a survey [Internet]. 2024. Located at: arXiv. Available from: https://arxiv.org/abs/2405.12345</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">4.</div><div class=\"csl-right-inline\">Tanenbaum AS. Computer Networks. 5th ed. Boston: Pearson; 2010.</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">5.</div><div class=\"csl-right-inline\">Brown E, Wilson R. Memory systems in modern processors. In: Hennessy JL, Patterson DA, editors. Advances in Computer Architecture. Cambridge, MA: Morgan Kaufmann; 2018. p. 45–78. doi:10.1016/B978-0-12-811111-0.00003-1</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">6.</div><div class=\"csl-right-inline\">Nguyen T. Verification of distributed protocols [PhD thesis]. [Cambridge, MA]: Massachusetts Institute of Technology; 2016.</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">7.</div><div class=\"csl-right-inline\">山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌. 2022;63(4):801–10.</div>\n  </div>\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">8.</div><div class=\"csl-right-inline\">Adams R, Baker T, Clark S. A note on routing &#38; policy. Journal of Network Studies.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "smith2021routing",
+      "out": "1. Smith JA. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking. 2021;29(3):1012–25. doi:10.1109/TNET.2021.3051234\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "2. Lee MJ, van der Berg A. Congestion control for datacenter transports. In: Proceedings of the 2019 ACM SIGCOMM Conference. New York, NY: ACM; 2019. p. 211–24. doi:10.1145/3341302.3342080\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "3. Garcia M, Chen W, Okafor C, Novak P, Ivanov D, Santos L, et al. Efficient attention for long documents: a survey [Internet]. 2024. Located at: arXiv. Available from: https://arxiv.org/abs/2405.12345\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "4. Tanenbaum AS. Computer Networks. 5th ed. Boston: Pearson; 2010.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "5. Brown E, Wilson R. Memory systems in modern processors. In: Hennessy JL, Patterson DA, editors. Advances in Computer Architecture. Cambridge, MA: Morgan Kaufmann; 2018. p. 45–78. doi:10.1016/B978-0-12-811111-0.00003-1\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "6. Nguyen T. Verification of distributed protocols [PhD thesis]. [Cambridge, MA]: Massachusetts Institute of Technology; 2016.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "7. 山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌. 2022;63(4):801–10.\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "8. Adams R, Baker T, Clark S. A note on routing & policy. Journal of Network Studies.\n"
+     }
+    ]
+   },
+   "ja-JP": {
+    "html": [
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">1.</div><div class=\"csl-right-inline\">Smith JA. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking. 2021年;29(3):1012–25. doi:10.1109/TNET.2021.3051234</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">2.</div><div class=\"csl-right-inline\">Lee MJ, van der Berg A. Congestion control for datacenter transports. Proceedings of the 2019 ACM SIGCOMM Conference. New York, NY: ACM; 2019年. ページ 211–24. doi:10.1145/3341302.3342080</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">3.</div><div class=\"csl-right-inline\">Garcia M, Chen W, Okafor C, Novak P, Ivanov D, Santos L, ほか. Efficient attention for long documents: a survey [インターネット]. 2024年. Located at: arXiv. 入手先: https://arxiv.org/abs/2405.12345</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">4.</div><div class=\"csl-right-inline\">Tanenbaum AS. Computer Networks. 5番目 版. Boston: Pearson; 2010年.</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">5.</div><div class=\"csl-right-inline\">Brown E, Wilson R. Memory systems in modern processors. Hennessy JL, Patterson DA, 編集者. Advances in Computer Architecture. Cambridge, MA: Morgan Kaufmann; 2018年. ページ 45–78. doi:10.1016/B978-0-12-811111-0.00003-1</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">6.</div><div class=\"csl-right-inline\">Nguyen T. Verification of distributed protocols [PhD thesis]. [Cambridge, MA]: Massachusetts Institute of Technology; 2016年.</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">7.</div><div class=\"csl-right-inline\">山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌. 2022年;63(4):801–10.</div>\n  </div>\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">8.</div><div class=\"csl-right-inline\">Adams R, Baker T, Clark S. A note on routing &#38; policy. Journal of Network Studies.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "smith2021routing",
+      "out": "1. Smith JA. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking. 2021年;29(3):1012–25. doi:10.1109/TNET.2021.3051234\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "2. Lee MJ, van der Berg A. Congestion control for datacenter transports. Proceedings of the 2019 ACM SIGCOMM Conference. New York, NY: ACM; 2019年. ページ 211–24. doi:10.1145/3341302.3342080\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "3. Garcia M, Chen W, Okafor C, Novak P, Ivanov D, Santos L, ほか. Efficient attention for long documents: a survey [インターネット]. 2024年. Located at: arXiv. 入手先: https://arxiv.org/abs/2405.12345\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "4. Tanenbaum AS. Computer Networks. 5番目 版. Boston: Pearson; 2010年.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "5. Brown E, Wilson R. Memory systems in modern processors. Hennessy JL, Patterson DA, 編集者. Advances in Computer Architecture. Cambridge, MA: Morgan Kaufmann; 2018年. ページ 45–78. doi:10.1016/B978-0-12-811111-0.00003-1\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "6. Nguyen T. Verification of distributed protocols [PhD thesis]. [Cambridge, MA]: Massachusetts Institute of Technology; 2016年.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "7. 山田太郎. データセンターにおける経路制御の研究. 情報処理学会論文誌. 2022年;63(4):801–10.\n"
+     },
+     {
+      "id": "unknown-year",
+      "out": "8. Adams R, Baker T, Clark S. A note on routing & policy. Journal of Network Studies.\n"
+     }
+    ]
+   }
+  },
+  "acm-sig-proceedings": {
+   "en-US": {
+    "html": [
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[1]</div><div class=\"csl-right-inline\">Adams, R. et al. A note on routing &#38; policy. <i>Journal of Network Studies</i>.</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[2]</div><div class=\"csl-right-inline\">Brown, E. and Wilson, R. 2018. Memory systems in modern processors. <i>Advances in Computer Architecture</i>. J.L. Hennessy and D.A. Patterson, eds. Morgan Kaufmann. 45–78.</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[3]</div><div class=\"csl-right-inline\">Garcia, M. et al. 2024. Efficient attention for long documents: a survey.</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[4]</div><div class=\"csl-right-inline\">Lee, M.-J. and van der Berg, A. 2019. Congestion control for datacenter transports. <i>Proceedings of the 2019 ACM SIGCOMM Conference</i> (New York, NY, 2019), 211–224.</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[5]</div><div class=\"csl-right-inline\">Nguyen, T. 2016. <i>Verification of distributed protocols</i>. Massachusetts Institute of Technology.</div>\n  </div>\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[6]</div><div class=\"csl-right-inline\">Smith, J.A. 2021. Scalable BGP routing in Clos fabrics. <i>IEEE/ACM Transactions on Networking</i>. 29, 3 (2021), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234.</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[7]</div><div class=\"csl-right-inline\">Tanenbaum, A.S. 2010. <i>Computer Networks</i>. Pearson.</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[8]</div><div class=\"csl-right-inline\">山田太郎 2022. データセンターにおける経路制御の研究. 情報処理学会論文誌. 63, 4 (2022), 801–810.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "unknown-year",
+      "out": "[1] Adams, R. et al. A note on routing & policy. Journal of Network Studies.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "[2] Brown, E. and Wilson, R. 2018. Memory systems in modern processors. Advances in Computer Architecture. J.L. Hennessy and D.A. Patterson, eds. Morgan Kaufmann. 45–78.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "[3] Garcia, M. et al. 2024. Efficient attention for long documents: a survey.\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "[4] Lee, M.-J. and van der Berg, A. 2019. Congestion control for datacenter transports. Proceedings of the 2019 ACM SIGCOMM Conference (New York, NY, 2019), 211–224.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "[5] Nguyen, T. 2016. Verification of distributed protocols. Massachusetts Institute of Technology.\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "[6] Smith, J.A. 2021. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking. 29, 3 (2021), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234.\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "[7] Tanenbaum, A.S. 2010. Computer Networks. Pearson.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "[8] 山田太郎 2022. データセンターにおける経路制御の研究. 情報処理学会論文誌. 63, 4 (2022), 801–810.\n"
+     }
+    ]
+   },
+   "ja-JP": {
+    "html": [
+     {
+      "id": "unknown-year",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[1]</div><div class=\"csl-right-inline\">Adams, R.ほか A note on routing &#38; policy. <i>Journal of Network Studies</i>.</div>\n  </div>\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[2]</div><div class=\"csl-right-inline\">Brown, E.とWilson, R. 2018. Memory systems in modern processors. <i>Advances in Computer Architecture</i>. J.L. HennessyとD.A. Patterson, 編. Morgan Kaufmann. 45–78.</div>\n  </div>\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[3]</div><div class=\"csl-right-inline\">Garcia, M.ほか 2024. Efficient attention for long documents: a survey.</div>\n  </div>\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[4]</div><div class=\"csl-right-inline\">Lee, M.-J.とvan der Berg, A. 2019. Congestion control for datacenter transports. <i>Proceedings of the 2019 ACM SIGCOMM Conference</i> (New York, NY, 2019), 211–224.</div>\n  </div>\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[5]</div><div class=\"csl-right-inline\">Nguyen, T. 2016. <i>Verification of distributed protocols</i>. Massachusetts Institute of Technology.</div>\n  </div>\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[6]</div><div class=\"csl-right-inline\">Smith, J.A. 2021. Scalable BGP routing in Clos fabrics. <i>IEEE/ACM Transactions on Networking</i>. 29, 3 (2021), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234.</div>\n  </div>\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[7]</div><div class=\"csl-right-inline\">Tanenbaum, A.S. 2010. <i>Computer Networks</i>. Pearson.</div>\n  </div>\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "  <div class=\"csl-entry\">\n    <div class=\"csl-left-margin\">[8]</div><div class=\"csl-right-inline\">山田太郎 2022. データセンターにおける経路制御の研究. 情報処理学会論文誌. 63, 4 (2022), 801–810.</div>\n  </div>\n"
+     }
+    ],
+    "text": [
+     {
+      "id": "unknown-year",
+      "out": "[1] Adams, R.ほか A note on routing & policy. Journal of Network Studies.\n"
+     },
+     {
+      "id": "brown2018memory",
+      "out": "[2] Brown, E.とWilson, R. 2018. Memory systems in modern processors. Advances in Computer Architecture. J.L. HennessyとD.A. Patterson, 編. Morgan Kaufmann. 45–78.\n"
+     },
+     {
+      "id": "garcia2024attention",
+      "out": "[3] Garcia, M.ほか 2024. Efficient attention for long documents: a survey.\n"
+     },
+     {
+      "id": "lee2019congestion",
+      "out": "[4] Lee, M.-J.とvan der Berg, A. 2019. Congestion control for datacenter transports. Proceedings of the 2019 ACM SIGCOMM Conference (New York, NY, 2019), 211–224.\n"
+     },
+     {
+      "id": "nguyen2016thesis",
+      "out": "[5] Nguyen, T. 2016. Verification of distributed protocols. Massachusetts Institute of Technology.\n"
+     },
+     {
+      "id": "smith2021routing",
+      "out": "[6] Smith, J.A. 2021. Scalable BGP routing in Clos fabrics. IEEE/ACM Transactions on Networking. 29, 3 (2021), 1012–1025. https://doi.org/10.1109/TNET.2021.3051234.\n"
+     },
+     {
+      "id": "tanenbaum2010networks",
+      "out": "[7] Tanenbaum, A.S. 2010. Computer Networks. Pearson.\n"
+     },
+     {
+      "id": "yamada2022japanese",
+      "out": "[8] 山田太郎 2022. データセンターにおける経路制御の研究. 情報処理学会論文誌. 63, 4 (2022), 801–810.\n"
+     }
+    ]
+   }
+  }
+ }
+}
