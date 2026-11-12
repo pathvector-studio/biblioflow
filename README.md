@@ -2,20 +2,43 @@
 
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/pathvector-studio)
 
-A self-hosted paper manager and AI research assistant that runs entirely on Docker Compose.
+A self-hosted paper manager and AI research assistant for researchers and labs. Read and annotate PDFs in the browser, keep them as plain files on your own disk, search everything you have read, and ask questions with answers that point to the page. One `docker compose`, no desktop client.
 
 Website: https://biblioflow.pathvector.dev
 
 > **Status: early preview (v0.3.0).** The paper manager (storage, metadata, reader, notes, workspaces, API, hybrid keyword + semantic search, MCP server), the in-app AI (chat with citations that jump into the PDF, explaining a selected figure), the browser extension, and export / import (BibTeX, RIS, CSL JSON, Zotero RDF) work today; see [Roadmap](#roadmap) for what is next. Changes per release are in [CHANGELOG.md](CHANGELOG.md); how releases are made is in [RELEASING.md](RELEASING.md).
 
-- Read, highlight and take Markdown notes on PDFs in the browser; share them in lab workspaces.
-- PDFs are stored as plain files you can open from the host (`{Year}/{Identifier}_{SlugTitle}.pdf`).
-- Metadata and BibTeX are filled in from arXiv, CrossRef and Semantic Scholar.
-- A lightweight metadata API with personal access tokens, for CLIs, scripts and MCP servers.
-- Hybrid search over the full text of every paper (keywords, substrings and meaning-based matching), with page and position of each hit.
-- An MCP server, so an MCP client you already use (Claude Code and others) can search and read your library with its own model.
+![A paper open in BiblioFlow: the PDF on the left with a highlighted passage, and the AI tab on the right with an answer whose citation badge jumped to that passage](docs/images/paper-ai.png)
 
-The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`. To work on BiblioFlow itself, start with [`LOCAL_DEV.md`](LOCAL_DEV.md) (what to prepare, where secrets live, tests).
+## Quick start
+
+```bash
+curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
+cd ~/biblioflow && docker compose exec biblioflow-api python -m app.cli create-user --email you@example.com --admin
+# then open http://localhost:3000 and sign in
+```
+
+You need Docker with Compose v2. The installer is explained under [Setup](#setup); to reach the app from other devices, see [Deployment modes](#deployment-modes).
+
+## What it does
+
+| | |
+|---|---|
+| **Read and annotate** | PDF reader in the browser with highlights, area annotations and Markdown notes; reading status, tags, nested collections, a wishlist for papers you do not have yet. |
+| **Files you own** | Every PDF is a plain file under `data/library/{Year}/{Identifier}_{SlugTitle}.pdf`, readable from the host by any tool (Obsidian, scripts, backups). |
+| **Metadata** | Drop a PDF, a DOI or an arXiv ID; title, authors, venue and BibTeX come from arXiv, CrossRef and Semantic Scholar. A Watch Folder imports PDFs you put on the server. |
+| **Search** | Full-text search across every paper with page and position; optional semantic search with a local model that never sends your papers anywhere. |
+| **AI** (optional) | Chat with one paper or the whole library; answers cite `[p.4, Sec 3.2]` and clicking a citation highlights the passage. Select a figure or equation and ask for an explanation. OpenAI, Anthropic, Gemini or a local model (Ollama, vLLM); off until you choose one. |
+| **Your tools** | An [MCP server](#search-embeddings-and-mcp) so Claude Code and other MCP clients can search and read your library; an HTTP API with scoped personal access tokens; a [browser extension](#browser-extension) that saves the paper you are reading with its PDF. |
+| **Move in and out** | [Export and import](#export-and-import) BibTeX, RIS, CSL JSON and Zotero RDF (with PDFs), plus auto-updated export files for LaTeX, and a [formatted bibliography](#bibliography-in-a-citation-style) in APA, IEEE, Chicago, Nature, Vancouver or ACM to paste into Word or Google Docs. |
+| **Labs** | Shared workspaces by invitation with owner, editor and viewer roles; private papers stay private. |
+| **Self-hosting** | One published port behind a Caddy gateway; LAN, Tailscale or Cloudflare Tunnel (with Access); backups with a restore check; non-root containers. See [Security](#security). |
+
+![The library: papers with authors, venue, year, tags and reading status, filters and an export menu](docs/images/library.png)
+
+The screenshots show [Sandve et al. 2013](https://doi.org/10.1371/journal.pcbi.1003285) and other PLOS papers (CC BY 4.0) in a test instance, with a local model through Ollama.
+
+The specification and the development status are in `AGENTS.md` (Japanese); design notes are in `specs/`. To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Setup
 
@@ -28,19 +51,6 @@ curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
 Options are environment variables: `BIBLIOFLOW_DIR` (directory), `BIBLIOFLOW_PORT` (default 3000), `BIBLIOFLOW_REF` (branch or tag; default: the latest release, `main` to try unreleased changes), `BIBLIOFLOW_NO_START=1` (prepare only), `BIBLIOFLOW_SEMANTIC_SEARCH=yes|no` (answers the question below without asking). On Linux the containers run with your user and group IDs so they can write to `data/`. It stops if the port is taken or another BiblioFlow on the machine uses the same compose project name; to run a second one, see [A second instance on the same machine](#a-second-instance-on-the-same-machine).
 
 The installer asks one question: whether to download the model for semantic search (bge-m3, int8, about 0.6 GB, from this repository's GitHub Release, MIT; it runs on your machine and your papers' text is never sent anywhere). The default is no. Answering yes writes `EMBEDDING_PROVIDER=local` to `.env`, which is the consent. The question is read from the terminal even under `curl | bash`; with no terminal the answer is no unless `BIBLIOFLOW_SEMANTIC_SEARCH=yes` is set. You can change it any time (see [Embedding providers](#embedding-providers)).
-
-### Updating
-
-Read the release's **Upgrade notes** in [CHANGELOG.md](CHANGELOG.md), take a backup, then run the installer again (with the same `BIBLIOFLOW_DIR` if you changed it). It keeps `.env` and your data, checks out the latest release and rebuilds; migrations run when the API starts.
-
-```bash
-cd ~/biblioflow && scripts/backup.sh
-curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
-```
-
-To go back, restore that backup on the previous release (see [Backup and restore](#backup-and-restore)). A production clone is updated with `scripts/deploy.sh` instead, which takes the backup itself (see below).
-
-**Update notice (optional, off by default).** Set `UPDATE_CHECK=true` in `.env` and restart, and the worker asks GitHub's public "latest release" API for `pathvector-studio/biblioflow` once a day. Administrators then see a short note under Settings > Updates when a newer release exists, and whether its changelog has a `### Security` section. The request is a plain HTTPS GET with a generic `User-Agent: BiblioFlow`: no version, instance identifier or usage data is sent, and it goes through the same SSRF guard as every other outgoing request. With the default (`false`) the instance contacts nobody. Updating stays manual, as above.
 
 Or by hand:
 
@@ -56,6 +66,19 @@ docker compose ps        # every service should become healthy
 ```
 
 Only one port is published to the host: the `biblioflow-gateway` (Caddy) on `BIND_ADDRESS:FRONTEND_PORT` (default http://127.0.0.1:3000). The database, Redis, the API and the frontend are not published. The gateway sends `/api/*` straight to the API and everything else to the frontend.
+
+### Updating
+
+Read the release's **Upgrade notes** in [CHANGELOG.md](CHANGELOG.md), take a backup, then run the installer again (with the same `BIBLIOFLOW_DIR` if you changed it). It keeps `.env` and your data, checks out the latest release and rebuilds; migrations run when the API starts.
+
+```bash
+cd ~/biblioflow && scripts/backup.sh
+curl -sSL https://biblioflow.pathvector.dev/install.sh | bash
+```
+
+To go back, restore that backup on the previous release (see [Backup and restore](#backup-and-restore)). A production clone is updated with `scripts/deploy.sh` instead, which takes the backup itself (see below).
+
+**Update notice (optional, off by default).** Set `UPDATE_CHECK=true` in `.env` and restart, and the worker asks GitHub's public "latest release" API for `pathvector-studio/biblioflow` once a day. Administrators then see a short note under Settings > Updates when a newer release exists, and whether its changelog has a `### Security` section. The request is a plain HTTPS GET with a generic `User-Agent: BiblioFlow`: no version, instance identifier or usage data is sent, and it goes through the same SSRF guard as every other outgoing request. With the default (`false`) the instance contacts nobody. Updating stays manual, as above.
 
 ## Create a user
 
@@ -172,6 +195,8 @@ Move the service token from `access-token.txt` into your password manager and de
   ```
 - Cloudflare's edge rejects a client-supplied `CF-Connecting-IP` with 403 and a forged `X-Forwarded-For` is ignored; the gateway log and the API see the real client IP.
 - If Web Analytics (RUM) auto-injection is enabled for the zone, Cloudflare inserts a `static.cloudflareinsights.com` script into the HTML. Turn it off in Cloudflare if you do not want it.
+
+## Export and import
 
 ### Exporting references
 
@@ -432,7 +457,6 @@ docker compose run --rm biblioflow-api pytest
 
 Not implemented yet (details in `specs/roadmap.md`; the conditions for 1.0 are in [RELEASING.md](RELEASING.md#versioning)):
 
-- **Citation styles**: a bibliography in a CSL style (APA, IEEE, …) from a collection, tag or selection.
 - **Translation** of selected text in the PDF.
 - **More of what Zotero does**: books and other non-PDF items, duplicate detection and merging, open-access PDFs (Unpaywall), trash and restore, saved searches, notes and annotations exported as Markdown.
 - **Published clients**: the browser extension in the Chrome Web Store and on AMO, and `biblioflow-mcp` on PyPI. Until then, load the extension from `extension/` and run the MCP server from `mcp/`.
@@ -443,7 +467,7 @@ Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.
 
 ## Sponsoring
 
-If BiblioFlow is useful to you, you can support its development through [GitHub Sponsors](https://github.com/sponsors/pathvector-studio).
+BiblioFlow is free and MIT-licensed, built and maintained by one person. If it is useful to you or your lab, you can support it through [GitHub Sponsors](https://github.com/sponsors/pathvector-studio). Sponsorships pay for maintenance and security fixes, the machines and services used to test releases (publishers' sites, Zotero migrations, language models), and the work towards a hosted version for people who cannot run a server.
 
 ## License
 

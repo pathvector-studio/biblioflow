@@ -1,0 +1,342 @@
+<rdf:RDF
+ xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+ xmlns:z="http://www.zotero.org/namespaces/export#"
+ xmlns:dcterms="http://purl.org/dc/terms/"
+ xmlns:dc="http://purl.org/dc/elements/1.1/"
+ xmlns:prism="http://prismstandard.org/namespaces/1.2/basic/"
+ xmlns:bib="http://purl.org/net/biblio#"
+ xmlns:foaf="http://xmlns.com/foaf/0.1/"
+ xmlns:link="http://purl.org/rss/1.0/modules/link/"
+ xmlns:vcard="http://nwalsh.com/rdf/vCard#">
+    <bib:Article rdf:about="#item_1">
+        <z:itemType>journalArticle</z:itemType>
+        <dcterms:isPartOf>
+            <bib:Journal>
+                <dc:identifier>DOI 10.1371/journal.pcbi.1003285</dc:identifier>
+                <prism:volume>9</prism:volume>
+                <dc:title>PLoS Computational Biology</dc:title>
+                <prism:number>10</prism:number>
+            </bib:Journal>
+        </dcterms:isPartOf>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Sandve</foaf:surname>
+                        <foaf:givenName>Geir Kjetil</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Nekrutenko</foaf:surname>
+                        <foaf:givenName>Anton</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Taylor</foaf:surname>
+                        <foaf:givenName>James</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Hovig</foaf:surname>
+                        <foaf:givenName>Eivind</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <dcterms:isReferencedBy rdf:resource="#item_2"/>
+        <link:link rdf:resource="#item_3"/>
+        <link:link rdf:resource="#item_4"/>
+        <dc:subject>methods</dc:subject>
+        <dc:subject>reproducibility</dc:subject>
+        <dc:subject>
+           <z:AutomaticTag><rdf:value>to cite</rdf:value></z:AutomaticTag>
+        </dc:subject>
+        <dc:title>Ten Simple Rules for Reproducible Computational Research</dc:title>
+        <dc:date>2013-10-24</dc:date>
+        <bib:pages>e1003285</bib:pages>
+    </bib:Article>
+    <bib:Memo rdf:about="#item_2">
+        <rdf:value>&lt;p&gt;Rule 1 — &lt;strong&gt;keep track&lt;/strong&gt; of how every result was produced.&lt;/p&gt;</rdf:value>
+    </bib:Memo>
+    <z:Attachment rdf:about="#item_3">
+        <z:itemType>attachment</z:itemType>
+        <z:path rdf:resource="files/3/pcbi.1003285.pdf"/>
+        <dc:title>PDF</dc:title>
+        <link:type>application/pdf</link:type>
+    </z:Attachment>
+    <z:Attachment rdf:about="#item_4">
+        <z:itemType>attachment</z:itemType>
+        <dc:title>Publisher page</dc:title>
+        <dc:identifier>
+            <dcterms:URI>
+               <rdf:value>https://doi.org/10.1371/journal.pcbi.1003285</rdf:value>
+            </dcterms:URI>
+        </dc:identifier>
+        <dcterms:dateSubmitted>2026-11-11 23:50:11</dcterms:dateSubmitted>
+        <z:linkMode>3</z:linkMode>
+    </z:Attachment>
+    <bib:Article rdf:about="#item_5">
+        <z:itemType>journalArticle</z:itemType>
+        <dcterms:isPartOf>
+            <bib:Journal>
+                <dc:identifier>DOI 10.1371/journal.pbio.1001745</dc:identifier>
+                <prism:volume>12</prism:volume>
+                <dc:title>PLoS Biology</dc:title>
+                <prism:number>1</prism:number>
+            </bib:Journal>
+        </dcterms:isPartOf>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Wilson</foaf:surname>
+                        <foaf:givenName>Greg</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Aruliah</foaf:surname>
+                        <foaf:givenName>D. A.</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Brown</foaf:surname>
+                        <foaf:givenName>C. Titus</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Chue Hong</foaf:surname>
+                        <foaf:givenName>Neil P.</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <link:link rdf:resource="#item_6"/>
+        <dc:subject>methods</dc:subject>
+        <dc:subject>software</dc:subject>
+        <dc:title>Best Practices for Scientific Computing</dc:title>
+        <dc:date>2014-01-07</dc:date>
+        <bib:pages>e1001745</bib:pages>
+    </bib:Article>
+    <z:Attachment rdf:about="#item_6">
+        <z:itemType>attachment</z:itemType>
+        <z:path rdf:resource="files/6/pbio.1001745.pdf"/>
+        <dc:title>PDF</dc:title>
+        <link:type>application/pdf</link:type>
+    </z:Attachment>
+    <bib:Article rdf:about="#item_7">
+        <z:itemType>journalArticle</z:itemType>
+        <dcterms:isPartOf>
+            <bib:Journal>
+                <dc:identifier>DOI 10.1371/journal.pcbi.1005510</dc:identifier>
+                <prism:volume>13</prism:volume>
+                <dc:title>PLOS Computational Biology</dc:title>
+                <prism:number>6</prism:number>
+            </bib:Journal>
+        </dcterms:isPartOf>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Wilson</foaf:surname>
+                        <foaf:givenName>Greg</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Bryan</foaf:surname>
+                        <foaf:givenName>Jennifer</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Cranston</foaf:surname>
+                        <foaf:givenName>Karen</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Kitzes</foaf:surname>
+                        <foaf:givenName>Justin</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <dcterms:isReferencedBy rdf:resource="#item_8"/>
+        <dcterms:isReferencedBy rdf:resource="#item_9"/>
+        <link:link rdf:resource="#item_10"/>
+        <dc:subject>reproducibility</dc:subject>
+        <dc:subject>software</dc:subject>
+        <dc:subject>good enough</dc:subject>
+        <dc:title>Good enough practices in scientific computing</dc:title>
+        <dc:date>2017-06-22</dc:date>
+        <bib:pages>e1005510</bib:pages>
+    </bib:Article>
+    <bib:Memo rdf:about="#item_8">
+        <rdf:value>&lt;p&gt;Compare with Best Practices (2014).&lt;/p&gt;</rdf:value>
+    </bib:Memo>
+    <bib:Memo rdf:about="#item_9">
+        <rdf:value>&lt;p&gt;Second note: data management section.&lt;/p&gt;</rdf:value>
+    </bib:Memo>
+    <z:Attachment rdf:about="#item_10">
+        <z:itemType>attachment</z:itemType>
+        <z:path rdf:resource="files/10/pcbi.1005510.pdf"/>
+        <dc:title>PDF</dc:title>
+        <link:type>application/pdf</link:type>
+    </z:Attachment>
+    <bib:Article rdf:about="#item_11">
+        <z:itemType>journalArticle</z:itemType>
+        <dcterms:isPartOf>
+            <bib:Journal>
+                <dc:identifier>DOI 10.1371/journal.pcbi.1005412</dc:identifier>
+                <prism:volume>13</prism:volume>
+                <dc:title>PLOS Computational Biology</dc:title>
+                <prism:number>4</prism:number>
+            </bib:Journal>
+        </dcterms:isPartOf>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Taschuk</foaf:surname>
+                        <foaf:givenName>Morgan</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Wilson</foaf:surname>
+                        <foaf:givenName>Greg</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <link:link rdf:resource="#item_12"/>
+        <dc:subject>software</dc:subject>
+        <dc:title>Ten simple rules for making research software more robust</dc:title>
+        <dc:date>2017-04-13</dc:date>
+        <bib:pages>e1005412</bib:pages>
+    </bib:Article>
+    <z:Attachment rdf:about="#item_12">
+        <z:itemType>attachment</z:itemType>
+        <z:path rdf:resource="files/12/pcbi.1005412.pdf"/>
+        <dc:title>PDF</dc:title>
+        <link:type>application/pdf</link:type>
+    </z:Attachment>
+    <rdf:Description rdf:about="https://arxiv.org/abs/1706.03762">
+        <z:itemType>preprint</z:itemType>
+        <dc:publisher>
+           <foaf:Organization><foaf:name>arXiv</foaf:name></foaf:Organization>
+        </dc:publisher>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Vaswani</foaf:surname>
+                        <foaf:givenName>Ashish</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Shazeer</foaf:surname>
+                        <foaf:givenName>Noam</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Parmar</foaf:surname>
+                        <foaf:givenName>Niki</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <dc:subject>transformers</dc:subject>
+        <dc:title>Attention Is All You Need</dc:title>
+        <dc:date>2017</dc:date>
+        <dc:identifier>DOI 10.48550/arXiv.1706.03762</dc:identifier>
+        <dc:identifier>
+            <dcterms:URI>
+               <rdf:value>https://arxiv.org/abs/1706.03762</rdf:value>
+            </dcterms:URI>
+        </dc:identifier>
+        <prism:number>arXiv:1706.03762</prism:number>
+    </rdf:Description>
+    <bib:Book rdf:about="urn:isbn:978-0-201-89683-1">
+        <z:itemType>book</z:itemType>
+        <dc:publisher>
+            <foaf:Organization>
+                <foaf:name>Addison-Wesley</foaf:name>
+                <vcard:adr>
+                    <vcard:Address>
+                       <vcard:locality>Reading, MA</vcard:locality>
+                    </vcard:Address>
+                </vcard:adr>
+            </foaf:Organization>
+        </dc:publisher>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>Knuth</foaf:surname>
+                        <foaf:givenName>Donald E.</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <dc:subject>classics</dc:subject>
+        <dc:title>The Art of Computer Programming, Volume 1</dc:title>
+        <dc:date>1997</dc:date>
+        <dc:identifier>ISBN 978-0-201-89683-1</dc:identifier>
+        <prism:edition>3</prism:edition>
+    </bib:Book>
+    <bib:Thesis rdf:about="#item_15">
+        <z:itemType>thesis</z:itemType>
+        <dc:publisher>
+           <foaf:Organization><foaf:name>東京大学</foaf:name></foaf:Organization>
+        </dc:publisher>
+        <bib:authors>
+            <rdf:Seq>
+                <rdf:li>
+                    <foaf:Person>
+                        <foaf:surname>山田</foaf:surname>
+                        <foaf:givenName>太郎</foaf:givenName>
+                    </foaf:Person>
+                </rdf:li>
+            </rdf:Seq>
+        </bib:authors>
+        <dcterms:isReferencedBy rdf:resource="#item_16"/>
+        <dc:subject>日本語</dc:subject>
+        <dc:title>計算再現性のための実験記録の研究</dc:title>
+        <dc:date>2024</dc:date>
+        <z:type>修士論文</z:type>
+    </bib:Thesis>
+    <bib:Memo rdf:about="#item_16">
+       <rdf:value>&lt;p&gt;日本語のノート。&lt;/p&gt;</rdf:value>
+    </bib:Memo>
+    <z:Collection rdf:about="#collection_4">
+        <dc:title>Reading group 2026</dc:title>
+        <dcterms:hasPart rdf:resource="#item_1"/>
+        <dcterms:hasPart rdf:resource="#item_7"/>
+    </z:Collection>
+    <z:Collection rdf:about="#collection_1">
+        <dc:title>Thesis</dc:title>
+        <dcterms:hasPart rdf:resource="#collection_2"/>
+        <dcterms:hasPart rdf:resource="#item_11"/>
+        <dcterms:hasPart rdf:resource="#item_15"/>
+    </z:Collection>
+    <z:Collection rdf:about="#collection_2">
+        <dc:title>Related work</dc:title>
+        <dcterms:hasPart rdf:resource="#collection_3"/>
+        <dcterms:hasPart rdf:resource="#item_1"/>
+        <dcterms:hasPart rdf:resource="https://arxiv.org/abs/1706.03762"/>
+    </z:Collection>
+    <z:Collection rdf:about="#collection_3">
+        <dc:title>Methods &amp; tools</dc:title>
+        <dcterms:hasPart rdf:resource="#item_5"/>
+        <dcterms:hasPart rdf:resource="#item_7"/>
+    </z:Collection>
+</rdf:RDF>

@@ -1,7 +1,7 @@
 """Zotero RDF reader (Zotero's "Export Library ... Zotero RDF", with or without "Export Files").
 
 Items, ``dc:subject`` tags, nested ``z:Collection`` (``dcterms:hasPart``), ``bib:Memo`` notes and attachment paths
-(``z:Attachment`` / ``rdf:resource``). The XML is read with ``defusedxml`` (no DTDs, entities or external
+(``z:Attachment`` / ``z:path`` or the older ``rdf:resource``). The XML is read with ``defusedxml`` (no DTDs, entities or external
 references); no URL in the file is ever fetched.
 """
 
@@ -130,6 +130,12 @@ def _identifier_texts(el: Element) -> list[str]:
         out.append(clean(value.text))
     for rel in el.findall("dc:relation", NS):
         out.append(clean("".join(rel.itertext())))
+    # Zotero puts an article's DOI on the journal it is part of: <dcterms:isPartOf><bib:Journal>
+    # <dc:identifier>DOI 10.1371/...</dc:identifier>. Only "DOI ..." values there (not the journal's ISSN).
+    for ident in el.findall("dcterms:isPartOf/*/dc:identifier", NS):
+        text = clean("".join(ident.itertext()))
+        if text and text.upper().startswith("DOI "):
+            out.append(text)
     return [t for t in out if t]
 
 
@@ -276,8 +282,9 @@ def _attachment_paths(att: Element) -> list[str]:
     if link_mode == "3":  # linked URL: nothing on disk
         return []
     out = []
-    for res in att.findall("rdf:resource", NS):
+    # Zotero 7 and later write <z:path rdf:resource="files/12/paper.pdf"/>; older versions <rdf:resource .../>.
+    for res in [*att.findall("z:path", NS), *att.findall("rdf:resource", NS)]:
         value = (res.get(RDF_RESOURCE) or "").strip()
-        if value:
+        if value and value not in out:
             out.append(value)
     return out

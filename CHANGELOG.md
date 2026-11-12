@@ -6,9 +6,15 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 
 ## [Unreleased]
 
+### Fixed
+- Importing a Zotero RDF export from Zotero 7 or later now brings the PDFs along and keeps the articles' DOIs. Before, such an export came in without any PDF and with internal `BF-` identifiers instead of DOIs (found with a real Zotero 10 export; the BibTeX export was not affected).
+
 ### Added
 - Bibliography in a citation style: Export > "Bibliography (citation style)" turns the current filters (or the papers you ticked) into a reference list in APA 7th, IEEE, Chicago (author-date), Nature, Vancouver or ACM style, in English or Japanese, to copy with formatting into Word / Google Docs or to save as `.html` / `.txt`; a paper's Bibliography tab shows its own citation. The API is `GET /api/v1/bibliography` (and `/bibliography/styles`) with a `read:papers` token, and MCP gets a `format_bibliography` tool.
 - Optional update notice: with `UPDATE_CHECK=true` the worker asks GitHub once a day for the latest release, and administrators see under Settings > Updates when a newer version exists and whether it contains security fixes (`GET /api/v1/system/update-status`, admin and session only). Off by default; nothing identifying is sent.
+
+### Changed
+- The README starts with what BiblioFlow does, a three-line quick start and screenshots, and the export / import instructions have their own section. New `CONTRIBUTING.md`, issue forms (bug, feature) and a pull request template; questions go to GitHub Discussions.
 
 ### Upgrade notes
 - New optional `.env` key `UPDATE_CHECK` (default `false`). Add it to your `.env` only if you want the update notice.
