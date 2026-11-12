@@ -13,10 +13,10 @@
 ## キュー
 | ID | 内容 | 状態 | メモ |
 |---|---|---|---|
-| security-baseline | セキュリティの基盤（SECURITY.md、CodeQL、イメージの脆弱性検査、audit.yml の extension ジョブ、Actions の SHA 固定と zizmor、RELEASING のセキュリティの節、任意の更新通知） | waiting | spec 承認済み（`specs/security-baseline.md`、2026-11-12。private vulnerability reporting の有効化も承認）。親セッションが実装中なので、ループは触らない |
-| community | コミュニティのファイル（CONTRIBUTING・CODE_OF_CONDUCT・issue / PR テンプレート）と README の刷新 | waiting | spec 承認済み（`specs/community.md`、2026-11-12）。親セッションが実装するので、ループは触らない |
-| d-csl | トラック D: 引用スタイル（CSL）での参考文献の出力のみ | waiting | spec 承認済み（`specs/csl-bibliography.md`、2026-11-12）。親セッションが実装するので、ループは触らない |
-| translate | PDF の翻訳: 選んだ文章の翻訳のみ | waiting | spec 承認済み（`specs/translate-selection.md`、2026-11-12）。親セッションが実装するので、ループは触らない |
+| security-baseline | セキュリティの基盤（SECURITY.md、CodeQL、イメージの脆弱性検査、audit.yml の extension ジョブ、Actions の SHA 固定と zizmor、RELEASING のセキュリティの節、任意の更新通知） | done | #65・#66・#68・#69・#71 |
+| community | コミュニティのファイル（CONTRIBUTING・CODE_OF_CONDUCT・issue / PR テンプレート）と README の刷新 | done | #72（Code of Conduct はユーザーの連絡先待ち） |
+| d-csl | トラック D: 引用スタイル（CSL）での参考文献の出力のみ | done | #74 |
+| translate | PDF の翻訳: 選んだ文章の翻訳のみ | done | #76 |
 | dep-pypdf7 | pypdf 6 → 7（Dependabot #61）: 変更点の調査、PDF の検査・チャンク抽出（`pdf.py`・`chunking.py` の `visitor_text`、1 文字ずつの行の処理）への影響、移行の計画 | spec | #61 は CI が通っている。メジャー更新なのでマージは spec の承認後 |
 | dep-bibtexparser2 | bibtexparser 1.x → 2（Dependabot #62）: 2 系の API への移行（取り込みのパーサ、`@string` の保持、子プロセスでの解析）の計画 | spec | #62 は compose のジョブが落ちる。AGENTS.md 6.2 の「`bibtexparser` 1.x」の記述も更新が要る |
 
