@@ -48,6 +48,14 @@ def test_pii_value_never_contains_url_remainder() -> None:
     assert "sekret" not in p.value
 
 
+def test_sciencedirect_host_must_match_exactly() -> None:
+    # A look-alike host is not ScienceDirect: its /pii/ path is not taken as an identifier.
+    assert parse_query(f"https://www.sciencedirect.com/science/article/pii/{PII}").kind == "pii"
+    assert parse_query(f"https://sciencedirect.com/science/article/pii/{PII}").kind == "pii"
+    for host in ("evilsciencedirect.com", "sciencedirect.com.example.net", "notsciencedirectassets.com"):
+        assert parse_query(f"https://{host}/science/article/pii/{PII}").kind == "title", host
+
+
 def test_unknown_url_is_title() -> None:
     assert parse_query("https://example.com/paper").kind == "title"
 

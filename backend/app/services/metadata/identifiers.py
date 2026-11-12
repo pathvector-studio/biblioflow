@@ -62,7 +62,7 @@ def _parse_url(s: str) -> ParsedQuery | None:
     for val in parse_qs(u.query).get("pii", []):
         if _PII_FULL.match(val):
             return ParsedQuery("pii", _norm_pii(val))
-    if host.endswith("sciencedirect.com") or host.endswith("sciencedirectassets.com"):
+    if any(host == d or host.endswith("." + d) for d in ("sciencedirect.com", "sciencedirectassets.com")):
         m = re.search(rf"/pii/({_PII})", path, re.IGNORECASE)
         if m:
             return ParsedQuery("pii", _norm_pii(m.group(1)))

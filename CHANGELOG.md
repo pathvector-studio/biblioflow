@@ -18,6 +18,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - Importing a Zotero RDF export from Zotero 7 or later now brings the PDFs along and keeps the articles' DOIs. Before, such an export came in without any PDF and with internal `BF-` identifiers instead of DOIs (found with a real Zotero 10 export; the BibTeX export was not affected).
 
 ### Security
+- A URL on a look-alike host (such as `evilsciencedirect.com`) is no longer read as a ScienceDirect link when looking up a paper's identifier (found by code scanning; nothing was fetched from such hosts).
 - The API, worker and frontend images install the base system's security updates when they are built, and the frontend image no longer contains npm (it is not used at runtime). Every pull request and a weekly run now scan the images and the code for known vulnerabilities.
 - CI checks that the browser extension still has no dependencies and that its Chrome and Firefox packages contain only the extension's own files.
 
