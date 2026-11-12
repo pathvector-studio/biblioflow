@@ -40,6 +40,7 @@ from app.schemas.chat import (
     ConversationDetail,
     ConversationOut,
     ExplainRegionRequest,
+    TranslateRequest,
 )
 from app.services import chat as chat_service
 from app.services import llm
@@ -47,14 +48,18 @@ from app.services import images
 from app.services.chat_prompt import (
     CHUNK_CHARS,
     DEFAULT_REGION_QUESTION,
+    TRANSLATE_CONTEXT_CHARS,
     Source,
     build_messages,
     build_region_messages,
+    build_translate_messages,
     clip,
     format_authors,
+    surrounding_text,
 )
 from app.services.chat_stream import (
     ChatRun,
+    TranslateInfo,
     acquire_slot,
     release_slot,
     seconds_until_utc_midnight,
@@ -68,6 +73,7 @@ logger = logging.getLogger("biblioflow.chat")
 
 CHAT_RATE_LIMIT = 10  # per user and minute
 CHAT_IP_RATE_LIMIT = 30  # per client IP and minute
+TRANSLATE_RATE_LIMIT = 20  # translate, per user and minute (selecting and translating is frequent)
 EXPLAIN_RATE_LIMIT = 5  # explain-region, per user and minute (images are costly)
 FIRST_EVENT_GRACE = 5.0  # seconds on top of LLM_FIRST_TOKEN_TIMEOUT before the first event counts as missing
 
@@ -266,6 +272,39 @@ class Prepared:
     user_meta: dict[str, Any] | None = None  # replaces ``user_meta`` of the request when set
 
 
+async def _reserve(redis: Any, user_id: uuid.UUID) -> None:
+    """Daily budget (requests counted by a fixed window of a day, tokens after each answer) and one concurrency
+    slot. Shared by chat, explain-region and translate. On success the slot belongs to the caller."""
+    settings = get_settings()
+    day = await RateLimiter(
+        redis, llm.daily_requests_key(user_id), settings.llm_daily_requests_per_user, 86400
+    ).hit()
+    if not day.allowed or await tokens_used_today(redis, user_id) >= settings.llm_daily_tokens_per_user:
+        raise _daily_limit()
+    if not await acquire_slot(redis, user_id):
+        raise RateLimitExceeded(5)
+
+
+async def _first_event(events: Any) -> llm.StreamEvent | None:
+    """Read the first event now, so a model that is down is a 502 and nothing is saved (``None``: empty stream)."""
+    try:
+        return await asyncio.wait_for(events.__anext__(), get_settings().llm_first_token_timeout + FIRST_EVENT_GRACE)
+    except StopAsyncIteration:
+        return None
+    except (llm.LLMError, TimeoutError) as exc:
+        logger.warning("chat: model unavailable before the start: %s", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="llm_unavailable") from None
+
+
+async def _close_events(events: Any) -> None:
+    aclose = getattr(events, "aclose", None)
+    if aclose is not None:
+        try:
+            await aclose()
+        except Exception:  # best effort: the provider stream may already be gone
+            pass
+
+
 async def _start_stream(
     request: Request,
     db: AsyncSession,
@@ -285,14 +324,7 @@ async def _start_stream(
     settings = get_settings()
     redis = get_redis()
     user_id = principal.user.id
-    # Daily budget: requests are counted by a fixed window (a day), tokens after each answer.
-    day = await RateLimiter(
-        redis, llm.daily_requests_key(user_id), settings.llm_daily_requests_per_user, 86400
-    ).hit()
-    if not day.allowed or await tokens_used_today(redis, user_id) >= settings.llm_daily_tokens_per_user:
-        raise _daily_limit()
-    if not await acquire_slot(redis, user_id):
-        raise RateLimitExceeded(5)
+    await _reserve(redis, user_id)
 
     events = first = None
     try:  # from here on the slot belongs to the stream; any early exit gives it back
@@ -305,15 +337,7 @@ async def _start_stream(
             events = client.stream(
                 prepared.messages, vision=prepared.vision, max_tokens=settings.llm_max_output_tokens
             )
-            try:  # read the first event now, so a model that is down is a 502 and nothing is saved
-                first = await asyncio.wait_for(
-                    events.__anext__(), settings.llm_first_token_timeout + FIRST_EVENT_GRACE
-                )
-            except StopAsyncIteration:
-                first = None
-            except (llm.LLMError, TimeoutError) as exc:
-                logger.warning("chat: model unavailable before the start: %s", type(exc).__name__)
-                raise HTTPException(status_code=502, detail="llm_unavailable") from None
+            first = await _first_event(events)
         if conversation is None:
             conversation = await chat_service.create_conversation(
                 db, user_id=user_id, workspace_id=conv_workspace, paper_id=paper.id if paper else None,
@@ -331,12 +355,7 @@ async def _start_stream(
         )
     except BaseException:
         await release_slot(redis, user_id)
-        aclose = getattr(events, "aclose", None)
-        if aclose is not None:
-            try:
-                await aclose()
-            except Exception:  # best effort: the provider stream may already be gone
-                pass
+        await _close_events(events)
         raise
     return StreamingResponse(
         stream_chat(run, request),
@@ -412,4 +431,62 @@ async def explain_region(
         request, db, principal, client, prepare, conversation=conversation, conv_workspace=paper.workspace_id,
         paper=paper, user_text=question,
         user_meta={"page_number": body.page_number, "rect": r.model_dump()},
+    )
+
+
+# ---------------------------------------------------------------- POST /papers/{id}/translate (SSE)
+@explain_router.post("/{paper_id}/translate")
+async def translate_selection(
+    paper_id: uuid.UUID,
+    body: TranslateRequest,
+    request: Request,
+    principal: Principal = Depends(require_scopes(SCOPE_USE_AI)),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Translate text selected in one paper. Same events as ``POST /chat`` (``meta`` -> ``delta``* -> ``done`` |
+    ``error``), same daily budget and concurrency slots, its own per-minute limit. The selection and up to
+    ``TRANSLATE_CONTEXT_CHARS`` characters around it from the same page (when ``page`` is given) go to the model.
+    Neither the text nor the translation is stored; the log holds the paper id, the size, the language and the time."""
+    settings = get_settings()
+    client = llm.get_client()
+    if client is None:
+        raise HTTPException(status_code=503, detail="llm_disabled")
+    redis = get_redis()
+    user_id = principal.user.id
+    await enforce_rate_limit(redis, "translate", (str(user_id),), TRANSLATE_RATE_LIMIT)
+    await enforce_rate_limit(redis, "chat-ip", (client_ip(request),), CHAT_IP_RATE_LIMIT)
+    paper = await get_paper_for_user(db, paper_id, principal)
+
+    await _reserve(redis, user_id)
+    events = first = None
+    try:  # from here on the slot belongs to the stream; any early exit gives it back
+        context = ""
+        if body.page is not None:
+            rows = (
+                await db.execute(
+                    select(PaperChunk.text)
+                    .where(PaperChunk.paper_id == paper.id, PaperChunk.page_number == body.page)
+                    .order_by(PaperChunk.chunk_index)
+                    .limit(50)
+                )
+            ).scalars().all()
+            context = surrounding_text("\n\n".join(rows), body.text, TRANSLATE_CONTEXT_CHARS)
+        messages = build_translate_messages(
+            body.text, body.target_lang, paper_id=str(paper.id), page=body.page, context=context
+        )
+        events = client.stream(messages, max_tokens=settings.llm_max_output_tokens)
+        first = await _first_event(events)
+        run = ChatRun(
+            conversation_id=None, message_id=None, user_id=user_id, paper_id=paper.id, sources=[], degraded=False,
+            model=client.model_id, prompt_chars=sum(len(_text_of(m["content"])) for m in messages), events=events,
+            first=first, translate=TranslateInfo(chars=len(body.text), target_lang=body.target_lang),
+        )
+    except BaseException:
+        await release_slot(redis, user_id)
+        await _close_events(events)
+        raise
+    return StreamingResponse(
+        stream_chat(run, request),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
     )

@@ -25,7 +25,7 @@ from app.db.session import get_sessionmaker
 from app.models.chat import ChatConversation, ChatMessageStatus, ChatRole
 from app.services import chat as chat_service
 from app.services import llm
-from app.services.chat_prompt import NO_RESULT_TEXT, Source, estimate_tokens, validate_output
+from app.services.chat_prompt import NO_RESULT_TEXT, Source, estimate_tokens, strip_images, validate_output
 from app.services.llm import LLMError, StreamEvent, Usage
 
 logger = logging.getLogger("biblioflow.chat")
@@ -41,10 +41,18 @@ class DisconnectCheck(Protocol):
     async def is_disconnected(self) -> bool: ...
 
 
+@dataclass(frozen=True)
+class TranslateInfo:
+    """A translation run: nothing is saved, and the log line holds only these (never the text)."""
+
+    chars: int
+    target_lang: str
+
+
 @dataclass
 class ChatRun:
-    conversation_id: uuid.UUID
-    message_id: uuid.UUID  # id of the assistant message, announced in ``meta`` before it exists
+    conversation_id: uuid.UUID | None  # None for a translation (nothing is saved)
+    message_id: uuid.UUID | None  # id of the assistant message, announced in ``meta`` before it exists
     user_id: uuid.UUID
     paper_id: uuid.UUID | None
     sources: list[Source]
@@ -53,9 +61,12 @@ class ChatRun:
     prompt_chars: int = 0
     events: AsyncIterator[StreamEvent] | None = None  # None: canned reply, no LLM call
     first: StreamEvent | None = None  # the event already read to prove the model answers
+    translate: TranslateInfo | None = None
     _saved: bool = field(default=False, repr=False)
 
     def meta(self) -> dict[str, Any]:
+        if self.translate is not None:
+            return {"target_lang": self.translate.target_lang}
         return {
             "conversation_id": str(self.conversation_id), "message_id": str(self.message_id),
             "degraded": self.degraded, "sources": [s.public() for s in self.sources],
@@ -124,7 +135,10 @@ async def _finalize(
     run: ChatRun, text: str, usage: Usage | None, status: ChatMessageStatus
 ) -> tuple[str, list[dict[str, Any]], dict[str, int]]:
     """Validate, save the assistant message and charge the token budget. Runs once and shielded from cancellation."""
-    clean, citations = validate_output(text, run.sources)
+    if run.translate is not None:  # a translation keeps its [n] markers (citation numbers of the paper)
+        clean, citations = strip_images(text), []
+    else:
+        clean, citations = validate_output(text, run.sources)
     reported = {"input": usage.input, "output": usage.output} if usage and (usage.input or usage.output) else None
     used = reported or {
         "input": estimate_tokens(run.prompt_chars) if run.model else 0,
@@ -134,17 +148,18 @@ async def _finalize(
         return clean, citations, used
     run._saved = True
     with anyio.CancelScope(shield=True):
-        try:
-            async with get_sessionmaker()() as db:
-                conv = await db.get(ChatConversation, run.conversation_id)
-                if conv is not None:  # deleted by the user meanwhile: nothing to attach to
-                    await chat_service.append_message(
-                        db, conv, id=run.message_id, role=ChatRole.assistant, content=clean, citations=citations,
-                        model=run.model, usage=used, status=status,
-                    )
-                    await db.commit()
-        except Exception as exc:
-            logger.error("saving the chat answer failed: %s", type(exc).__name__)
+        if run.translate is None:
+            try:
+                async with get_sessionmaker()() as db:
+                    conv = await db.get(ChatConversation, run.conversation_id)
+                    if conv is not None:  # deleted by the user meanwhile: nothing to attach to
+                        await chat_service.append_message(
+                            db, conv, id=run.message_id, role=ChatRole.assistant, content=clean,
+                            citations=citations, model=run.model, usage=used, status=status,
+                        )
+                        await db.commit()
+            except Exception as exc:
+                logger.error("saving the chat answer failed: %s", type(exc).__name__)
         if run.model:
             try:
                 await charge_tokens(get_redis(), run.user_id, used["input"] + used["output"])
@@ -206,12 +221,20 @@ async def stream_chat(run: ChatRun, request: DisconnectCheck) -> AsyncIterator[s
             status, error = ChatMessageStatus.error, LLMError()
 
         clean, citations, used = await _finalize(run, "".join(parts), usage, status)
-        logger.info(
-            "chat status=%s sources=%d model=%s in=%d out=%d ms=%d",
-            status.value, len(run.sources), run.model, used["input"], used["output"],
-            int((time.monotonic() - started) * 1000),
-        )
-        if status == ChatMessageStatus.complete:
+        ms = int((time.monotonic() - started) * 1000)
+        if run.translate is not None:  # paper id, size, language, time: never the text or the translation
+            logger.info(
+                "translate status=%s paper=%s chars=%d lang=%s in=%d out=%d ms=%d", status.value, run.paper_id,
+                run.translate.chars, run.translate.target_lang, used["input"], used["output"], ms,
+            )
+        else:
+            logger.info(
+                "chat status=%s sources=%d model=%s in=%d out=%d ms=%d",
+                status.value, len(run.sources), run.model, used["input"], used["output"], ms,
+            )
+        if status == ChatMessageStatus.complete and run.translate is not None:
+            yield sse("done", {"content": clean, "usage": used})
+        elif status == ChatMessageStatus.complete:
             yield sse(
                 "done", {"message_id": str(run.message_id), "content": clean, "usage": used, "citations": citations}
             )

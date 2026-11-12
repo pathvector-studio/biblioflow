@@ -371,8 +371,15 @@ BiblioFlow can answer questions about a paper or the whole library, and explain 
 
 - `POST /api/v1/chat` with `paper_id`: a question about one paper. Without `paper_id`: a question across every workspace you belong to (or one, with `workspace_id`). The answer streams as server-sent events (`meta`, `delta`, `done`, or `error`). Citations are numbered markers such as `[1]` that the server checks against the passages it actually sent; each comes back with the paper, page and position in the PDF and a label such as `p.4, Sec 3.2`.
 - `POST /api/v1/papers/{id}/explain-region`: a PNG or JPEG cut from a page (up to 1.5 MiB) and the rectangle it came from. The server checks the image, scales it to at most 2048 px, re-encodes it as PNG (dropping metadata) and sends it with the text of that page. It needs a vision-capable model.
+- `POST /api/v1/papers/{id}/translate`: translates text you selected in the PDF viewer (up to 4,000 characters) into the language you choose, streamed like a chat answer. See [Translating selected text](#translating-selected-text).
 - `GET /api/v1/chat/status`: whether chat is on, the provider and model, whether images are supported and how many requests you have left today. `GET /api/v1/chat/conversations` lists your conversations; only you can read them, and they are deleted `CHAT_RETENTION_DAYS` (default 90) after the last message. Images are never stored.
 - API tokens need the `use:ai` scope for chat and explanations, so a read-only token that leaks cannot spend your LLM budget.
+
+### Translating selected text
+
+Select a passage in the PDF viewer and press **Translate**: a small panel next to the selection shows the translation as it is written, with a language switch (it starts with the language of the screen), **Stop**, **Copy** and, if you can edit the paper, **Add to note**, which appends the original as a quote and the translation to the paper's notes. Readers with view-only access can translate too. The button only appears when the AI is on; administrators see a link to these instructions when it is off. A selection of more than 4,000 characters is not sent.
+
+The model receives the selected text and, to translate terms consistently, up to 1,000 characters of the same page around it. Nothing is saved: neither the selection nor the translation is stored, and the log holds only the paper ID, the number of characters, the language and the time. Translations share the daily request and token budgets and the two-at-a-time limit with chat; the per-minute limit is separate (20).
 
 ### Providers
 
@@ -397,6 +404,7 @@ If a provider is chosen but its model, key or `LLM_API_BASE` is missing, the API
 | The title, authors and year of the papers those passages come from | Your e-mail address, user ID or API tokens |
 | The last 6 exchanges of the conversation (at most 8,000 characters) | Other users' conversations |
 | For explanations: the selected image and the text of that page | |
+| For translations: the selected text and up to 1,000 characters around it from the same page | Other pages of the paper |
 
 With `ollama` (or an OpenAI-compatible server you run yourself) nothing leaves your network. Logs record only counts, the model, token numbers and timings, never the question, the answer, the passages or the image.
 
@@ -404,7 +412,7 @@ Text from papers is passed inside `<paper_context>` tags, and the system prompt 
 
 ### Limits
 
-Per user: 10 chat requests and 5 explanations per minute (and 30 per minute per IP address), at most 2 answers streaming at once, and per day `LLM_DAILY_REQUESTS_PER_USER` requests (default 200) and `LLM_DAILY_TOKENS_PER_USER` tokens (default 200,000). Each answer is capped at `LLM_MAX_OUTPUT_TOKENS` (default 1,024). If search finds nothing, the model is not called at all.
+Per user: 10 chat requests, 20 translations and 5 explanations per minute (and 30 per minute per IP address), at most 2 answers streaming at once, and per day `LLM_DAILY_REQUESTS_PER_USER` requests (default 200) and `LLM_DAILY_TOKENS_PER_USER` tokens (default 200,000). Each answer is capped at `LLM_MAX_OUTPUT_TOKENS` (default 1,024). If search finds nothing, the model is not called at all.
 
 ## Browser extension
 

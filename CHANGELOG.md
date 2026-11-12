@@ -10,6 +10,7 @@ Each pull request adds its lines under `[Unreleased]` (CI checks it; see RELEASI
 - Importing a Zotero RDF export from Zotero 7 or later now brings the PDFs along and keeps the articles' DOIs. Before, such an export came in without any PDF and with internal `BF-` identifiers instead of DOIs (found with a real Zotero 10 export; the BibTeX export was not affected).
 
 ### Added
+- Select text in the PDF viewer and press Translate to read it in your language next to the PDF (`POST /api/v1/papers/{id}/translate`). It uses the AI settings of the chat, sends only the selection and up to 1,000 characters around it from the same page, and stores nothing; editors can add the translation to the paper's notes.
 - Optional update notice: with `UPDATE_CHECK=true` the worker asks GitHub once a day for the latest release, and administrators see under Settings > Updates when a newer version exists and whether it contains security fixes (`GET /api/v1/system/update-status`, admin and session only). Off by default; nothing identifying is sent.
 
 ### Changed

@@ -14,7 +14,7 @@ import {
   type PdfScaleValue,
   type ScaledPosition,
 } from "react-pdf-highlighter-extended";
-import { BoxSelect, Sparkles, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
+import { BoxSelect, Languages, Sparkles, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { version as pdfjsVersion } from "pdfjs-dist";
 import { useI18n } from "@/lib/i18n";
 import { pdfBoxToScaled, unionScaled } from "@/lib/ai/geometry";
@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ColorSwatches, DEFAULT_COLOR } from "@/components/paper/colors";
+import { AI_SETUP_URL } from "@/components/ai/status-notice";
+import { TranslatePanel, type TranslateRequest } from "@/components/paper/translate-panel";
 
 // public/ にコピーした worker（scripts/copy-pdf-worker.mjs）。バージョンを URL に含め、長期キャッシュさせる（next.config.ts）
 const WORKER_SRC = `/pdf.worker.min.mjs?v=${pdfjsVersion}`;
@@ -142,16 +144,29 @@ function HighlightContainer({
   );
 }
 
+/** 選んだ文章の翻訳を開くのに必要な情報（パネルの位置は PdfPane が決める） */
+interface TranslateTrigger {
+  text: string;
+  page: number;
+  tipRect: DOMRect;
+}
+
 function SelectionTip({
   canEdit,
   explainEnabled,
+  translateEnabled,
+  aiSetupHint,
   onCreate,
   onExplain,
+  onTranslate,
 }: {
   canEdit: boolean;
   explainEnabled: boolean;
+  translateEnabled: boolean;
+  aiSetupHint: boolean;
   onCreate: (d: AnnotationDraft) => void;
   onExplain: (c: RegionCapture, question: string) => void;
+  onTranslate: (t: TranslateTrigger) => void;
 }) {
   const { t } = useI18n();
   const utils = usePdfHighlighterContext();
@@ -160,10 +175,25 @@ function SelectionTip({
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const isArea = utils.getCurrentSelection()?.type === "area";
-  // 解説は矩形だけ。閲覧者にはテキスト選択のツールチップを出さない
+  const tipRef = useRef<HTMLDivElement>(null);
+  const selection = utils.getCurrentSelection();
+  const isArea = selection?.type === "area";
+  const isText = !!selection && !isArea && !!selection.content.text?.trim();
+  // 解説は矩形だけ、翻訳は文章だけ。閲覧者には、使えるものがあるときだけツールチップを出す
   const showExplain = explainEnabled && isArea;
-  if (!canEdit && !showExplain) return null;
+  const showTranslate = translateEnabled && isText;
+  const showHint = aiSetupHint && isText;
+  if (!canEdit && !showExplain && !showTranslate && !showHint) return null;
+
+  function translate() {
+    const current = utils.getCurrentSelection();
+    const text = current?.content.text?.trim();
+    if (!current || !text) return;
+    const tipRect = (tipRef.current ?? document.body).getBoundingClientRect();
+    utils.removeGhostHighlight();
+    utils.setTip(null);
+    onTranslate({ text, page: current.position.boundingRect.pageNumber, tipRect });
+  }
 
   function save() {
     const current = utils.getCurrentSelection();
@@ -203,7 +233,7 @@ function SelectionTip({
   }
 
   return (
-    <div className="w-60 space-y-2 rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
+    <div ref={tipRef} className="w-60 space-y-2 rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
       {canEdit && (
         <>
           <ColorSwatches value={color} onChange={setColor} />
@@ -236,6 +266,14 @@ function SelectionTip({
           {t.reader.explainCaptureFailed}
         </p>
       )}
+      {showHint && (
+        <p className="text-xs text-muted-foreground">
+          {t.translate.disabledHint}{" "}
+          <a href={AI_SETUP_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+            {t.ai.disabledAdminLink}
+          </a>
+        </p>
+      )}
       <div className="flex flex-wrap justify-end gap-1">
         <Button size="sm" variant="outline" onClick={() => utils.setTip(null)}>
           {t.common.cancel}
@@ -244,6 +282,12 @@ function SelectionTip({
           <Button size="sm" variant={canEdit ? "outline" : "default"} disabled={busy} onClick={() => void explain()}>
             <Sparkles className="h-3.5 w-3.5" />
             {t.reader.explainWithAi}
+          </Button>
+        )}
+        {showTranslate && (
+          <Button size="sm" variant={canEdit ? "outline" : "default"} onClick={translate}>
+            <Languages className="h-3.5 w-3.5" />
+            {t.translate.button}
           </Button>
         )}
         {canEdit && (
@@ -267,13 +311,19 @@ export interface PdfPaneProps {
   /** AI で解説を使えるか（チャットが有効で、モデルが画像に対応している） */
   explainEnabled?: boolean;
   onExplain?: (c: RegionCapture, question: string) => void;
+  /** 選んだ文章を翻訳できるか（チャットが有効） */
+  translateEnabled?: boolean;
+  /** AI が無効で、管理者に有効にする手順を案内する */
+  aiSetupHint?: boolean;
+  /** 訳を論文のノートに足す（編集できる人だけ。canEdit のときに呼ばれる） */
+  onAddToNote?: (markdown: string) => void;
   onCreate: (d: AnnotationDraft) => void;
   onEdit: (a: Annotation) => void;
   onDelete: (a: Annotation) => void;
   onMove: (a: Annotation, p: ScaledPosition) => void;
 }
 
-export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focusRequest, citationRequest, explainEnabled = false, onExplain, onCreate, onEdit, onDelete, onMove }: PdfPaneProps) {
+export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focusRequest, citationRequest, explainEnabled = false, onExplain, translateEnabled = false, aiSetupHint = false, onAddToNote, onCreate, onEdit, onDelete, onMove }: PdfPaneProps) {
   const { t } = useI18n();
   const utilsRef = useRef<PdfHighlighterUtils | null>(null);
   const [scale, setScale] = useState<PdfScaleValue>("page-width");
@@ -290,6 +340,18 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
   // 編集者は注釈か解説、閲覧者は解説だけのために範囲選択を使う
   const explainAvailable = explainEnabled && !!onExplain;
   const areaAvailable = canEdit || explainAvailable;
+  // 文章を選んだときのツールチップは、注釈・翻訳・案内のどれかがあるときに出す
+  const tipAvailable = areaAvailable || translateEnabled || aiSetupHint;
+  const frame = useRef<HTMLDivElement>(null);
+  const [translateReq, setTranslateReq] = useState<TranslateRequest | null>(null);
+  const openTranslate = (trigger: TranslateTrigger) => {
+    const box = frame.current?.getBoundingClientRect();
+    if (!box) return;
+    const width = Math.min(352, box.width - 16);
+    const left = Math.max(8, Math.min(trigger.tipRect.left - box.left, box.width - width - 8));
+    const top = Math.max(8, Math.min(trigger.tipRect.top - box.top, box.height - 160));
+    setTranslateReq({ text: trigger.text, page: trigger.page, anchor: { left, top }, nonce: Date.now() });
+  };
 
   const source = useMemo(() => ({ url: `/api/v1/papers/${paperId}/file`, withCredentials: true }), [paperId]);
   // 引用の一時ハイライトは、要求から導く。数秒たったら（nonce ごとに）消す
@@ -431,7 +493,7 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
           </>
         )}
       </div>
-      <div className={cn("relative min-h-0 flex-1", areaMode && "cursor-crosshair")}>
+      <div ref={frame} className={cn("relative min-h-0 flex-1", areaMode && "cursor-crosshair")}>
         {error ? (
           <p role="alert" className="p-4 text-sm text-destructive">
             {error}
@@ -456,12 +518,15 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
                 mouseSelectionStyle={{ border: "2px dashed hsl(221 83% 53%)", background: "rgba(59,130,246,0.15)" }}
                 // 新しい要素を渡し続けることで、ライブラリ側のイベント購読が毎回張り直される（ズーム値の追従に必要）
                 selectionTip={
-                  areaAvailable ? (
+                  tipAvailable ? (
                     <SelectionTip
                       canEdit={canEdit}
                       explainEnabled={explainAvailable}
+                      translateEnabled={translateEnabled}
+                      aiSetupHint={aiSetupHint}
                       onCreate={onCreate}
                       onExplain={(c, q) => onExplain?.(c, q)}
+                      onTranslate={openTranslate}
                     />
                   ) : (
                     <></>
@@ -480,6 +545,16 @@ export function PdfPane({ paperId, annotations, canEdit, myUserId, isOwner, focu
               </PdfHighlighter>
             )}
           </PdfLoader>
+        )}
+        {translateReq && translateEnabled && (
+          <TranslatePanel
+            key={translateReq.nonce}
+            paperId={paperId}
+            request={translateReq}
+            canEdit={canEdit && !!onAddToNote}
+            onAddToNote={(md) => onAddToNote?.(md)}
+            onClose={() => setTranslateReq(null)}
+          />
         )}
       </div>
     </div>
