@@ -28,7 +28,7 @@ import { AnnotationEditDialog } from "@/components/paper/annotation-edit-dialog"
 import { AiTab, type ExplainRequest } from "@/components/paper/ai-tab";
 import { AnnotationsTab } from "@/components/paper/annotations-tab";
 import { BibliographyTab } from "@/components/paper/bibliography-tab";
-import { NotesTab } from "@/components/paper/notes-tab";
+import { NotesTab, type NoteAppend } from "@/components/paper/notes-tab";
 import { UploadBox } from "@/components/paper/upload-box";
 import type { CitationRequest } from "@/components/paper/pdf-pane";
 
@@ -68,6 +68,17 @@ export function PaperView({ paperId }: { paperId: string }) {
     staleTime: 30_000,
   });
   const explainEnabled = chatStatus.data?.enabled === true && chatStatus.data.vision_available;
+  // 選んだ文章の翻訳はチャットが有効なら出す（画像対応は要らない）。無効のときは admin にだけ手順を案内する
+  const translateEnabled = chatStatus.data?.enabled === true;
+  const aiSetupHint = chatStatus.isSuccess && !chatStatus.data.enabled && me.data?.user.is_admin === true;
+  const [noteAppend, setNoteAppend] = useState<NoteAppend | null>(null);
+  const onAddToNote = useCallback(
+    (markdown: string) => {
+      setNoteAppend({ markdown, nonce: Date.now() });
+      toast.success(t.translate.addedToNote);
+    },
+    [t],
+  );
   const [explainRequest, setExplainRequest] = useState<ExplainRequest | null>(null);
   const onExplain = useCallback((capture: RegionCapture, question: string) => {
     setTab("ai");
@@ -184,6 +195,9 @@ export function PaperView({ paperId }: { paperId: string }) {
               citationRequest={citation}
               explainEnabled={explainEnabled}
               onExplain={onExplain}
+              translateEnabled={translateEnabled}
+              aiSetupHint={aiSetupHint}
+              onAddToNote={onAddToNote}
               onCreate={onCreate}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -221,7 +235,7 @@ export function PaperView({ paperId }: { paperId: string }) {
             <TabsTrigger value="ai">{t.reader.tabAi}</TabsTrigger>
           </TabsList>
           <TabsContent value="notes" forceMount className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
-            <NotesTab key={p.id} paper={p} canEdit={canEdit} />
+            <NotesTab key={p.id} paper={p} canEdit={canEdit} append={noteAppend} />
           </TabsContent>
           <TabsContent value="bibliography" forceMount className="mt-3 min-h-0 flex-1 overflow-auto data-[state=inactive]:hidden">
             <BibliographyTab key={p.updated_at} paper={p} />

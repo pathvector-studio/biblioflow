@@ -13,7 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 
 type SaveState = "saved" | "dirty" | "saving" | "error";
 
-export function NotesTab({ paper, canEdit }: { paper: PaperDetail; canEdit: boolean }) {
+/** ノートの末尾に足す Markdown。nonce が新しいものだけ 1 回ずつ反映する */
+export interface NoteAppend {
+  markdown: string;
+  nonce: number;
+}
+
+export function NotesTab({ paper, canEdit, append }: { paper: PaperDetail; canEdit: boolean; append?: NoteAppend | null }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [text, setText] = useState(paper.notes_md);
@@ -54,6 +60,20 @@ export function NotesTab({ paper, canEdit }: { paper: PaperDetail; canEdit: bool
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void save(), 1000);
   }
+
+  // 外から足された分（翻訳など）: 入力中の内容の末尾に足して、すぐ保存する
+  const appended = useRef(append?.nonce ?? 0);
+  useEffect(() => {
+    if (!append || append.nonce === appended.current || !canEdit) return;
+    appended.current = append.nonce;
+    const base = latest.current.trimEnd();
+    const next = base ? `${base}\n\n${append.markdown}` : append.markdown;
+    setText(next);
+    latest.current = next;
+    setState("dirty");
+    if (timer.current) clearTimeout(timer.current);
+    void save();
+  }, [append, canEdit, save]);
 
   // 画面を離れるときに未保存の変更があればその場で送る
   useEffect(

@@ -71,3 +71,18 @@ class ExplainRegionRequest(BaseModel):
     image: str = Field(min_length=1, max_length=2_200_000)  # data URL; the exact limits are checked after parsing
     question: str | None = Field(default=None, max_length=1000)
     conversation_id: uuid.UUID | None = None
+
+
+class TranslateRequest(BaseModel):
+    """Translate text the user selected in one paper. Nothing of it is stored."""
+
+    text: str = Field(min_length=1, max_length=4000)
+    target_lang: str = Field(default="ja", pattern=r"^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$", max_length=20)
+    page: int | None = Field(default=None, ge=1, le=100_000)
+
+    @field_validator("text")
+    @classmethod
+    def _not_blank(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("text must not be blank")
+        return v
