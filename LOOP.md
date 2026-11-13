@@ -17,7 +17,7 @@
 | community | コミュニティのファイル（CONTRIBUTING・CODE_OF_CONDUCT・issue / PR テンプレート）と README の刷新 | done | #72（Code of Conduct はユーザーの連絡先待ち） |
 | d-csl | トラック D: 引用スタイル（CSL）での参考文献の出力のみ | done | #74 |
 | translate | PDF の翻訳: 選んだ文章の翻訳のみ | done | #76 |
-| v1-compat | v1 の基準 3（互換性の約束）: リリースごとに OpenAPI（`openapi.json`）を Release に添えて公開し、API の破壊的変更を検出する（前のタグとの差分）。CI で前のリリースタグを入れてから今の版にアップグレードし、`restore.sh --check` まで通す | spec | `RELEASING.md` の基準 3。新しいワークフローや Release への添付はユーザーの承認が要る（spec に書く） |
+| v1-compat | v1 の基準 3（互換性の約束）: リリースごとに OpenAPI（`openapi.json`）を Release に添えて公開し、API の破壊的変更を検出する（前のタグとの差分）。CI で前のリリースタグを入れてから今の版にアップグレードし、`restore.sh --check` まで通す | waiting | spec の承認待ち（`specs/v1-compat.md`）。`RELEASING.md` の基準 3。新しいワークフローや Release への添付はユーザーの承認が要る（spec に書く） |
 | dep-pypdf7 | pypdf 6 → 7（Dependabot #61）: 変更点の調査、PDF の検査・チャンク抽出（`pdf.py`・`chunking.py` の `visitor_text`、1 文字ずつの行の処理）への影響、移行の計画 | spec | #61 は CI が通っている。メジャー更新なのでマージは spec の承認後 |
 | dep-bibtexparser2 | bibtexparser 1.x → 2（Dependabot #62）: 2 系の API への移行（取り込みのパーサ、`@string` の保持、子プロセスでの解析）の計画 | spec | #62 は compose のジョブが落ちる。AGENTS.md 6.2 の「`bibtexparser` 1.x」の記述も更新が要る |
 | dist-clients | v1 の基準 6（クライアントの配布）の準備: biblioflow-mcp を PyPI に出せる形にする（パッケージの中身・版・trusted publishing の手順）と、拡張のストア掲載の文面・スクリーンショット・権限の説明。公開そのものはしない | spec | 公開・新しいワークフロー・アカウントの作成は毎回ユーザーの承認 |
