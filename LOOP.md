@@ -1,6 +1,6 @@
 # LOOP
 
-開発ループ（`.claude/skills/dev-loop/SKILL.md`、`/loop /dev-loop` で回す）のキュー。上から順に処理する。体制は `specs/agent-workflow.md`。
+開発ループ（`.claude/skills/dev-loop/SKILL.md`、`/loop dev-loop スキルでループを 1 周回して` で回す）のキュー。上から順に処理する。体制は `specs/agent-workflow.md`。
 
 状態:
 - `ready` — ユーザーが計画を承認済み。ループが実装 → PR → CI green → マージまで進める

@@ -3,7 +3,7 @@
 親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-13
 
 ## 進行中
-- 2026-11-13 から開発ループ（`/loop /dev-loop`、`LOOP.md`）に切り替え。次は v1-compat（v1 の基準 3）の spec、続いて pypdf 7・bibtexparser 2 の spec、dist-clients（基準 6 の準備）の spec
+- 2026-11-13 から開発ループ（`/loop dev-loop スキルでループを 1 周回して`、`LOOP.md`）に切り替え。次は v1-compat（v1 の基準 3）の spec、続いて pypdf 7・bibtexparser 2 の spec、dist-clients（基準 6 の準備）の spec
 
 ## 承認待ち（ユーザー）
 - v0.3.0 のタグ・GitHub Release・本番の更新・本番のバックアップの cron。タグ前のチェック（新規インストール・v0.2.0 からのアップグレード・`restore.sh --check`）は 2026-11-12 に通った。タグは #66 のマージ（1a46a61）。それ以降の変更は `[Unreleased]`（次の 0.4.0）

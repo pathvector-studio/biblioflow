@@ -1,6 +1,6 @@
 ---
 name: dev-loop
-description: BiblioFlow の開発ループを 1 周だけ回す（キュー LOOP.md から 1 項目を選び、worktree で実装・検証・PR・CI green・マージ・記録まで）。`/loop /dev-loop` で繰り返す。「ループを回して」「次の項目を進めて」と言われたときに使う。
+description: BiblioFlow の開発ループを 1 周だけ回す（キュー LOOP.md から 1 項目を選び、worktree で実装・検証・PR・CI green・マージ・記録まで）。`/loop dev-loop スキルでループを 1 周回して` で繰り返す。「ループを回して」「次の項目を進めて」と言われたときに使う。
 ---
 
 # dev-loop: 1 周の手順
