@@ -1,15 +1,16 @@
 # STATUS
 
-親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-12
+親セッションだけが更新する（体制は `specs/agent-workflow.md`）。最終更新: 2026-11-13
 
 ## 進行中
-- なし
+- 2026-11-13 から開発ループ（`/loop /dev-loop`、`LOOP.md`）に切り替え。次は v1-compat（v1 の基準 3）の spec、続いて pypdf 7・bibtexparser 2 の spec、dist-clients（基準 6 の準備）の spec
 
 ## 承認待ち（ユーザー）
 - v0.3.0 のタグ・GitHub Release・本番の更新・本番のバックアップの cron。タグ前のチェック（新規インストール・v0.2.0 からのアップグレード・`restore.sh --check`）は 2026-11-12 に通った。タグは #66 のマージ（1a46a61）。それ以降の変更は `[Unreleased]`（次の 0.4.0）
 - CODE_OF_CONDUCT.md の連絡先（専用のアドレス。個人のメールは書かない）。文面は用意済み
 - GitHub Sponsors の tier（文案は `specs/community.md` の末尾）
-- Dependabot のメジャー更新 pypdf 7（#61）・bibtexparser 2（#62）の扱い（`LOOP.md` に spec の項目として載っている）
+- Dependabot のメジャー更新 pypdf 7（#61）・bibtexparser 2（#62）: ループが spec を書くので、その承認
+- Dependabot の setup-uv 7 → 10（#81、Actions のメジャー更新）
 
 ## 予定
 - v1.0 の基準（`RELEASING.md`）: 1 移行・2 CSL・4 セキュリティは完了（2026-11-12）。残りは 3 互換性の約束（OpenAPI の公開と、前のタグからのアップグレードを CI で）、5 本番での常用（4 週間・実際の復元・外の利用者 3 人）、6 クライアントの配布（Chrome Web Store・AMO・PyPI。公開は毎回ユーザーの承認）
