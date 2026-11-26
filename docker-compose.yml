@@ -264,7 +264,7 @@ services:
   # Requires CLOUDFLARE_TUNNEL_TOKEN in .env. In Cloudflare Zero Trust, route the
   # public hostname to http://biblioflow-gateway:8081 (trusted listener).
   biblioflow-cloudflared:
-    image: cloudflare/cloudflared:2026.10.7
+    image: cloudflare/cloudflared:2026.11.1
     container_name: ${BF_INSTANCE:-biblioflow}-cloudflared
     logging: *logging
     profiles: ["cloudflare"]
